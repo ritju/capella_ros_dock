@@ -128,6 +128,7 @@ def generate_launch_description():
         executable='charge_manage',
         package='charge_manager',
         name='charge_manager_node',
+        respawn=True
     )
 
     # charge_action node
@@ -135,6 +136,7 @@ def generate_launch_description():
         executable='charge_action',
         package='charge_manager',
         name='charge_action_node',
+        respawn=True
     )
     # bluetooth_old node
     bluetooth_old_node = Node(
