@@ -104,7 +104,9 @@ void reset()
 // \return empty optional if no goal or velocity command to get to next goal point
 BehaviorsScheduler::optional_output_t get_velocity_for_position(
 	const tf2::Transform & current_pose, bool sees_dock, bool is_docked, bool bluetooth_connected,
-	nav_msgs::msg::Odometry odom_msg, rclcpp::Clock::SharedPtr clock_, rclcpp::Logger logger_, motion_control_params* params_ptr, capella_ros_dock_msgs::msg::HazardDetectionVector hazards, std::string & state, std::string & infos)
+	nav_msgs::msg::Odometry odom_msg, rclcpp::Clock::SharedPtr clock_, rclcpp::Logger logger_, 
+	motion_control_params* params_ptr, capella_ros_dock_msgs::msg::HazardDetectionVector hazards, 
+	std::string & state, std::string & infos, double orientation_rotate)
 {
 	// impl undock (go to undock state)
 	if (goal_points_.size() >0 && !(goal_points_.front().drive_backwards))
@@ -329,7 +331,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		}
 		else
 		{
-			servo_vel->angular.z = params_ptr->max_rotation;
+			servo_vel->angular.z = std::copysign((params_ptr->min_rotation + params_ptr->max_rotation) / 2.0, orientation_rotate);
 			RCLCPP_DEBUG(logger_, "can not see dock");
 			state = std::string("LOOKUP_ARUCO_MARKER");
 			infos = std::string("Reason: can not see marker ==> rotate robot");
@@ -463,7 +465,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		}
 		else
 		{
-			servo_vel->angular.z = (params_ptr->min_rotation + params_ptr->max_rotation) / 2.0;
+			servo_vel->angular.z = std::copysign((params_ptr->min_rotation + params_ptr->max_rotation) / 2.0, orientation_rotate);
 			RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000,  "ANGLE_TO_X_POSITIVE_ORIENTATION => servo_vel->angular.z: %f", servo_vel->angular.z);
 			state = std::string("ANGLE_TO_X_POSITIVE_ORIENTATION");
 			infos = std::string("Reason: ANGLE_TO_X_POSITIVE_ORIENTATION not converged ==> keep on rotating");

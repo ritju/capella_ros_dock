@@ -31,6 +31,12 @@
 #include "aruco_msgs/msg/marker_and_mac_vector.hpp"
 
 #include "std_msgs/msg/bool.hpp"
+#include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
+#include "tf2_ros/transform_broadcaster.h"
+#include "tf2_ros/buffer.h"
+#include "tf2_ros/transform_listener.h"
+#include "angles/angles.h"
+
 
 namespace capella_ros_dock
 {
@@ -173,6 +179,19 @@ std::string infos;
 
 void generate_sin_cos_table(float theta_min, float increament, int size);
 bool check_undock_has_obstale(sensor_msgs::msg::LaserScan);
+
+// generate robot rotate orientation
+std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
+tf2::Transform tf_robot;
+tf2::Transform tf_charger;
+double orientation_rotate = 1.0;
+geometry_msgs::msg::PoseStamped robot_map;
+geometry_msgs::msg::PoseStamped charger_map;
+bool getTransform(const std::string & refFrame, const std::string & childFrame,geometry_msgs::msg::TransformStamped & transform);
+rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr charger_map_sub_;
+void charger_map_sub_callback(geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
+
 };
 
 }  // namespace capella_ros_dock

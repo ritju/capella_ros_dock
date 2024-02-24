@@ -22,6 +22,8 @@ DockingBehavior::DockingBehavior(
 	max_action_runtime_(rclcpp::Duration(std::chrono::seconds(params_ptr->max_action_runtime)))
 {
 	RCLCPP_INFO(logger_, "DockingBehavior constructor.");
+	tf_buffer_ = std::make_unique<tf2_ros::Buffer>(clock_);
+	tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 	behavior_scheduler_ = behavior_scheduler;
 	last_feedback_time_ = clock_->now();
 	this->params_ptr = params_ptr;
@@ -85,7 +87,13 @@ DockingBehavior::DockingBehavior(
 		rclcpp::QoS(rclcpp::KeepLast(30)),
 		std::bind(&DockingBehavior::marker_and_mac_callback, this, _1)
 		);
-	
+
+	charger_map_sub_ = rclcpp::create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
+		node_topics_interface,
+		"/charger/pose",
+		rclcpp::QoS(rclcpp::QoS(rclcpp::KeepLast(1)).transient_local().reliable()),
+		std::bind(&DockingBehavior::charger_map_sub_callback, this, _1)
+		);	
 
 	docking_action_server_ = rclcpp_action::create_server<capella_ros_dock_msgs::action::Dock>(
 		node_base_interface,
@@ -117,6 +125,37 @@ DockingBehavior::DockingBehavior(
 	action_start_time_ = clock_->now();
 }
 
+void DockingBehavior::charger_map_sub_callback(geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg)
+{
+	charger_map.header = msg->header;
+	charger_map.pose = msg->pose.pose;
+	tf2::convert(charger_map, tf_charger);
+}
+
+bool DockingBehavior::getTransform(const std::string & refFrame, const std::string & childFrame,geometry_msgs::msg::TransformStamped & transform)
+{
+	std::string errMsg;
+
+	if (!tf_buffer_->canTransform(
+		    refFrame, childFrame, tf2::TimePointZero,
+		    tf2::durationFromSec(0.5), &errMsg))
+	{
+		RCLCPP_ERROR_STREAM(logger_, "Unable to get pose from TF: " << errMsg);
+		return false;
+	} else {
+		try {
+			transform = tf_buffer_->lookupTransform(
+				refFrame, childFrame, tf2::TimePointZero, tf2::durationFromSec(
+					0.5));
+		} catch (const tf2::TransformException & e) {
+			RCLCPP_ERROR_STREAM(
+				logger_,
+				"Error in lookupTransform of " << childFrame << " in " << refFrame << " : " << e.what());
+			return false;
+		}
+	}
+	return true;
+}
 
 void DockingBehavior::raw_vel_sub_callback(capella_ros_msg::msg::Velocities raw_vel)
 {
@@ -275,7 +314,7 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_dock_servo(
 	}
 	auto hazards = current_state.hazards;
 	servo_cmd = goal_controller_->get_velocity_for_position(robot_pose, sees_dock_, is_docked_, bluetooth_connected,
-	                                                        odom_msg, clock_, logger_, params_ptr, hazards, state, infos);
+	                                                        odom_msg, clock_, logger_, params_ptr, hazards, state, infos, orientation_rotate);
 	if(this->is_docked_)
 	{
 		RCLCPP_DEBUG(logger_, "zero cmd time => sec: %f", this->clock_.get()->now().seconds());
@@ -440,9 +479,24 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_undock(
 		robot_pose = last_robot_pose_;
 	}
 	auto hazards = current_state.hazards;
+	tf2::Stamped<tf2::Transform> tf_robot_stamped;
+	tf_robot_stamped.setIdentity();
+	geometry_msgs::msg::TransformStamped tf_robot_map;
+	if (getTransform(std::string("map"), std::string("base_link"), tf_robot_map))
+	{
+		tf2::fromMsg(tf_robot_map, tf_robot_stamped);
+		tf_robot = static_cast<tf2::Transform>(tf_robot_stamped);
+		auto yaw_charger = tf2::getYaw(tf_charger.getRotation());
+		auto yaw_robot = tf2::getYaw(tf_robot.getRotation());
+		orientation_rotate = angles::shortest_angular_distance(yaw_robot, yaw_charger);
+	}
+	else
+	{
+		orientation_rotate = 1.0;
+	}
 	servo_cmd = goal_controller_->get_velocity_for_position(robot_pose, sees_dock_,
 	                                                        is_docked_, bluetooth_connected,
-								 odom_msg, clock_, logger_, params_ptr, hazards, state, infos);
+								 odom_msg, clock_, logger_, params_ptr, hazards, state, infos, orientation_rotate);
 
 	
 	auto msg = std_msgs::msg::Bool();
