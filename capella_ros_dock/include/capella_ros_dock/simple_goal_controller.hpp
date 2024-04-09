@@ -165,8 +165,8 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		last_time_cannot_see_dock = clock_->now();
 		RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "stop for hazards.");
 		auto distance = std::abs(current_pose.getOrigin().getX());
-		RCLCPP_DEBUG(logger_, "distance: %f", distance);
-		RCLCPP_DEBUG(logger_, "throttle: %f", params_ptr->dock_valid_obstacle_x);
+		RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "distance: %f", distance);
+		RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "throttle: %f", params_ptr->dock_valid_obstacle_x);
 		servo_vel = geometry_msgs::msg::Twist();
 		state = std::string(" > ANGLE_TO_X_POSITIVE_ORIENTATION");
 		infos = std::string("Reason: have valid hazards and navigate_state > ANGLE_TO_X_POSITIVE_ORIENTATION  ==> stop ...");

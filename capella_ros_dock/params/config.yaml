@@ -52,7 +52,7 @@ motion_control:
     cmd_vel_hz: 10
     angle_delta: 0.1
     marker_size: 0.2
-    dock_valid_obstacle_x: 0.70
+    dock_valid_obstacle_x: 0.90
     time_sleep: 5.0
     speed_rotation_acceleration: 0.3
     speed_rotation_init_abs: 0.02
