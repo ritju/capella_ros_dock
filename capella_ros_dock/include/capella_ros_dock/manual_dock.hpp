@@ -54,6 +54,8 @@ public:
         rclcpp_action::Client<charge_manager_msgs::action::Charge>::SharedPtr charge_client_;
 
         void charge_result_callback(rclcpp_action::ClientGoalHandle<charge_manager_msgs::action::Charge>::WrappedResult);
+        void charge_goal_response_callback(const rclcpp_action::ClientGoalHandle<charge_manager_msgs::action::Charge>::SharedPtr & goal_handle);
+        void charge_feedback_callback(rclcpp_action::ClientGoalHandle<charge_manager_msgs::action::Charge>::SharedPtr, const std::shared_ptr<const charge_manager_msgs::action::Charge::Feedback> feedback);
         bool charge_action_executing{false};
 
         void init_params();

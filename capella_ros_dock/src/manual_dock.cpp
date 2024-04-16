@@ -2,7 +2,7 @@
 #include "rclcpp_components/register_node_macro.hpp"
 
 
-using std::placeholders::_1;
+using std::placeholders::_1, std::placeholders::_2;
 using namespace std::chrono_literals;
 
 namespace capella_ros_dock 
@@ -309,14 +309,14 @@ namespace capella_ros_dock
                         RCLCPP_INFO_THROTTLE(get_logger(), *this->get_clock(), 10000, "robot_moved_base_link: %s, robot_moved_odom: %s", robot_moved_baselink ? "true":"false", robot_moved_odom ? "true" : "false" );
                 }
 
-                RCLCPP_INFO_THROTTLE(get_logger(), *this->get_clock(), 15000, "******************************* charger/state callback *******************************");
-                RCLCPP_INFO_THROTTLE(get_logger(), *this->get_clock(), 15000,  "robot_map_charging: (%f, %f, %f)", robot_x_map_charging, robot_y_map_charging, robot_yaw_map_charging);
-                RCLCPP_INFO_THROTTLE(get_logger(), *this->get_clock(), 15000,  "robot_map_current : (%f, %f, %f), localization_score: %f,", robot_x_map, robot_y_map, robot_yaw_map, localization_score);
-                RCLCPP_INFO_THROTTLE(get_logger(), *this->get_clock(), 15000,  "dist_map: %f ", std::hypot(robot_x_map_charging - robot_x_map, robot_y_map_charging - robot_y_map));
-                RCLCPP_INFO_THROTTLE(get_logger(), *this->get_clock(), 15000,  "odom_map_charging : (%f, %f, %f)", odom_charging_x, odom_charging_y, odom_charging_yaw);
-                RCLCPP_INFO_THROTTLE(get_logger(), *this->get_clock(), 15000,  "odom_map_current  : (%f, %f, %f)", odom_current_x, odom_current_y, odom_current_yaw);
-                RCLCPP_INFO_THROTTLE(get_logger(), *this->get_clock(), 15000,  "dist_odom: %f ", std::hypot(odom_charging_x - odom_current_x, odom_charging_y - odom_current_y));
-                RCLCPP_INFO_THROTTLE(get_logger(), *this->get_clock(), 15000, "******************************* charger/state callback *******************************");
+                RCLCPP_DEBUG_THROTTLE(get_logger(), *this->get_clock(), 15000, "******************************* charger/state callback *******************************");
+                RCLCPP_DEBUG_THROTTLE(get_logger(), *this->get_clock(), 15000,  "robot_map_charging: (%f, %f, %f)", robot_x_map_charging, robot_y_map_charging, robot_yaw_map_charging);
+                RCLCPP_DEBUG_THROTTLE(get_logger(), *this->get_clock(), 15000,  "robot_map_current : (%f, %f, %f), localization_score: %f,", robot_x_map, robot_y_map, robot_yaw_map, localization_score);
+                RCLCPP_DEBUG_THROTTLE(get_logger(), *this->get_clock(), 15000,  "dist_map: %f ", std::hypot(robot_x_map_charging - robot_x_map, robot_y_map_charging - robot_y_map));
+                RCLCPP_DEBUG_THROTTLE(get_logger(), *this->get_clock(), 15000,  "odom_map_charging : (%f, %f, %f)", odom_charging_x, odom_charging_y, odom_charging_yaw);
+                RCLCPP_DEBUG_THROTTLE(get_logger(), *this->get_clock(), 15000,  "odom_map_current  : (%f, %f, %f)", odom_current_x, odom_current_y, odom_current_yaw);
+                RCLCPP_DEBUG_THROTTLE(get_logger(), *this->get_clock(), 15000,  "dist_odom: %f ", std::hypot(odom_charging_x - odom_current_x, odom_charging_y - odom_current_y));
+                RCLCPP_DEBUG_THROTTLE(get_logger(), *this->get_clock(), 15000, "******************************* charger/state callback *******************************");
         }
 
         void ManualDock::charger_visible_sub_callback(capella_ros_service_interfaces::msg::ChargeMarkerVisible msg)
@@ -356,7 +356,7 @@ namespace capella_ros_dock
                 if (is_in_charger_range != is_in_charger_range_last)
                 {
                         msg_pub.data = is_in_charger_range;
-                        RCLCPP_INFO(get_logger(), "/charger_position_bool state changed, publish one time ......");
+                        RCLCPP_INFO(get_logger(), "/charger_position_bool state changed, publish one time ...... value: %s", is_in_charger_range ? "true" : "false");
                         charger_position_pub_->publish(msg_pub);
                         is_in_charger_range_last = is_in_charger_range;
                 }
@@ -446,6 +446,8 @@ namespace capella_ros_dock
                                                         this->charge_action_executing = true;
                                                         auto send_goals_options = rclcpp_action::Client<charge_manager_msgs::action::Charge>::SendGoalOptions();
                                                         send_goals_options.result_callback = std::bind(&ManualDock::charge_result_callback, this, _1);
+                                                        send_goals_options.goal_response_callback = std::bind(&ManualDock::charge_goal_response_callback, this, _1);
+                                                        send_goals_options.feedback_callback = std::bind(&ManualDock::charge_feedback_callback, this, _1, _2);
                                                         this->charge_client_->async_send_goal(charge_goal, send_goals_options);
                                                 }
                                                 else
@@ -532,6 +534,25 @@ namespace capella_ros_dock
         {
                 this->charge_action_executing = false;
                 RCLCPP_INFO(get_logger(), "====== manual-charing ended! ======");
+        }
+
+        void ManualDock::charge_goal_response_callback(const rclcpp_action::ClientGoalHandle<charge_manager_msgs::action::Charge>::SharedPtr & goal_handle)
+        {
+                if (!goal_handle)
+                {
+                        RCLCPP_INFO(this->get_logger(), "Manual dock /charge action was rejected by server.");
+                        this->charge_action_executing = false;
+                }
+                else
+                {
+                        RCLCPP_INFO(this->get_logger(), "Manual dock /charge action was accepted.");
+                        this->charge_action_executing = true;
+                }
+        }
+
+        void ManualDock::charge_feedback_callback(rclcpp_action::ClientGoalHandle<charge_manager_msgs::action::Charge>::SharedPtr, const std::shared_ptr<const charge_manager_msgs::action::Charge::Feedback> feedback)
+        {
+                RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 5000, "/charge action feedback === state: %s", feedback->state.c_str());
         }
 
         void ManualDock::client_bluetooth_callback(const rclcpp::Client<charge_manager_msgs::srv::ConnectBluetooth>::SharedFuture future)
