@@ -50,7 +50,7 @@ DockingBehavior::DockingBehavior(
 
 	robot_pose_sub_ = rclcpp::create_subscription<aruco_msgs::msg::PoseWithId>(
 		node_topics_interface,
-		"/aruco_single/pose_with_id",
+		"/pose_with_id",
 		rclcpp::SensorDataQoS(),
 		std::bind(&DockingBehavior::robot_pose_callback, this, _1));
 
