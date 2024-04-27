@@ -75,7 +75,7 @@ namespace capella_ros_dock
                         sub_ops2
                 );
                 pose_with_id_sub_ = this->create_subscription<aruco_msgs::msg::PoseWithId>(
-                        "aruco_single/pose_with_id",
+                        "pose_with_id",
                         30,
                         std::bind(&ManualDock::pose_with_id_sub_callback, this, std::placeholders::_1),
                         sub_ops3
