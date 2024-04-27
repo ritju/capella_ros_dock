@@ -502,6 +502,10 @@ void DockingBehavior::robot_pose_callback(aruco_msgs::msg::PoseWithId::ConstShar
 	{
 		tf2::convert(msg->pose.pose, last_robot_pose_);
 	}
+	else
+	{
+		RCLCPP_DEBUG_THROTTLE(logger_, *clock_, 5000, "topic /pose_with_id's marker_id: %d, node's marker_id_: %d", msg->marker_id, marker_id_);
+	}
 }
 
 // void DockingBehavior::dock_pose_callback(geometry_msgs::msg::PoseStamped::ConstSharedPtr msg)
