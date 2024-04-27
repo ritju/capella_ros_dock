@@ -63,7 +63,7 @@ namespace capella_ros_dock
                 sub_ops9.callback_group = cb_group9;
 
                 marker_and_mac_sub_ = this->create_subscription<aruco_msgs::msg::MarkerAndMacVector>(
-                        "aruco_single/id_mac",
+                        "/id_mac",
                         30,
                         std::bind(&ManualDock::marker_and_mac_sub_callback, this, std::placeholders::_1),
                         sub_ops1
