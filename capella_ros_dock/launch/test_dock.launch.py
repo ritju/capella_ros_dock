@@ -16,6 +16,7 @@ def generate_launch_description():
     # get pkg path
     camera_pkg_path = get_package_share_directory('astra_camera')
     aruco_pkg_path = get_package_share_directory('aruco_ros')
+    apriltag_pkg_path = get_package_share_directory('apriltag_ros')
     dock_pkg_path = get_package_share_directory('capella_ros_dock')
 
     # create launch configuration variables
@@ -82,6 +83,12 @@ def generate_launch_description():
     aruco_launch_file = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(os.path.join(aruco_pkg_path, 'launch', 'single.launch.py'))
     )
+
+    # apriltag launch file
+    apriltag_launch_file = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(os.path.join(apriltag_pkg_path, 'launch', 'apriltag_ros.launch.py'))
+    )
+
 
     # motion_control Node
     motion_control_node = Node(
@@ -159,7 +166,20 @@ def generate_launch_description():
 
     launch_description.add_action(manual_dock_node)
     # launch_description.add_action(camera_launch_file)
-    # launch_description.add_action(aruco_launch_file)
+
+    # choose marker type: aruco marker or apriltag marker
+    if 'CHARGER_MARKER_TYPE' in os.environ:
+        marker_type = os.environ.get('CHARGER_MARKER_TYPE')
+        if marker_type.upper() == "ARUCO":
+            launch_description.add_action(aruco_launch_file)
+        elif marker_type.upper() == "APRILTAG":
+            launch_description.add_action(apriltag_launch_file)
+        else:
+            print(f'The value of CHARGER_MARKER_TYPE is {marker_type}, just use default value ARUCO.')
+            launch_description.add_action(aruco_launch_file)
+    else:
+        launch_description.add_action(aruco_launch_file) 
+
     launch_description.add_action(motion_control_node)
     launch_description.add_action(hazards_vector_publisher_node)
     launch_description.add_action(camera_point_cloud_process_node)
