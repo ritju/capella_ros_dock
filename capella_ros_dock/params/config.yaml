@@ -57,7 +57,7 @@ motion_control:
     speed_rotation_acceleration: 0.3
     speed_rotation_init_abs: 0.02
     max_action_runtime: 180
-    contacted_keep_move_time: 0.3
+    contacted_keep_move_time: 0.10
     undock_speed: 0.15
     undock_time: 5.0
     undock_obstacle_lr: 0.5 # lr, left_right

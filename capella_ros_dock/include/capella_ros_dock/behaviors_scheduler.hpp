@@ -18,6 +18,7 @@ namespace capella_ros_dock
 struct RobotState
 {
   tf2::Transform pose;
+  tf2::Transform charger_pose;
   capella_ros_dock_msgs::msg::HazardDetectionVector hazards;
 };
 

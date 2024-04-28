@@ -21,8 +21,13 @@ MotionControlNode::MotionControlNode(const rclcpp::NodeOptions & options)
 {
 	RCLCPP_INFO(this->get_logger(), "motion_control node constructor.");
 
+	tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
+	tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+	tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(this);
+
 	// only compatible for other behaviors
 	current_state_.pose.setIdentity();
+	current_state_.charger_pose.setIdentity();
 	current_state_.hazards = capella_ros_dock_msgs::msg::HazardDetectionVector();
 
 	init_params();
@@ -33,6 +38,13 @@ MotionControlNode::MotionControlNode(const rclcpp::NodeOptions & options)
 	options_hazard_detection.callback_group = cb_group_hazards_;
 	sub_hazards_ = this->create_subscription<capella_ros_dock_msgs::msg::HazardDetectionVector>
 	                       ("hazard_detection", rclcpp::SensorDataQoS(), std::bind(&MotionControlNode::cb_hazard_detection, this, _1), options_hazard_detection);
+
+	// create subscription to /charger/pose
+	auto options_charger_pose = rclcpp::SubscriptionOptions();
+	cb_group_charger_pose_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+	options_charger_pose.callback_group = cb_group_charger_pose_;
+	sub_charger_pose_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>
+	                       ("/charger/pose", rclcpp::QoS(5).transient_local().reliable(), std::bind(&MotionControlNode::cb_charger_pose, this, _1), options_charger_pose);
 
 	// Create behaviors scheduler
 	scheduler_ = std::make_shared<BehaviorsScheduler>();
@@ -152,6 +164,48 @@ void MotionControlNode::cb_hazard_detection(capella_ros_dock_msgs::msg::HazardDe
 
 }
 
+void MotionControlNode::cb_charger_pose(geometry_msgs::msg::PoseWithCovarianceStamped msg)
+{
+	RCLCPP_INFO(get_logger(), "Receive a new charger/pose.");
+	tf2::Stamped<tf2::Transform> stamped_tf;
+	geometry_msgs::msg::TransformStamped msg_tf_stamped;
+	msg_tf_stamped.header = msg.header;
+	msg_tf_stamped.child_frame_id = std::string("charger");
+	msg_tf_stamped.transform.translation.x = msg.pose.pose.position.x;
+	msg_tf_stamped.transform.translation.y = msg.pose.pose.position.y;
+	msg_tf_stamped.transform.translation.z = msg.pose.pose.position.z;
+	msg_tf_stamped.transform.rotation = msg.pose.pose.orientation;
+	tf2::fromMsg(msg_tf_stamped, stamped_tf);
+	current_state_.charger_pose = static_cast<tf2::Transform>(stamped_tf);
+}
+
+bool MotionControlNode::getTransform(
+	const std::string & refFrame, const std::string & childFrame,
+	geometry_msgs::msg::TransformStamped & transform)
+{
+	std::string errMsg;
+
+	if (!tf_buffer_->canTransform(
+		    refFrame, childFrame, tf2::TimePointZero,
+		    tf2::durationFromSec(0.5), &errMsg))
+	{
+		RCLCPP_ERROR_STREAM(this->get_logger(), "Unable to get pose from TF: " << errMsg);
+		return false;
+	} else {
+		try {
+			transform = tf_buffer_->lookupTransform(
+				refFrame, childFrame, tf2::TimePointZero, tf2::durationFromSec(
+					0.5));
+		} catch (const tf2::TransformException & e) {
+			RCLCPP_ERROR_STREAM(
+				this->get_logger(),
+				"Error in lookupTransform of " << childFrame << " in " << refFrame << " : " << e.what());
+			return false;
+		}
+	}
+	return true;
+}
+
 void MotionControlNode::start_control_timer_callback()
 {
 	if(scheduler_->has_behavior())
@@ -178,6 +232,16 @@ void MotionControlNode::control_robot()
 	BehaviorsScheduler::optional_output_t command;
 	if (scheduler_->has_behavior()) {
 		const std::lock_guard<std::mutex> lock(current_state_mutex_);
+		geometry_msgs::msg::TransformStamped transform_stamped;
+		tf2::Stamped<tf2::Transform> stamped_map2baselink;
+		stamped_map2baselink.setIdentity();
+		if (!getTransform(std::string("map"), std::string("base_link"), transform_stamped))
+		{
+			RCLCPP_INFO(get_logger(), "Failed to get tf from map to base_link.");
+		}
+		tf2::fromMsg(transform_stamped, stamped_map2baselink);
+		current_state_.pose = static_cast<tf2::Transform>(stamped_map2baselink);
+
 		command = scheduler_->run_behavior(current_state_);
 	}
 

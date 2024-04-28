@@ -274,7 +274,7 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_dock_servo(
 		robot_pose = last_robot_pose_;
 	}
 	auto hazards = current_state.hazards;
-	servo_cmd = goal_controller_->get_velocity_for_position(robot_pose, sees_dock_, is_docked_, bluetooth_connected,
+	servo_cmd = goal_controller_->get_velocity_for_position(robot_pose, current_state.pose, current_state.charger_pose, sees_dock_, is_docked_, bluetooth_connected,
 	                                                        odom_msg, clock_, logger_, params_ptr, hazards, state, infos);
 	if(this->is_docked_)
 	{
@@ -440,7 +440,7 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_undock(
 		robot_pose = last_robot_pose_;
 	}
 	auto hazards = current_state.hazards;
-	servo_cmd = goal_controller_->get_velocity_for_position(robot_pose, sees_dock_,
+	servo_cmd = goal_controller_->get_velocity_for_position(robot_pose, current_state.pose, current_state.charger_pose, sees_dock_,
 	                                                        is_docked_, bluetooth_connected,
 								 odom_msg, clock_, logger_, params_ptr, hazards, state, infos);
 
@@ -557,7 +557,7 @@ void DockingBehavior::laserScan_sub_callback(sensor_msgs::msg::LaserScan msg)
 void DockingBehavior::charger_id_callback(std_msgs::msg::String msg)
 {
 	charger_id_ = msg.data;
-	for(int i = 0; i < marker_and_mac_vector.marker_and_mac_vector.size(); i++)
+	for(size_t i = 0; i < marker_and_mac_vector.marker_and_mac_vector.size(); i++)
 	{
 		if(charger_id_.compare(marker_and_mac_vector.marker_and_mac_vector[i].bluetooth_mac) == 0)
 		{

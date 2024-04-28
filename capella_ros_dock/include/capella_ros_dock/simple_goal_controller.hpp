@@ -103,7 +103,7 @@ void reset()
 // with goal point based on radius.
 // \return empty optional if no goal or velocity command to get to next goal point
 BehaviorsScheduler::optional_output_t get_velocity_for_position(
-	const tf2::Transform & current_pose, bool sees_dock, bool is_docked, bool bluetooth_connected,
+	const tf2::Transform & current_pose, const tf2::Transform & robot_pose_map, const tf2::Transform & charger_pose_map, bool sees_dock, bool is_docked, bool bluetooth_connected,
 	nav_msgs::msg::Odometry odom_msg, rclcpp::Clock::SharedPtr clock_, rclcpp::Logger logger_, motion_control_params* params_ptr, capella_ros_dock_msgs::msg::HazardDetectionVector hazards, std::string & state, std::string & infos)
 {
 	// impl undock (go to undock state)
@@ -329,7 +329,15 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		}
 		else
 		{
-			servo_vel->angular.z = params_ptr->max_rotation;
+			auto angle_robot = tf2::getYaw(robot_pose_map.getRotation());
+			auto angle_charger = tf2::getYaw(charger_pose_map.getRotation());
+			auto dist_angle = angles::shortest_angular_distance(angle_robot, angle_charger);
+			RCLCPP_DEBUG(logger_, "angle_robot: %f", angle_robot);
+			RCLCPP_DEBUG(logger_, "angle_charger: %f", angle_charger);
+			RCLCPP_DEBUG(logger_, "dist_angle before bound: %", dist_angle);
+			bound_rotation(dist_angle, params_ptr->min_rotation, params_ptr->max_rotation);
+			RCLCPP_DEBUG(logger_, "dist_angle after bound: %", dist_angle);
+			servo_vel->angular.z = dist_angle;
 			RCLCPP_DEBUG(logger_, "can not see dock");
 			state = std::string("LOOKUP_ARUCO_MARKER");
 			infos = std::string("Reason: can not see marker ==> rotate robot");
@@ -463,7 +471,16 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		}
 		else
 		{
-			servo_vel->angular.z = (params_ptr->min_rotation + params_ptr->max_rotation) / 2.0;
+			auto angle_robot = tf2::getYaw(robot_pose_map.getRotation());
+			auto angle_charger = tf2::getYaw(charger_pose_map.getRotation());
+			auto dist_angle = angles::shortest_angular_distance(angle_robot, angle_charger);
+			RCLCPP_DEBUG(logger_, "angle_robot: %f", angle_robot);
+			RCLCPP_DEBUG(logger_, "angle_charger: %f", angle_charger);
+			RCLCPP_DEBUG(logger_, "dist_angle before bound: %", dist_angle);
+			bound_rotation(dist_angle, params_ptr->min_rotation, params_ptr->max_rotation);
+			RCLCPP_DEBUG(logger_, "dist_angle after bound: %", dist_angle);
+			servo_vel->angular.z = dist_angle;
+			// servo_vel->angular.z = (params_ptr->min_rotation + params_ptr->max_rotation) / 2.0;
 			RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000,  "ANGLE_TO_X_POSITIVE_ORIENTATION => servo_vel->angular.z: %f", servo_vel->angular.z);
 			state = std::string("ANGLE_TO_X_POSITIVE_ORIENTATION");
 			infos = std::string("Reason: ANGLE_TO_X_POSITIVE_ORIENTATION not converged ==> keep on rotating");
