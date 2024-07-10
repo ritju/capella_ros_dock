@@ -477,7 +477,7 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_undock(
 
 void DockingBehavior::dock_visible_callback(capella_ros_service_interfaces::msg::ChargeMarkerVisible::ConstSharedPtr msg)
 {
-	// this->sees_dock_ = msg->marker_visible;
+	this->sees_dock_ = msg->marker_visible;
 	// RCLCPP_INFO(logger_, "sees_dock: %d", sees_dock_.load());
 }
 
@@ -501,7 +501,7 @@ void DockingBehavior::robot_pose_callback(aruco_msgs::msg::PoseWithId::ConstShar
 	if(msg->marker_id == this->marker_id_)
 	{
 		tf2::convert(msg->pose.pose, last_robot_pose_);
-		this->sees_dock_ = true;
+		// this->sees_dock_ = true;
 	}
 	else
 	{
