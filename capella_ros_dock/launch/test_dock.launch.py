@@ -150,7 +150,8 @@ def generate_launch_description():
     bluetooth_old_node = Node(
         executable='charge_bluetooth_old',
         package='charge_manager',
-        name='bluetooth_old_node',
+        name='charge_bluetooth_server_node',
+        respawn=True
     )
 
     # launch_description.add_action(test_count_launch_arg)
