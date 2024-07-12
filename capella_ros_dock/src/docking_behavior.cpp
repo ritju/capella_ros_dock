@@ -34,6 +34,16 @@ DockingBehavior::DockingBehavior(
 		5
 	);
 
+	charger_contact_condition_type_pub_ = rclcpp::create_publisher<capella_ros_dock_msgs::msg::ChargerContactConditionType>(
+		node_topics_interface,
+		"/charger_contact_condition_type",
+		rclcpp::QoS(1).transient_local().reliable()
+	);
+	auto charger_contact_condition_type_msg = capella_ros_dock_msgs::msg::ChargerContactConditionType();
+	charger_contact_condition_type_msg.type = params_ptr->charger_contact_condition_type;
+	charger_contact_condition_type_pub_->publish(charger_contact_condition_type_msg);
+
+
 	dock_visible_sub_ = rclcpp::create_subscription<capella_ros_service_interfaces::msg::ChargeMarkerVisible>(
 		node_topics_interface,
 		"/marker_visible",

@@ -24,6 +24,27 @@ def generate_launch_description():
     motion_control_log_level = LaunchConfiguration('motion_control_log_level')
     test_count = LaunchConfiguration('test_count', default = 1)
     
+    charger_contact_condition_type = 0
+    type_list = {
+        'BLUETOOTH_ONLY': 0,
+        'CAMERA_ONLY': 1,
+        'BLUETOOTH_ADN_CAMERA': 2
+    }
+    
+    try:
+        if 'CHARGER_CONTACT_CONDITION_TYPE' in os.environ:
+            charger_contact_condition_type_name = os.environ.get('CHARGER_CONTACT_CONDITION_TYPE')
+            print(f'get charger_contact_condition_type {charger_contact_condition_type_name} from docker-compose.yaml file')
+            charger_contact_condition_type = type_list[charger_contact_condition_type_name]
+        else:
+            charger_contact_condition_type = 0
+            print("Using default charger_contact_condition_type 0.")
+    except Exception as e:
+        print(f'exception: {str(e)}')
+        print("Please input CHARGER_CONTACT_CONDITION_TYPE in docker-compose.yaml")
+        charger_contact_condition_type = 0
+
+    
     # declare launch arguments   
     # test_count_launch_arg = DeclareLaunchArgument('test_count', default_value=TextSubstitution(text="1"))
     log_level_arg = DeclareLaunchArgument('log_level', default_value='info', description='define motion_control node log level')
@@ -97,7 +118,7 @@ def generate_launch_description():
         name='motion_control',
         namespace='',
         output='screen',
-        parameters=[configured_params],
+        parameters=[configured_params, {'charger_contact_condition_type': charger_contact_condition_type}],
         arguments=['--ros-args', '--log-level', ['motion_control:=', LaunchConfiguration('log_level')]]
     )
 

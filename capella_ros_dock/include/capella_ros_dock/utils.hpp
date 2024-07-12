@@ -47,6 +47,7 @@ struct motion_control_params
 	float undock_time;
 	float undock_obstacle_lr;
 	float undock_obstacle_front;
+	int charger_contact_condition_type;
 };
 } // end namespace capella_ros_dock
 

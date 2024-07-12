@@ -29,6 +29,7 @@
 #include "aruco_msgs/msg/marker_and_mac.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "aruco_msgs/msg/marker_and_mac_vector.hpp"
+#include "capella_ros_dock_msgs/msg/charger_contact_condition_type.hpp"
 
 #include "std_msgs/msg/bool.hpp"
 
@@ -144,6 +145,7 @@ nav_msgs::msg::Odometry odom_msg;
 motion_control_params *params_ptr;
 
 rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr undock_state_pub_;
+rclcpp::Publisher<capella_ros_dock_msgs::msg::ChargerContactConditionType>::SharedPtr charger_contact_condition_type_pub_;
 
 void raw_vel_sub_callback(capella_ros_msg::msg::Velocities);
 void odom_sub_callback(nav_msgs::msg::Odometry);
@@ -169,6 +171,8 @@ bool bluetooth_connected{false};
 
 std::string state;
 std::string infos;
+
+int charger_contact_condition_type = 0; // default 0 => only use bluetooth data
 
 
 void generate_sin_cos_table(float theta_min, float increament, int size);
