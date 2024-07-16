@@ -113,6 +113,8 @@ void MotionControlNode::init_params()
 	this->declare_parameter<float>("undock_obstacle_lr", 0.25);
 	this->declare_parameter<float>("undock_obstacle_front", 0.50);
 	this->declare_parameter<int>("charger_contact_condition_type", 0);
+	this->declare_parameter<float>("contact_state_change_time_delta", 0.5);
+	this->declare_parameter<float>("charging_radius", 1.0);
 
 	params.max_dock_action_run_time = this->get_parameter_or<int>("max_dock_action_run_time", 180);
 	params.min_rotation = this->get_parameter_or<float>("min_rotation", 0.15);
@@ -155,6 +157,8 @@ void MotionControlNode::init_params()
 	params.undock_obstacle_lr = this->get_parameter("undock_obstacle_lr").get_value<float>();
 	params.undock_obstacle_front = this->get_parameter("undock_obstacle_front").get_value<float>();
 	params.charger_contact_condition_type = this->get_parameter("charger_contact_condition_type").get_value<int>();
+	params.contact_state_change_time_delta = this->get_parameter("contact_state_change_time_delta").get_value<float>();
+	params.charging_radius = this->get_parameter("charging_radius").get_value<float>();
 	
 	// RCLCPP_INFO_STREAM(this->get_logger(), "max_dock_action_run_time: " << params.max_dock_action_run_time << " s.");
 }

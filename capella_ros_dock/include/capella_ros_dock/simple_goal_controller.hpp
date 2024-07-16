@@ -536,7 +536,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 	{
 		servo_vel = geometry_msgs::msg::Twist();
 		RCLCPP_DEBUG(logger_, "------------- GO_TO_GOAL_POSITION -------------");
-		if (!bluetooth_connected)
+		if (!bluetooth_connected && params_ptr->charger_contact_condition_type == 0)
 		{
 			RCLCPP_INFO_THROTTLE(logger_, *clock_, 2000, "bluetooth disconnected, waiting ......");
 			state = std::string("GO_TO_GOAL_POSITION");

@@ -28,6 +28,8 @@ DockingBehavior::DockingBehavior(
 	goal_controller_ = std::make_shared<SimpleGoalController>(params_ptr);
 	// RCLCPP_INFO_STREAM(logger_, "max_dock_action_run_time: " << params_ptr->max_dock_action_run_time << " seconds.");
 
+	contact_state_change_time = clock_->now().seconds();
+
 	undock_state_pub_ = rclcpp::create_publisher<std_msgs::msg::Bool>(
 		node_topics_interface,
 		"is_undocking_state",
@@ -42,6 +44,12 @@ DockingBehavior::DockingBehavior(
 	auto charger_contact_condition_type_msg = capella_ros_dock_msgs::msg::ChargerContactConditionType();
 	charger_contact_condition_type_msg.type = params_ptr->charger_contact_condition_type;
 	charger_contact_condition_type_pub_->publish(charger_contact_condition_type_msg);
+
+	charger_contact_via_camera_pub_ = rclcpp::create_publisher<std_msgs::msg::Bool>(
+		node_topics_interface,
+		"/charger_contact_via_camera",
+		rclcpp::QoS(1).reliable().transient_local()
+	);
 
 
 	dock_visible_sub_ = rclcpp::create_subscription<capella_ros_service_interfaces::msg::ChargeMarkerVisible>(
@@ -489,6 +497,75 @@ void DockingBehavior::dock_visible_callback(capella_ros_service_interfaces::msg:
 {
 	this->sees_dock_ = msg->marker_visible;
 	// RCLCPP_INFO(logger_, "sees_dock: %d", sees_dock_.load());
+
+	// pub /charge_contact_via_camera
+	bool contact = false;
+	float x,y;
+	auto pose = last_robot_pose_.getOrigin();
+	x = pose.getX();
+	y = pose.getY();
+	if (this->sees_dock_ && std::hypot(x, y) < params_ptr->charging_radius)
+	{
+		contact = true;
+	}
+	else
+	{
+		contact = false;
+	}
+	RCLCPP_DEBUG_THROTTLE(logger_, *clock_, 1000, "x: %f, y: %f, dis: %f, radius: %f",
+		x, y, std::hypot(x,y), params_ptr->charging_radius);
+	RCLCPP_DEBUG_THROTTLE(logger_, *clock_, 1000, "contact: %s", contact?"true":"false");
+
+	if (!contact_state_pubbed_init)
+	{
+		auto msg = std_msgs::msg::Bool();
+		msg.data = contact;
+		RCLCPP_INFO(logger_, "Publish topic /charger_contact_via_camera init.");
+		charger_contact_via_camera_pub_->publish(msg);
+		contact_state_pubbed_init = true;
+		contact_state_last = contact;
+	}
+	else
+	{
+		if (contact != contact_state_last)
+		{
+			RCLCPP_DEBUG_THROTTLE(logger_, *clock_, 200, "state changed, contact_current: %s, contact_state_last: %s",
+				contact?"true":"false", contact_state_last?"true":"false");
+			if (!contact_state_changed_recorded)
+			{
+				contact_state_change_time = clock_->now().seconds();
+				contact_state_changed_recorded = true;
+				RCLCPP_INFO(logger_, "record contact state changed time: %f", contact_state_change_time);
+			}
+			else
+			{			
+				contact_state_now_time = clock_->now().seconds();
+				if ((contact_state_now_time - contact_state_change_time) > params_ptr->contact_state_change_time_delta)
+				{
+					auto msg = std_msgs::msg::Bool();
+					msg.data = contact;
+					RCLCPP_INFO(logger_, "contact_state changed from %s to %s", 
+						contact_state_last ? "true" : "false",
+						contact ? "true" : "false");
+					charger_contact_via_camera_pub_->publish(msg);
+					contact_state_last = contact;
+					contact_state_changed_recorded = false;
+				}
+				else
+				{
+					// just do nothing for waiting.
+					RCLCPP_DEBUG_THROTTLE(logger_, *clock_, 200, "waiting... current_time: %f, recored_time: %f, delta_time: %f, waiting_time: %f",
+						contact_state_now_time, contact_state_change_time, params_ptr->contact_state_change_time_delta, 
+						contact_state_now_time-contact_state_change_time );
+				}
+			}		
+		}
+		else
+		{
+			RCLCPP_DEBUG_THROTTLE(logger_, *clock_, 200, "state not changed.");
+			contact_state_changed_recorded = false;
+		}
+	}
 }
 
 void DockingBehavior::charge_state_callback(capella_ros_service_interfaces::msg::ChargeState::ConstSharedPtr msg)

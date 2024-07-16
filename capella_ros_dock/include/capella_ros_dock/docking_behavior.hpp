@@ -177,6 +177,16 @@ int charger_contact_condition_type = 0; // default 0 => only use bluetooth data
 
 void generate_sin_cos_table(float theta_min, float increament, int size);
 bool check_undock_has_obstale(sensor_msgs::msg::LaserScan);
+
+// topic  /charger_contact_via_camera
+double contact_state_change_time;
+double contact_state_now_time;
+bool contact_state_changed_recorded = false;
+bool contact_state_last = false;
+bool contact_state_pubbed_init = false;
+float contact_state_change_time_delta = 0.5;
+float charging_radius;
+rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr charger_contact_via_camera_pub_;
 };
 
 }  // namespace capella_ros_dock

@@ -62,6 +62,7 @@ motion_control:
     undock_time: 5.0
     undock_obstacle_lr: 0.5 # lr, left_right
     undock_obstacle_front: 1.0
+    contact_state_change_time_delta: 0.5
 
 
 camera_point_cloud_process:

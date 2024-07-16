@@ -44,6 +44,18 @@ def generate_launch_description():
         print("Please input CHARGER_CONTACT_CONDITION_TYPE in docker-compose.yaml")
         charger_contact_condition_type = 0
 
+    charging_radius = 1.0
+    try:
+        if 'CHARGING_RADIUS' in os.environ:
+            charging_radius = float(os.environ.get('CHARGING_RADIUS'))
+            print(f'get charging radius {charging_radius} from docker-compose.yml')
+        else:
+            charging_radius = 1.0
+    except Exception as e:
+        print(f'exception: {str(e)}')
+        print("Please modify CHARGING_RADIUS's value in docker-compose.yml")
+        charging_radius = 1.0
+
     
     # declare launch arguments   
     # test_count_launch_arg = DeclareLaunchArgument('test_count', default_value=TextSubstitution(text="1"))
@@ -118,7 +130,7 @@ def generate_launch_description():
         name='motion_control',
         namespace='',
         output='screen',
-        parameters=[configured_params, {'charger_contact_condition_type': charger_contact_condition_type}],
+        parameters=[configured_params, {'charger_contact_condition_type': charger_contact_condition_type, 'charging_radius': charging_radius}],
         arguments=['--ros-args', '--log-level', ['motion_control:=', LaunchConfiguration('log_level')]]
     )
 
