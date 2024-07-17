@@ -50,6 +50,7 @@ struct motion_control_params
 	int charger_contact_condition_type;
 	float contact_state_change_time_delta;
 	float charging_radius;
+	float similarity_threshold;
 };
 } // end namespace capella_ros_dock
 

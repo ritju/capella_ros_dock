@@ -21,6 +21,18 @@ DockingBehavior::DockingBehavior(
 	logger_(node_logging_interface->get_logger()),
 	max_action_runtime_(rclcpp::Duration(std::chrono::seconds(params_ptr->max_action_runtime)))
 {
+	tf_buffer_ = std::make_unique<tf2_ros::Buffer>(clock_);
+	tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+	tf_2markers_fixed.setIdentity();
+	tf_2markers_fixed.setOrigin(tf2::Vector3(this->distance, 0, 0));
+	tf2::Quaternion q_2markers_fixed;
+	q_2markers_fixed.setRPY(0, 0, 0);
+	tf_2markers_fixed.setRotation(q_2markers_fixed);
+	w_fixed = q_2markers_fixed.getW();
+	x_fixed = q_2markers_fixed.getX();
+	y_fixed = q_2markers_fixed.getY();
+	z_fixed = q_2markers_fixed.getZ();
+	
 	RCLCPP_INFO(logger_, "DockingBehavior constructor.");
 	behavior_scheduler_ = behavior_scheduler;
 	last_feedback_time_ = clock_->now();
@@ -582,11 +594,57 @@ void DockingBehavior::charge_state_callback(capella_ros_service_interfaces::msg:
 	this->bluetooth_connected = !(msg->pid.compare("") == 0);
 }
 
+bool DockingBehavior::getTransform(
+	const std::string & refFrame, const std::string & childFrame,
+	geometry_msgs::msg::TransformStamped & transform)
+{
+	std::string errMsg;
+
+	if (!tf_buffer_->canTransform(
+		    refFrame, childFrame, tf2::TimePointZero,
+		    tf2::durationFromSec(0.5), &errMsg))
+	{
+		RCLCPP_ERROR_STREAM(logger_, "Unable to get pose from TF: " << errMsg);
+		return false;
+	} else {
+		try {
+			transform = tf_buffer_->lookupTransform(
+				refFrame, childFrame, tf2::TimePointZero, tf2::durationFromSec(
+					0.5));
+		} catch (const tf2::TransformException & e) {
+			RCLCPP_ERROR_STREAM(
+				logger_,
+				"Error in lookupTransform of " << childFrame << " in " << refFrame << " : " << e.what());
+			return false;
+		}
+	}
+	return true;
+}
+
 void DockingBehavior::robot_pose_callback(aruco_msgs::msg::PoseWithId::ConstSharedPtr msg)
 {
 	const std::lock_guard<std::mutex> lock(robot_pose_mutex_);
 	if(msg->marker_id == this->marker_id_)
 	{
+		geometry_msgs::msg::TransformStamped tf_stamped_msg;
+		if (getTransform(marker1_frame, marker2_frame, tf_stamped_msg))
+		{
+			tf2::Stamped<tf2::Transform> tf_stamped;
+			tf2::fromMsg(tf_stamped_msg, tf_stamped);
+			tf_2markers_current = static_cast<tf2::Transform>(tf_stamped);
+			auto q_2markers_quaternion_current = tf_2markers_current.getRotation();
+			w_current = q_2markers_quaternion_current.getW();
+			x_current = q_2markers_quaternion_current.getX();
+			y_current = q_2markers_quaternion_current.getY();
+			z_current = q_2markers_quaternion_current.getZ();
+			auto similarity = w_fixed*w_current+x_fixed*x_current+y_fixed*y_current+z_fixed*z_fixed;
+			if (similarity < params_ptr->similarity_threshold)
+			{
+				double yaw = tf2::getYaw(q_2markers_quaternion_current);
+				RCLCPP_INFO(logger_,"similarity: %f, threshold: %f, yaw: %f", similarity, params_ptr->similarity_threshold, yaw / M_PI * 180);
+			}
+		}
+		
 		tf2::convert(msg->pose.pose, last_robot_pose_);
 		// this->sees_dock_ = true;
 	}

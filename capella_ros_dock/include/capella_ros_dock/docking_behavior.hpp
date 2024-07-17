@@ -14,7 +14,11 @@
 #include "capella_ros_dock/simple_goal_controller.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
+#include <tf2_ros/transform_broadcaster.h>
+#include "tf2_ros/buffer.h"
+#include "tf2_ros/transform_listener.h"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
+#include "tf2/utils.h"
 #include "capella_ros_service_interfaces/msg/charge_state.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "capella_ros_service_interfaces/msg/charge_marker_visible.hpp"
@@ -187,6 +191,24 @@ bool contact_state_pubbed_init = false;
 float contact_state_change_time_delta = 0.5;
 float charging_radius;
 rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr charger_contact_via_camera_pub_;
+
+// test for double marker
+int marker1_id = 0;
+int marker2_id = 1;
+std::string marker1_frame = std::string("apriltag36h11:0_dummy");
+std::string marker2_frame = std::string("apriltag36h11:1_dummy");
+float distance = -0.08;
+
+bool getTransform(
+        const std::string & refFrame, const std::string & childFrame,
+        geometry_msgs::msg::TransformStamped & transform);
+std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
+tf2::Transform tf_2markers_fixed;
+tf2::Transform tf_2markers_current;
+double w_fixed, x_fixed, y_fixed, z_fixed;
+double w_current, x_current, y_current, z_current;
+
 };
 
 }  // namespace capella_ros_dock
