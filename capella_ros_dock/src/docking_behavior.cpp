@@ -646,6 +646,9 @@ void DockingBehavior::robot_pose_callback(aruco_msgs::msg::PoseWithId::ConstShar
 		}
 		
 		tf2::convert(msg->pose.pose, last_robot_pose_);
+		auto now_time = clock_->now().seconds();
+		auto img_time = rclcpp::Time(msg->pose.header.stamp).seconds();
+		RCLCPP_INFO(logger_, "delta time: %f", now_time - img_time);
 		// this->sees_dock_ = true;
 	}
 	else
