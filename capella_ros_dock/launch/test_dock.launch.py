@@ -122,6 +122,11 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(os.path.join(apriltag_pkg_path, 'launch', 'apriltag_ros.launch.py'))
     )
 
+    # apriltag double launch file
+    apriltag_double_launch_file = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(os.path.join(apriltag_pkg_path, 'launch', 'apriltag_ros_double.launch.py'))
+    )
+
 
     # motion_control Node
     motion_control_node = Node(
@@ -208,6 +213,8 @@ def generate_launch_description():
             launch_description.add_action(aruco_launch_file)
         elif marker_type.upper() == "APRILTAG":
             launch_description.add_action(apriltag_launch_file)
+        elif marker_type.upper() == "APRILTAG_DOUBLE":
+            launch_description.add_action(apriltag_double_launch_file)
         else:
             print(f'The value of CHARGER_MARKER_TYPE is {marker_type}, just use default value ARUCO.')
             launch_description.add_action(aruco_launch_file)
