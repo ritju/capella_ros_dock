@@ -372,6 +372,7 @@ namespace capella_ros_dock
                         if (marker_and_mac.marker_and_mac_vector[i].marker_id == marker_id)
                         {
                                 this->bluetooth_mac = marker_and_mac.marker_and_mac_vector[i].bluetooth_mac;
+                                RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 10000, "bluetooth_mac: %s", this->bluetooth_mac.c_str());
                                 break;
                         }
                 }                
@@ -443,6 +444,7 @@ namespace capella_ros_dock
                                                 if (!this->charge_action_executing)
                                                 {
                                                         RCLCPP_INFO(this->get_logger(), "------------------------ call /charge action ------------------------");
+                                                        RCLCPP_INFO(get_logger(), "goal.mac: %s", charge_goal.mac.c_str());
                                                         this->charge_action_executing = true;
                                                         auto send_goals_options = rclcpp_action::Client<charge_manager_msgs::action::Charge>::SendGoalOptions();
                                                         send_goals_options.result_callback = std::bind(&ManualDock::charge_result_callback, this, _1);

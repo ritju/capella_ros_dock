@@ -25,8 +25,8 @@ motion_control:
     max_dock_action_run_time: 160
     min_rotation: 0.15
     max_rotation: 0.25
-    go_to_goal_rotation_min: 0.10
-    go_to_goal_rotation_max: 0.15
+    go_to_goal_rotation_min: 0.05
+    go_to_goal_rotation_max: 0.05
     min_translation: 0.02
     max_translation: 0.12
     angle_to_goal_angle_converged: 0.05
@@ -34,24 +34,24 @@ motion_control:
     go_to_goal_apply_rotation_angle: 0.01 # when angle_dist > this value,apply rotation
     goal_angle_converged: 0.15
     dist_goal_converged: 0.50
-    last_docked_distance_offset_: 0.70
-    distance_low_speed: 0.20
-    translate_low_speed: 0.03
+    last_docked_distance_offset_: 0.60
+    distance_low_speed: 0.10
+    translate_low_speed: 0.05
     rotation_low_speed: 0.10
     first_goal_distance: 0.0
     second_goal_distance: 0.3
-    buffer_goal_distance: 0.4
+    buffer_goal_distance: 0.3
     camera_horizontal_view: 58.0
     localization_converged_time: 0.5 # wait (n) seconds for coordinates to be converged
-    tolerance_angle: 0.10
-    tolerance_r: 0.1
+    tolerance_angle: 0.02
+    tolerance_r: 0.02
     deviate_second_goal_x: 0.2
     dist_error_y_1: 0.05
     dist_error_x_and_y: 0.3
     motion_control_log_level: 'info'
     cmd_vel_hz: 10
     angle_delta: 0.1
-    marker_size: 0.2
+    marker_size: 0.12
     dock_valid_obstacle_x: 0.90
     time_sleep: 5.0
     speed_rotation_acceleration: 0.3
@@ -62,8 +62,6 @@ motion_control:
     undock_time: 5.0
     undock_obstacle_lr: 0.5 # lr, left_right
     undock_obstacle_front: 1.0
-    contact_state_change_time_delta: 0.5
-    similarity_threshold: 0.96
 
 
 camera_point_cloud_process:

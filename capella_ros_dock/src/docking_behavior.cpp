@@ -21,18 +21,6 @@ DockingBehavior::DockingBehavior(
 	logger_(node_logging_interface->get_logger()),
 	max_action_runtime_(rclcpp::Duration(std::chrono::seconds(params_ptr->max_action_runtime)))
 {
-	tf_buffer_ = std::make_unique<tf2_ros::Buffer>(clock_);
-	tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
-	tf_2markers_fixed.setIdentity();
-	tf_2markers_fixed.setOrigin(tf2::Vector3(this->distance, 0, 0));
-	tf2::Quaternion q_2markers_fixed;
-	q_2markers_fixed.setRPY(0, 0, 0);
-	tf_2markers_fixed.setRotation(q_2markers_fixed);
-	w_fixed = q_2markers_fixed.getW();
-	x_fixed = q_2markers_fixed.getX();
-	y_fixed = q_2markers_fixed.getY();
-	z_fixed = q_2markers_fixed.getZ();
-	
 	RCLCPP_INFO(logger_, "DockingBehavior constructor.");
 	behavior_scheduler_ = behavior_scheduler;
 	last_feedback_time_ = clock_->now();
@@ -40,29 +28,11 @@ DockingBehavior::DockingBehavior(
 	goal_controller_ = std::make_shared<SimpleGoalController>(params_ptr);
 	// RCLCPP_INFO_STREAM(logger_, "max_dock_action_run_time: " << params_ptr->max_dock_action_run_time << " seconds.");
 
-	contact_state_change_time = clock_->now().seconds();
-
 	undock_state_pub_ = rclcpp::create_publisher<std_msgs::msg::Bool>(
 		node_topics_interface,
 		"is_undocking_state",
 		5
 	);
-
-	charger_contact_condition_type_pub_ = rclcpp::create_publisher<capella_ros_dock_msgs::msg::ChargerContactConditionType>(
-		node_topics_interface,
-		"/charger_contact_condition_type",
-		rclcpp::QoS(1).transient_local().reliable()
-	);
-	auto charger_contact_condition_type_msg = capella_ros_dock_msgs::msg::ChargerContactConditionType();
-	charger_contact_condition_type_msg.type = params_ptr->charger_contact_condition_type;
-	charger_contact_condition_type_pub_->publish(charger_contact_condition_type_msg);
-
-	charger_contact_via_camera_pub_ = rclcpp::create_publisher<std_msgs::msg::Bool>(
-		node_topics_interface,
-		"/charger_contact_via_camera",
-		rclcpp::QoS(1).reliable().transient_local()
-	);
-
 
 	dock_visible_sub_ = rclcpp::create_subscription<capella_ros_service_interfaces::msg::ChargeMarkerVisible>(
 		node_topics_interface,
@@ -247,12 +217,12 @@ void DockingBehavior::handle_dock_servo_accepted(
 	dock_rotation.setRPY(0, 0, 0);
 	dock_offset.setOrigin(tf2::Vector3(-dist_offset, 0, 0));
 	dock_offset.setRotation(dock_rotation);
-	dock_path.emplace_back(dock_pose * dock_offset, 0.1, true);
+	dock_path.emplace_back(dock_pose * dock_offset, 0.01, true);
 
 	dock_rotation.setRPY(0, 0, 0);
 	dock_offset.setOrigin(tf2::Vector3(-params_ptr->first_goal_distance, 0, 0));
 	dock_offset.setRotation(dock_rotation);
-	dock_path.emplace_back(dock_pose * dock_offset, 0.1, true);
+	dock_path.emplace_back(dock_pose * dock_offset, 0.01, true);
 
 	goal_controller_->initialize_goal(dock_path, 0.2, 0.10);
 	// Setup behavior to override other commanded motion
@@ -509,75 +479,6 @@ void DockingBehavior::dock_visible_callback(capella_ros_service_interfaces::msg:
 {
 	this->sees_dock_ = msg->marker_visible;
 	// RCLCPP_INFO(logger_, "sees_dock: %d", sees_dock_.load());
-
-	// pub /charge_contact_via_camera
-	bool contact = false;
-	float x,y;
-	auto pose = last_robot_pose_.getOrigin();
-	x = pose.getX();
-	y = pose.getY();
-	if (this->sees_dock_ && std::hypot(x, y) < params_ptr->charging_radius)
-	{
-		contact = true;
-	}
-	else
-	{
-		contact = false;
-	}
-	RCLCPP_DEBUG_THROTTLE(logger_, *clock_, 1000, "x: %f, y: %f, dis: %f, radius: %f",
-		x, y, std::hypot(x,y), params_ptr->charging_radius);
-	RCLCPP_DEBUG_THROTTLE(logger_, *clock_, 1000, "contact: %s", contact?"true":"false");
-
-	if (!contact_state_pubbed_init)
-	{
-		auto msg = std_msgs::msg::Bool();
-		msg.data = contact;
-		RCLCPP_INFO(logger_, "Publish topic /charger_contact_via_camera init.");
-		charger_contact_via_camera_pub_->publish(msg);
-		contact_state_pubbed_init = true;
-		contact_state_last = contact;
-	}
-	else
-	{
-		if (contact != contact_state_last)
-		{
-			RCLCPP_DEBUG_THROTTLE(logger_, *clock_, 200, "state changed, contact_current: %s, contact_state_last: %s",
-				contact?"true":"false", contact_state_last?"true":"false");
-			if (!contact_state_changed_recorded)
-			{
-				contact_state_change_time = clock_->now().seconds();
-				contact_state_changed_recorded = true;
-				RCLCPP_INFO(logger_, "record contact state changed time: %f", contact_state_change_time);
-			}
-			else
-			{			
-				contact_state_now_time = clock_->now().seconds();
-				if ((contact_state_now_time - contact_state_change_time) > params_ptr->contact_state_change_time_delta)
-				{
-					auto msg = std_msgs::msg::Bool();
-					msg.data = contact;
-					RCLCPP_INFO(logger_, "contact_state changed from %s to %s", 
-						contact_state_last ? "true" : "false",
-						contact ? "true" : "false");
-					charger_contact_via_camera_pub_->publish(msg);
-					contact_state_last = contact;
-					contact_state_changed_recorded = false;
-				}
-				else
-				{
-					// just do nothing for waiting.
-					RCLCPP_DEBUG_THROTTLE(logger_, *clock_, 200, "waiting... current_time: %f, recored_time: %f, delta_time: %f, waiting_time: %f",
-						contact_state_now_time, contact_state_change_time, params_ptr->contact_state_change_time_delta, 
-						contact_state_now_time-contact_state_change_time );
-				}
-			}		
-		}
-		else
-		{
-			RCLCPP_DEBUG_THROTTLE(logger_, *clock_, 200, "state not changed.");
-			contact_state_changed_recorded = false;
-		}
-	}
 }
 
 void DockingBehavior::charge_state_callback(capella_ros_service_interfaces::msg::ChargeState::ConstSharedPtr msg)
@@ -594,61 +495,12 @@ void DockingBehavior::charge_state_callback(capella_ros_service_interfaces::msg:
 	this->bluetooth_connected = !(msg->pid.compare("") == 0);
 }
 
-bool DockingBehavior::getTransform(
-	const std::string & refFrame, const std::string & childFrame,
-	geometry_msgs::msg::TransformStamped & transform)
-{
-	std::string errMsg;
-
-	if (!tf_buffer_->canTransform(
-		    refFrame, childFrame, tf2::TimePointZero,
-		    tf2::durationFromSec(0.5), &errMsg))
-	{
-		RCLCPP_ERROR_STREAM(logger_, "Unable to get pose from TF: " << errMsg);
-		return false;
-	} else {
-		try {
-			transform = tf_buffer_->lookupTransform(
-				refFrame, childFrame, tf2::TimePointZero, tf2::durationFromSec(
-					0.5));
-		} catch (const tf2::TransformException & e) {
-			RCLCPP_ERROR_STREAM(
-				logger_,
-				"Error in lookupTransform of " << childFrame << " in " << refFrame << " : " << e.what());
-			return false;
-		}
-	}
-	return true;
-}
-
 void DockingBehavior::robot_pose_callback(aruco_msgs::msg::PoseWithId::ConstSharedPtr msg)
 {
 	const std::lock_guard<std::mutex> lock(robot_pose_mutex_);
 	if(msg->marker_id == this->marker_id_)
 	{
-		geometry_msgs::msg::TransformStamped tf_stamped_msg;
-		if (getTransform(marker1_frame, marker2_frame, tf_stamped_msg))
-		{
-			tf2::Stamped<tf2::Transform> tf_stamped;
-			tf2::fromMsg(tf_stamped_msg, tf_stamped);
-			tf_2markers_current = static_cast<tf2::Transform>(tf_stamped);
-			auto q_2markers_quaternion_current = tf_2markers_current.getRotation();
-			w_current = q_2markers_quaternion_current.getW();
-			x_current = q_2markers_quaternion_current.getX();
-			y_current = q_2markers_quaternion_current.getY();
-			z_current = q_2markers_quaternion_current.getZ();
-			auto similarity = w_fixed*w_current+x_fixed*x_current+y_fixed*y_current+z_fixed*z_fixed;
-			if (similarity < params_ptr->similarity_threshold)
-			{
-				double yaw = tf2::getYaw(q_2markers_quaternion_current);
-				RCLCPP_INFO(logger_,"similarity: %f, threshold: %f, yaw: %f", similarity, params_ptr->similarity_threshold, yaw / M_PI * 180);
-			}
-		}
-		
 		tf2::convert(msg->pose.pose, last_robot_pose_);
-		auto now_time = clock_->now().seconds();
-		auto img_time = rclcpp::Time(msg->pose.header.stamp).seconds();
-		RCLCPP_INFO(logger_, "delta time: %f", now_time - img_time);
 		// this->sees_dock_ = true;
 	}
 	else

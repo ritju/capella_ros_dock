@@ -40,22 +40,88 @@ SimpleGoalController(motion_control_params *params_ptr)
 {
 	this->params_ptr = params_ptr;
 	std::cout << "dock_valid_obstacle_x: " << params_ptr->dock_valid_obstacle_x << std::endl;
-	init_params();
+	init_params(params_ptr);
 }
 
-void init_params()
+void init_params(motion_control_params* params_ptr)
 {
 	buffer_goal_point_x = -(params_ptr->last_docked_distance_offset_
 	                        + params_ptr->distance_low_speed
 	                        + params_ptr->second_goal_distance
 	                        + params_ptr->buffer_goal_distance);
 
+	// for mk5,not accurate
 	// 0.4461565280195475968735605160853 <= tan(32-arctan2(0.12/(0.32+0.1+0.5))
-	thre_angle_diff = std::tan(params_ptr->camera_horizontal_view  * 0.5 / 180.0 * M_PI
-	                           - std::atan(0.5 * params_ptr->marker_size / (params_ptr->last_docked_distance_offset_ + params_ptr->distance_low_speed + params_ptr->second_goal_distance))
-	                           - params_ptr->angle_delta
-	                           );
-	RCLCPP_INFO(rclcpp::get_logger("simple_goal_controller"), "thre_angle_diff: %f", thre_angle_diff);
+	// thre_angle_diff = std::tan(params_ptr->camera_horizontal_view  * 0.5 / 180.0 * M_PI
+	//                            - std::atan(0.5 * params_ptr->marker_size / (params_ptr->last_docked_distance_offset_ + params_ptr->distance_low_speed + params_ptr->second_goal_distance))
+	//                            - params_ptr->angle_delta
+	//                            );
+	// RCLCPP_INFO(rclcpp::get_logger("simple_goal_controller"), "thre_angle_diff: %f", thre_angle_diff);
+
+	float camera_horizontal_view, marker_size, camera_baselink_dis, goal_dis_x;
+		camera_horizontal_view = degree_to_radian(params_ptr->camera_horizontal_view);
+		marker_size = params_ptr->marker_size;
+		camera_baselink_dis = 0.3; //0.4 -0.1(gp.r)
+		goal_dis_x = params_ptr->last_docked_distance_offset_ + params_ptr->distance_low_speed + params_ptr->second_goal_distance;
+		RCLCPP_INFO(rclcpp::get_logger("simple_goal_controller"), "camera_horizontal_view: %f, marker_size: %f, camera_baselink_dis: %f, goal_dis_x: %f",
+			camera_horizontal_view, marker_size, camera_baselink_dis, goal_dis_x);
+
+		float d1, d2, d3, alpha;
+		d1 = goal_dis_x;
+		d2 = camera_baselink_dis;
+		d3 = marker_size * 0.5;
+		alpha = camera_horizontal_view * 0.5;
+		float tan_alpha = std::tan(alpha);
+		RCLCPP_INFO(rclcpp::get_logger("simple_goal_controller"), "d1: %f, d2: %f, d3: %f, alpha: %f", d1, d2, d3, alpha);
+		float r = std::hypot(d1 * tan_alpha - d3, d1 + d3 * tan_alpha);
+		float x1 = d2 * tan_alpha;
+		float x2 = d1 * tan_alpha - d3;
+		float beta_plus_theta = std::acos(x1 / r);
+		float beta = std::acos(x2 / r);
+		thre_angle_diff = beta_plus_theta - beta;
+		RCLCPP_INFO(rclcpp::get_logger("simple_goal_controller"), "r: %f, x1: %f, x2: %f, beta_plus_theta: %f, beta: %f", r, x1, x2, beta_plus_theta, beta);
+		RCLCPP_INFO(rclcpp::get_logger("simple_goal_controller"), "thre_angle_diff: %F", thre_angle_diff);
+
+	// 	if (sees_dock)
+	// 	{
+	// 		auto robot_pose = current_pose.getOrigin();
+	// 		float x, y, theta;
+	// 		x = robot_pose[0], y = robot_pose[1];
+	// 		theta = tf2::getYaw(current_pose.getRotation());
+	// 		float goal_x, goal_y;
+	// 		goal_x = -goal_dis_x;
+	// 		goal_y = 0;
+	// 		float theta_to_goal;
+	// 		theta_to_goal = std::atan2(goal_y - y, goal_x - x);
+	// 		if (camera_horizontal_view * 0.5 < std::abs(theta_to_goal))
+	// 		{
+	// 			RCLCPP_INFO(logger_, "************failed************");
+	// 			RCLCPP_INFO(logger_, "x: %f, y: %f, theta: %f, theta_to_goal: %f", x, y, theta, theta_to_goal);
+	// 			RCLCPP_INFO(logger_, "camera_horizontal_view/2: %f< theta_to_goal: %f",
+	// 				camera_horizontal_view * 0.5, std::abs(theta_to_goal));
+	// 		}
+	// 		else
+	// 		{
+	// 			float y_coord = camera_horizontal_view_y_coord(std::abs(theta_to_goal), camera_horizontal_view, camera_baselink_dis, goal_dis_x);
+	// 			if (y_coord > marker_size * 0.5)
+	// 			{
+	// 				RCLCPP_INFO(logger_, "============success============");
+	// 				RCLCPP_INFO(logger_, "x: %f, y: %f, theta: %f, theta_to_goal: %f", x, y, theta, theta_to_goal);
+	// 				RCLCPP_INFO(logger_, "y_coord: %f", y_coord);
+	// 			}
+	// 			else
+	// 			{
+	// 				RCLCPP_INFO(logger_, "************failed************");
+	// 				RCLCPP_INFO(logger_, "x: %f, y: %f, theta: %f, theta_to_goal: %f", x, y, theta, theta_to_goal);
+	// 				RCLCPP_INFO(logger_, "y_coord: %f", y_coord);
+	// 			}
+	// 		}
+			
+	// 	}
+	// 	else
+	// 	{
+	// 		RCLCPP_INFO(logger_, "can not see marker.");
+	// 	}
 }
 
 /// \brief Structure to keep information for each point in commanded path
@@ -105,7 +171,7 @@ void reset()
 BehaviorsScheduler::optional_output_t get_velocity_for_position(
 	const tf2::Transform & current_pose, const tf2::Transform & robot_pose_map, const tf2::Transform & charger_pose_map, bool sees_dock, bool is_docked, bool bluetooth_connected,
 	nav_msgs::msg::Odometry odom_msg, rclcpp::Clock::SharedPtr clock_, rclcpp::Logger logger_, motion_control_params* params_ptr, capella_ros_dock_msgs::msg::HazardDetectionVector hazards, std::string & state, std::string & infos)
-{
+{	
 	// impl undock (go to undock state)
 	if (goal_points_.size() >0 && !(goal_points_.front().drive_backwards))
 	{
@@ -514,7 +580,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			double ang = diff_angle(gp, current_position, current_angle, logger_);
 			double ang_save = ang;
 			RCLCPP_DEBUG(logger_, "diff angle: %f", ang);
-			bound_rotation(ang, params_ptr->min_rotation, params_ptr->max_rotation);
+			bound_rotation(ang, 0.05, 0.10);
 			RCLCPP_DEBUG(logger_, "bound angle: %f", ang);
 			RCLCPP_DEBUG(logger_, "--------------------------------");
 			servo_vel = geometry_msgs::msg::Twist();
@@ -536,14 +602,17 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 	{
 		servo_vel = geometry_msgs::msg::Twist();
 		RCLCPP_DEBUG(logger_, "------------- GO_TO_GOAL_POSITION -------------");
-		if (!bluetooth_connected && params_ptr->charger_contact_condition_type == 0)
+		
+		GoalPoint gp = goal_points_.front();;
+		if (goal_points_.size() > 1)
 		{
-			RCLCPP_INFO_THROTTLE(logger_, *clock_, 2000, "bluetooth disconnected, waiting ......");
-			state = std::string("GO_TO_GOAL_POSITION");
-			infos = std::string("Reason: bluetooth disconnected ==> stop");
-			break;
+			RCLCPP_DEBUG(logger_, "not the first goal.");
 		}
-		const GoalPoint & gp = goal_points_.front();
+		else
+		{
+			RCLCPP_DEBUG(logger_, "the first goal.");
+			gp.x = -(params_ptr->last_docked_distance_offset_ - 0.05);
+		}
 		RCLCPP_DEBUG(logger_, "goal =>  x: %f, y: %f, yaw: %f",
 		             gp.x, gp.y, gp.theta);
 		RCLCPP_DEBUG(logger_, "robot =>  x: %f, y: %f, yaw: %f",
@@ -561,7 +630,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		if (dist_to_goal < goal_points_.front().radius || std::abs(current_position.getX()) < std::abs(gp.x)) {
 			navigate_state_ = NavigateStates::GOAL_ANGLE;
 			RCLCPP_DEBUG(logger_, " ******** change to state GOAL_ANGLE ******** ");
-			servo_vel->linear.x = gp.drive_backwards ? -params_ptr->max_translation : params_ptr->max_translation;
+			servo_vel->linear.x = gp.drive_backwards ? -params_ptr->translate_low_speed : params_ptr->translate_low_speed;
 			state = std::string("GO_TO_GOAL_POSITION");
 			infos = std::string("GO_TO_GOAL_POSITION converged ==> change state to GOAL_ANGLE");
 			// If robot angle has deviated too much from path, reset
@@ -591,6 +660,10 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			{
 				translate_velocity = params_ptr->translate_low_speed;
 			}
+
+			// only use low speed for test
+			translate_velocity = params_ptr->translate_low_speed;
+
 			if (gp.drive_backwards) {
 				translate_velocity *= -1;
 			}
@@ -600,23 +673,31 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			if(std::abs(current_position.getX()) < (params_ptr->last_docked_distance_offset_ + params_ptr->distance_low_speed))
 			{
 				RCLCPP_DEBUG(logger_, "low speed mode ");
-				if (abs_ang > params_ptr->go_to_goal_apply_rotation_angle)
+				if (!bluetooth_connected)
 				{
-					bound_rotation(ang, 0.01, params_ptr->rotation_low_speed);
-					ang = generate_smooth_rotation_speed(last_rotation_speed_, last_rotation_speed_time_, ang, clock_);
-					servo_vel->angular.z = ang;
+					RCLCPP_INFO_THROTTLE(logger_, *clock_, 2000, "bluetooth disconnected, waiting ......");
+					RCLCPP_DEBUG(logger_, "bluetooth disconnected, waiting ......");
+					state = std::string("GO_TO_GOAL_POSITION");
+					infos = std::string("Reason: bluetooth disconnected ==> stop");
+					break;
+				}
+				// if (abs_ang > params_ptr->go_to_goal_apply_rotation_angle)
+				// {
+					// bound_rotation(ang, 0.01, params_ptr->rotation_low_speed);
+					// ang = generate_smooth_rotation_speed(last_rotation_speed_, last_rotation_speed_time_, ang, params_ptr, clock_);
+					servo_vel->angular.z = angles::shortest_angular_distance(current_angle, 0);;
 					RCLCPP_DEBUG(logger_, "low speed mode => angular.z: %f", ang);
 
 					state = std::string("GO_TO_GOAL_POSITION");
 					infos = std::string("GO_TO_GOAL_POSITION (low speed mode) ==> keep on moving");
-				}
+				// }
 			}
 			else
 			{
 				RCLCPP_DEBUG(logger_, "normal speed mode ");
 				if (abs_ang > params_ptr->go_to_goal_apply_rotation_angle) {
 					bound_rotation(ang, params_ptr->go_to_goal_rotation_min, params_ptr->go_to_goal_rotation_max);
-					ang = generate_smooth_rotation_speed(last_rotation_speed_, last_rotation_speed_time_, ang, clock_);
+					ang = generate_smooth_rotation_speed(last_rotation_speed_, last_rotation_speed_time_, ang, params_ptr, clock_);
 					servo_vel->angular.z = ang;
 					RCLCPP_DEBUG(logger_, "normal speed mode => angular.z: %f", ang);
 
@@ -738,20 +819,69 @@ void bound_rotation(double & rotation_velocity, float min, float max)
 }
 
 
-// smooth rotation speed
-float generate_smooth_rotation_speed(float & last_rotation, double & last_rotation_time, float cur_rotation, rclcpp::Clock::SharedPtr clock_)
+float degree_to_radian(float degree)
 {
-	float acc = params_ptr->speed_rotation_acceleration;
-	float new_rotation_speed, rotation_max_change_abs, rotation_cur_change_abs;
-	if (first_pub_rotation_speed)
+	return degree / 180.0 * M_PI;
+}
+
+float radian_to_degree(float theta)
+{
+	return theta / M_PI * 180.0;
+}
+
+// angular unit: radian
+float camera_horizontal_view_y_coord(float theta_robot_to_goal, float camera_horizontal_view,  float camera_baselink_dis, float goal_dis_x)
+{
+	// all parameters are positive values;
+	// first, theta_robot_to_goal shall < camera_horizontal_view * 0.5
+	// consider one of the situations, robot is in back left(the other situation back right) of the marker
+	// when reach the goal, robot pose (-goal_dis_x, 0), 
+	// camera pose (-(goal_dis_x - camera_baselink_dis * cos(theta_robot_to_goal)), -camera_baselink_dis * sin(theta_robot_to_goal))
+	// using cr representing the radius from origin to camera, cx,cy representing camera's x,y coord
+	// if camera can see all of  the marker, should satisfied the following condition
+	// result : camera_horizontal_view on y's axis: cr * sin(camera_horizontal_view * 0.5 - theta_robot_to_goal) - std::abs(cy) 
+	// if result is negative, camera only can see y's negative axis, don't satisfied 
+	// if result is positive, camera can see y's positive axis
+	// in this case, if result > marker_size * 0.5, satisfied 
+	
+	float cx, cy, cr;
+	cy = -camera_baselink_dis * std::sin(theta_robot_to_goal);
+	cx = -(goal_dis_x - camera_baselink_dis * std::cos(theta_robot_to_goal));
+	cr = std::hypot(cx, cy);
+	float y_ = cr * std::sin(camera_horizontal_view * 0.5 - theta_robot_to_goal);
+	if (y_ > std::abs(cy))
 	{
-		first_pub_rotation_speed = false;
-		new_rotation_speed = std::copysign(params_ptr->speed_rotation_init_abs, cur_rotation);
+		return y_ - std::abs(cy); 
 	}
 	else
 	{
-		double cur_time = clock_->now().seconds();
-		rotation_max_change_abs = std::abs((cur_time - last_rotation_speed_time_) * acc);
+		return -(std::abs(cy) - y_);
+	}	
+}
+
+// smooth rotation speed
+float generate_smooth_rotation_speed(float & last_rotation, double & last_rotation_time, float cur_rotation, motion_control_params* params_ptr, rclcpp::Clock::SharedPtr clock_)
+{
+	float new_rotation_speed, rotation_max_change_abs, rotation_cur_change_abs;
+	float acc = params_ptr->speed_rotation_acceleration;
+	double cur_time = clock_->now().seconds();
+	double delta_time = cur_time - last_rotation_time;
+	if (delta_time > 0.13) // 10hz
+	{
+		first_pub_rotation_speed = true;
+	}
+	else
+	{
+		first_pub_rotation_speed = false;
+	}
+
+	if (first_pub_rotation_speed)
+	{
+		new_rotation_speed = std::copysign(params_ptr->speed_rotation_init_abs, cur_rotation);
+	}
+	else
+	{		
+		rotation_max_change_abs = std::abs(delta_time * acc);
 		rotation_cur_change_abs = std::abs(cur_rotation - last_rotation);
 		if (rotation_cur_change_abs > rotation_max_change_abs)
 		{
@@ -764,7 +894,7 @@ float generate_smooth_rotation_speed(float & last_rotation, double & last_rotati
 	}
 
 	last_rotation = new_rotation_speed;
-	last_rotation_time = clock_->now().seconds();
+	last_rotation_time = cur_time;
 
 	return new_rotation_speed;
 }
