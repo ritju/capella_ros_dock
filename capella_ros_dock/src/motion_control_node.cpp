@@ -162,7 +162,9 @@ void MotionControlNode::init_params()
 	params.charging_radius = this->get_parameter("charging_radius").get_value<float>();
 	params.similarity_threshold = this->get_parameter("similarity_threshold").get_value<float>();
 	
-	RCLCPP_INFO_STREAM(this->get_logger(), "max_dock_action_run_time: " << params.max_dock_action_run_time << ", last_docked_distanace_offset: " << params.last_docked_distance_offset_);
+	RCLCPP_INFO_STREAM(this->get_logger(), "max_dock_action_run_time: " << params.max_dock_action_run_time 
+		<< ", last_docked_distanace_offset: " << params.last_docked_distance_offset_
+		<< ", charging_radius: " << params.charging_radius);
 }
 
 void MotionControlNode::cb_hazard_detection(capella_ros_dock_msgs::msg::HazardDetectionVector::SharedPtr msg)

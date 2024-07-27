@@ -44,30 +44,30 @@ def generate_launch_description():
         print("Please input CHARGER_CONTACT_CONDITION_TYPE in docker-compose.yaml")
         charger_contact_condition_type = 0
 
-    last_docked_distance_offset = 0.60
+    last_docked_distance_offset_ = 0.60
     try:
         if 'LAST_DOCKED_DISTANCE_OFFSET' in os.environ:
-            last_docked_distance_offset = float(os.environ.get('LAST_DOCKED_DISTANCE_OFFSET'))
-            print(f'get last_docked_distance_offset from docker-compose.yaml file')
+            last_docked_distance_offset_ = float(os.environ.get('LAST_DOCKED_DISTANCE_OFFSET'))
+            print(f'get last_docked_distance_offset_ from docker-compose.yaml file')
         else:
-            last_docked_distance_offset = 0.60
-            print("Using default last_docked_distance_offset 0.60")
+            last_docked_distance_offset_ = 0.60
+            print("Using default last_docked_distance_offset_ 0.60")
     except Exception as e:
         print(f'exception: {str(e)}')
         print("Please input LAST_DOCKED_DISTANCE_OFFSET in docker-compose.yaml")
-        last_docked_distance_offset = 0.60
+        last_docked_distance_offset_ = 0.60
 
-    charging_radius = 1.0
+    charging_radius = 0.8
     try:
         if 'CHARGING_RADIUS' in os.environ:
             charging_radius = float(os.environ.get('CHARGING_RADIUS'))
             print(f'get charging radius {charging_radius} from docker-compose.yml')
         else:
-            charging_radius = 1.0
+            charging_radius = 0.8
     except Exception as e:
         print(f'exception: {str(e)}')
         print("Please modify CHARGING_RADIUS's value in docker-compose.yml")
-        charging_radius = 1.0
+        charging_radius = 0.8
 
     
     # declare launch arguments   
@@ -148,7 +148,7 @@ def generate_launch_description():
         name='motion_control',
         namespace='',
         output='screen',
-        parameters=[configured_params, {'charger_contact_condition_type': charger_contact_condition_type, 'charging_radius': charging_radius, 'last_docked_distance_offset': last_docked_distance_offset}],
+        parameters=[configured_params, {'charger_contact_condition_type': charger_contact_condition_type, 'charging_radius': charging_radius, 'last_docked_distance_offset_': last_docked_distance_offset_}],
         arguments=['--ros-args', '--log-level', ['motion_control:=', LaunchConfiguration('log_level')]]
     )
 
