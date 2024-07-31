@@ -386,6 +386,7 @@ namespace capella_ros_dock
         void ManualDock::is_docking_state_callback(std_msgs::msg::Bool msg)
         {
                 is_docking_state = msg.data;
+                this->charge_action_executing = msg.data;
                 is_docking_state_last_time_sub = this->get_clock()->now().seconds();
         }
 
@@ -416,6 +417,7 @@ namespace capella_ros_dock
                                 if ((now_time - is_docking_state_last_time_sub) > is_docking_state_timeout)
                                 {
                                         is_docking_state = false;
+                                        this->charge_action_executing = false;
                                 }
                                 bool manual_charge_satisfied = false;
                                 manual_charge_satisfied = charger_visible
