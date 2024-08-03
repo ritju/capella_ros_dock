@@ -5,7 +5,8 @@ using namespace std::placeholders;
 
 TestDock::TestDock(std::string name, GoalRect goal_rect) : Node(name)
 {
-	client_action_dock_ = rclcpp_action::create_client<Dock>(this, "/dock");
+	// client_action_dock_ = rclcpp_action::create_client<Dock>(this, "/dock");
+	client_action_charge_ = rclcpp_action::create_client<Charge>(this, "/charge");
 
 	cb_group_sub_dock_visible_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 	auto sub_opt_dock_visible = rclcpp::SubscriptionOptions();
@@ -32,7 +33,7 @@ TestDock::TestDock(std::string name, GoalRect goal_rect) : Node(name)
 	cb_group_sub_robot_pose_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 	auto sub_opt_robot_pose = rclcpp::SubscriptionOptions();
 	sub_opt_robot_pose.callback_group = cb_group_sub_robot_pose_;
-	robot_pose_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>("/aruco_single/pose", 5, std::bind(&TestDock::robot_pose_sub_callback, this, _1), sub_opt_robot_pose);
+	robot_pose_sub_ = this->create_subscription<aruco_msgs::msg::PoseWithId>("/pose_with_id", 5, std::bind(&TestDock::robot_pose_sub_callback, this, _1), sub_opt_robot_pose);
 
 	cmd_vel_pub_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
 	// --ros-args -p test_count:=10
@@ -44,11 +45,16 @@ TestDock::TestDock(std::string name, GoalRect goal_rect) : Node(name)
 	this->declare_parameter<int>("x_max", -90);
 	this->declare_parameter<int>("y_min", -10);
 	this->declare_parameter<int>("y_max", 100);
+	this->declare_parameter<std::string>("mac", std::string("94:C9:60:43:BE:01"));
+	this->declare_parameter<int>("marker_id", 0);
 
 	goal_rect.x_min = this->get_parameter_or<int>("x_min", -200);
 	goal_rect.x_max = this->get_parameter_or<int>("x_max", -90);
 	goal_rect.y_min = this->get_parameter_or<int>("y_min", -10);
 	goal_rect.y_max = this->get_parameter_or<int>("y_max", -100);
+
+	this->mac = this->get_parameter_or<std::string>("mac", std::string("94:C9:60:43:BE:01"));
+	this->marker_id = this->get_parameter_or<int>("marker_id", 0);
 
 	RCLCPP_DEBUG(this->get_logger(), "x_min: %d", goal_rect.x_min);
 	RCLCPP_DEBUG(this->get_logger(), "x_max: %d", goal_rect.x_max);
@@ -298,7 +304,7 @@ DockStatus TestDock::start_docking()
 	{
 		sleep(1);
 	}
-
+	// RCLCPP_INFO(get_logger(), "after see dock_sub, sees_dock: %s", sees_dock?"true":"false");
 	if(sees_dock)
 	{
 		sleep(2);
@@ -352,15 +358,31 @@ DockStatus TestDock::start_docking()
 
 	// send goal
 	RCLCPP_INFO(this->get_logger(), "********** Dock action **********");
-	while (!client_action_dock_->wait_for_action_server(1s))
+	// while (!client_action_dock_->wait_for_action_server(1s))
+	// {
+	// 	RCLCPP_ERROR(this->get_logger(), "Dock service not online, waiting.");
+	// }
+	while (!client_action_charge_->wait_for_action_server(1s))
 	{
-		RCLCPP_ERROR(this->get_logger(), "Dock service not online, waiting.");
+		RCLCPP_INFO(this->get_logger(), "Charge action not online, waiting ...");
 	}
-	auto goal_msg = Dock::Goal();
-	auto send_goal_options = rclcpp_action::Client<Dock>::SendGoalOptions();
-	send_goal_options.result_callback = std::bind(&TestDock::dock_result_callback, this, _1);
+	// auto goal_msg = Dock::Goal();
+	// auto send_goal_options = rclcpp_action::Client<Dock>::SendGoalOptions();
+	// send_goal_options.result_callback = std::bind(&TestDock::dock_result_callback, this, _1);
 
-	auto goal_future = this->client_action_dock_->async_send_goal(goal_msg, send_goal_options);
+	// auto goal_future = this->client_action_dock_->async_send_goal(goal_msg, send_goal_options);
+	auto goal_msg = Charge::Goal();
+	goal_msg.restore = 0;
+	goal_msg.type = Charge::Goal::AUTO;
+	goal_msg.mac = this->mac;
+	auto send_goal_options = rclcpp_action::Client<Charge>::SendGoalOptions();
+	send_goal_options.result_callback = std::bind(&TestDock::charge_result_callback, this, _1);
+	send_goal_options.feedback_callback = std::bind(&TestDock::charge_feedback_callback, this, _1, _2);
+
+	this->state = std::string("idle");
+	auto goal_future = this->client_action_charge_->async_send_goal(goal_msg, send_goal_options);
+	charge_action_start_time = this->get_clock()->now().seconds();
+
 	if(!goal_future.get())
 	{
 		RCLCPP_INFO(get_logger(), "Goal rejected.");
@@ -370,12 +392,42 @@ DockStatus TestDock::start_docking()
 		goal_rejected = true;
 	}
 
-	while (!dock_end)
+	while (true)
 	{
+		auto now_time = this->get_clock()->now().seconds();
+		auto cost_time = now_time - charge_action_start_time;
 		// RCLCPP_DEBUG(get_logger(),"sleep 1 second.");
-		sleep(1);
+		if (cost_time < this->charge_action_timeout)
+		{
+			RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 4000, "feedback: %s", state.c_str());
+			RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 4000, "cost_time: %f, timeout: %f",cost_time, charge_action_timeout);
+			if(state == std::string("charging"))
+			{
+				RCLCPP_INFO(get_logger(), "charge action succeed.");
+				success_count++;
+				status_ = DockStatus::SUCCESS;
+				return status_;
+			}
+			else
+			{
+				sleep(1);
+			}			
+			
+		}
+		else
+		{
+			RCLCPP_INFO(get_logger(), "charge action timeout after %f seconds.", this->charge_action_timeout);
+			status_ = DockStatus::FAILURE;
+			fail_count++;
+			break;
+		}
 	}
 	return status_;
+}
+
+void TestDock::charge_feedback_callback(GoalHandleCharge::SharedPtr, const std::shared_ptr<const Charge::Feedback> feedback)
+{
+	this->state = feedback->state;	
 }
 
 void TestDock::run()
@@ -387,7 +439,7 @@ void TestDock::run()
 		DockStatus result = start_docking();
 		if (goal_rejected)
 		{
-			RCLCPP_INFO(get_logger(), "Goal was rejected, please check the topic name /charger/state.");
+			RCLCPP_INFO(get_logger(), "Goal was rejected, please check ");
 			break;
 		}
 		switch (result)
@@ -451,13 +503,33 @@ double TestDock::bound_linear(double x)
 	}
 }
 
-void TestDock::dock_result_callback(const GoalHandleDock::WrappedResult &result)
+// void TestDock::dock_result_callback(const GoalHandleDock::WrappedResult &result)
+// {
+// 	RCLCPP_DEBUG(get_logger(), "dock_result_callback");
+// 	switch (result.code)
+// 	{
+// 	case rclcpp_action::ResultCode::SUCCEEDED:
+// 		success_count++;
+// 		dock_success = true;
+// 		status_ = DockStatus::SUCCESS;
+// 		break;
+// 	case rclcpp_action::ResultCode::ABORTED:
+// 	default:
+// 		fail_count++;
+// 		status_ = DockStatus::FAILURE;
+// 		break;
+// 	}
+// 	dock_end = true;
+// }
+
+void TestDock::charge_result_callback(const GoalHandleCharge::WrappedResult &result)
 {
-	RCLCPP_DEBUG(get_logger(), "dock_result_callback");
+	// 	RCLCPP_DEBUG(get_logger(), "dock_result_callback");
+	RCLCPP_INFO(get_logger(), "goal result: %d(0:unknow,4:success,5:fail,6:abort)", result.code);
 	switch (result.code)
 	{
 	case rclcpp_action::ResultCode::SUCCEEDED:
-		success_count++;
+		// success_count++;
 		dock_success = true;
 		status_ = DockStatus::SUCCESS;
 		break;
@@ -509,15 +581,19 @@ void TestDock::odom_sub_callback(nav_msgs::msg::Odometry msg)
 	}
 }
 
-void TestDock::robot_pose_sub_callback(geometry_msgs::msg::PoseStamped msg)
+void TestDock::robot_pose_sub_callback(aruco_msgs::msg::PoseWithId msg)
 {
 	// cout << "robot pose callback " << endl;
-	tf2::Transform transform;
-	tf2::convert(msg.pose, transform);
-	robot_current_pose_sub.x = transform.getOrigin().getX();
-	robot_current_pose_sub.y = transform.getOrigin().getY();
-	robot_current_pose_sub.theta = tf2::getYaw(transform.getRotation());
-	robot_current_pose_sub_sub = true;
+	if (msg.marker_id == this->marker_id)
+	{
+		tf2::Transform transform;
+		tf2::convert(msg.pose.pose, transform);
+		robot_current_pose_sub.x = transform.getOrigin().getX();
+		robot_current_pose_sub.y = transform.getOrigin().getY();
+		robot_current_pose_sub.theta = tf2::getYaw(transform.getRotation());
+		robot_current_pose_sub_sub = true;
+	}
+	
 }
 
 void TestDock::charger_state_callback(capella_ros_service_interfaces::msg::ChargeState msg)

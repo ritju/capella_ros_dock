@@ -6,6 +6,7 @@
 #include "std_srvs/srv/empty.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
+#include "aruco_msgs/msg/pose_with_id.hpp"
 #include <tf2/utils.h>
 #include <chrono>
 #include "geometry_msgs/msg/twist.hpp"
@@ -13,7 +14,8 @@
 #include <queue>
 #include <mutex>
 #include <rclcpp_action/rclcpp_action.hpp>
-#include "capella_ros_dock_msgs/action/dock.hpp"
+// #include "capella_ros_dock_msgs/action/dock.hpp"
+#include "charge_manager_msgs/action/charge.hpp"
 #include "angles/angles.h"
 #include <thread>
 #include <ctime>
@@ -44,8 +46,10 @@ struct GoalRect
 	int y_max;
 };
 
-using Dock = capella_ros_dock_msgs::action::Dock;
-using GoalHandleDock = rclcpp_action::ClientGoalHandle<Dock>;
+// using Dock = capella_ros_dock_msgs::action::Dock;
+// using GoalHandleDock = rclcpp_action::ClientGoalHandle<Dock>;
+using Charge = charge_manager_msgs::action::Charge;
+using GoalHandleCharge = rclcpp_action::ClientGoalHandle<Charge>;
 
 class TestDock : public rclcpp::Node
 {
@@ -60,7 +64,7 @@ public:
 	void run();
 
 	rclcpp::Subscription<capella_ros_service_interfaces::msg::ChargeMarkerVisible>::SharedPtr dock_visible_sub_;
-	rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr robot_pose_sub_;
+	rclcpp::Subscription<aruco_msgs::msg::PoseWithId>::SharedPtr robot_pose_sub_;
 	rclcpp::Subscription<capella_ros_msg::msg::Velocities>::SharedPtr raw_vel_sub_;
 	rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
 	rclcpp::Subscription<capella_ros_service_interfaces::msg::ChargeState>::SharedPtr charger_state_sub_;
@@ -80,12 +84,15 @@ public:
 	void dock_visible_sub_callback(capella_ros_service_interfaces::msg::ChargeMarkerVisible msg);
 	void raw_vel_sub_callback(capella_ros_msg::msg::Velocities msg);
 	void odom_sub_callback(nav_msgs::msg::Odometry msg);
-	void robot_pose_sub_callback(geometry_msgs::msg::PoseStamped msg);
+	void robot_pose_sub_callback(aruco_msgs::msg::PoseWithId msg);
 	void timer_pub_vel_callback();
-	void dock_result_callback(const GoalHandleDock::WrappedResult &result);
+	// void dock_result_callback(const GoalHandleDock::WrappedResult &result);
+	void charge_result_callback(const GoalHandleCharge::WrappedResult &result);
+	void charge_feedback_callback(GoalHandleCharge::SharedPtr, const std::shared_ptr<const Charge::Feedback> feedback);
 	void charger_state_callback(capella_ros_service_interfaces::msg::ChargeState msg);
 
-	rclcpp_action::Client<Dock>::SharedPtr client_action_dock_;
+	// rclcpp_action::Client<Dock>::SharedPtr client_action_dock_;
+	rclcpp_action::Client<Charge>::SharedPtr client_action_charge_;
 
 	double bound_rotation(double);
 	double bound_linear(double);
@@ -133,5 +140,11 @@ public:
 	double theta_positive;
 	double theta_negative;
 	bool drive_back = true;
+
+	double charge_action_start_time = 0.0;
+	double charge_action_timeout = 120.0;
+	std::string state = std::string("idle");
+	std::string mac;
+	int marker_id;
 
 };

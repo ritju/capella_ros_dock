@@ -15,10 +15,10 @@ hazards_vector_publisher:
 test_dock:
   ros__parameters:
     test_count: 11
-    x_min: -180
-    x_max: -100
-    y_min: 0
-    y_max: 5
+    x_min: -140
+    x_max: -120
+    y_min: -15
+    y_max: 15
 
 motion_control:
   ros__parameters:
@@ -33,7 +33,7 @@ motion_control:
     go_to_goal_angle_too_far: 0.35
     go_to_goal_apply_rotation_angle: 0.01 # when angle_dist > this value,apply rotation
     goal_angle_converged: 0.15
-    dist_goal_converged: 0.50
+    dist_goal_converged: 0.3
     # last_docked_distance_offset_: 0.60
     distance_low_speed: 0.10
     translate_low_speed: 0.05
