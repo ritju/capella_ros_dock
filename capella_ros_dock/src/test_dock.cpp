@@ -400,7 +400,7 @@ DockStatus TestDock::start_docking()
 		if (cost_time < this->charge_action_timeout)
 		{
 			RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 4000, "feedback: %s", state.c_str());
-			RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 4000, "cost_time: %f, timeout: %f",cost_time, charge_action_timeout);
+			// RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 4000, "cost_time: %f, timeout: %f",cost_time, charge_action_timeout);
 			if(state == std::string("charging"))
 			{
 				RCLCPP_INFO(get_logger(), "charge action succeed.");
