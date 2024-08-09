@@ -205,7 +205,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			{
 				RCLCPP_INFO(logger_, "*************** robot is docked *************");
 				goal_points_.clear();
-				first_sees_dock = true;
+				start_time_recorded = false;
 				first_contacted = true;
 			}
 		}
@@ -310,104 +310,136 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 	case NavigateStates::LOOKUP_ARUCO_MARKER:
 	{
 		RCLCPP_DEBUG(logger_, "------------- LOOKUP_ARUCO_MARKER -------------");
+		
 		servo_vel = geometry_msgs::msg::Twist();
-		if (sees_dock)
+
+		if (using_localization)
 		{
-			RCLCPP_DEBUG(logger_, "see dock");
-			auto current_robot_angle = tf2::getYaw(current_pose.getRotation());
-			float dist_angle_to_X_Axis = angles::shortest_angular_distance(current_robot_angle, 0);
-			float dist_angle_to_X_Axis_abs = std::abs(dist_angle_to_X_Axis);
-			if (dist_angle_to_X_Axis_abs < M_PI && first_sees_dock)
+			auto angle_robot = tf2::getYaw(robot_pose_map.getRotation());
+			double x_charger, y_charger, x_robot, y_robot;
+			x_robot = robot_pose_map.getOrigin()[0];
+			y_robot = robot_pose_map.getOrigin()[1];
+			x_charger = charger_pose_map.getOrigin()[0];
+			y_charger = charger_pose_map.getOrigin()[1];
+			auto angle_charger_to_robot = std::atan2(y_robot - y_charger, x_robot - x_charger);
+			auto dist_angle = angles::shortest_angular_distance(angle_robot, angle_charger_to_robot);
+			RCLCPP_DEBUG(logger_, "using localization: %s", using_localization?"true":"false");
+
+
+			if (std::abs(dist_angle) > params_ptr->angle_to_goal_angle_converged)
 			{
-				RCLCPP_DEBUG(logger_, "first see dock.(angle to x positive orientation.)");
-				first_sees_dock = false;
-				first_sees_dock_time = clock_->now().seconds();
-				RCLCPP_DEBUG(logger_, "first see dock time: %f", first_sees_dock_time);
+				RCLCPP_DEBUG(logger_, "angle_robot: %f", angle_robot);
+				RCLCPP_DEBUG(logger_, "angle_charger_to_robot: %f", angle_charger_to_robot);
+				RCLCPP_DEBUG(logger_, "dist_angle: %f", dist_angle);
+
+				start_time_recorded = false;
+				RCLCPP_DEBUG(logger_, "Need rotate robot for turning the camera towards the charger marker direction.");
+				bound_rotation(dist_angle, params_ptr->min_rotation, params_ptr->max_rotation);
+				servo_vel->angular.z = dist_angle;
+				RCLCPP_DEBUG(logger_, "angular_z: %f", servo_vel->angular.z);
+				
 				state = std::string("LOOKUP_ARUCO_MARKER");
-				infos = std::string("Reason: first sees dock ==> record first sees dock time.");
+				infos = std::string("Reason: camera's orientation not towards charger's marker ==> rotate robot");
 			}
 			else
 			{
-				servo_vel->angular.z = std::copysign(params_ptr->max_rotation, dist_angle_to_X_Axis);
-				state = std::string("LOOKUP_ARUCO_MARKER");
-				infos = std::string("Reason: not first sees dock ==> rotate robot");
-			}
+				RCLCPP_DEBUG(logger_, "waiting for find the best coordinate for robot in marker frame");
+				double x_,y_, theta_;
+				x_ = current_pose.getOrigin()[0];
+				y_ = current_pose.getOrigin()[1];
+				theta_ = tf2::getYaw(current_pose.getRotation());
+				RCLCPP_DEBUG(logger_, "robot_x: %f", x_);
+				RCLCPP_DEBUG(logger_, "robot_y: %f", y_);
+				RCLCPP_DEBUG(logger_, "robot_theta: %f", theta_);
 
-
-			now_time = clock_->now().seconds();
-			if ( !first_sees_dock && (now_time - first_sees_dock_time > params_ptr->localization_converged_time))
-			{
-				double robot_x = current_pose.getOrigin().getX();
-				double robot_y = current_pose.getOrigin().getY();
-				float distance_tmp = params_ptr->last_docked_distance_offset_
-				                     + params_ptr->distance_low_speed
-				                     + params_ptr->second_goal_distance;
-				double theta = std::atan2(std::abs(robot_y), std::abs(robot_x) - distance_tmp);
-				RCLCPP_DEBUG(logger_, "robot_x: %f", robot_x);
-				RCLCPP_DEBUG(logger_, "robot_y: %f", robot_y);
-				RCLCPP_DEBUG(logger_, "theta: %f", theta);
-				RCLCPP_DEBUG(logger_, "thr_angle_diff: %f", thre_angle_diff);
-				if (theta < thre_angle_diff && std::abs(robot_x) > (distance_tmp + params_ptr->deviate_second_goal_x))                                                                                                                                                                      // 0.7 <= 0.5 + 0.2(x_error)
+				if(!start_time_recorded)
 				{
-					navigate_state_ = NavigateStates::ANGLE_TO_GOAL;
+					start_time_recorded = true;
+					waiting_for_best_coord_start_time = clock_->now().seconds();
+					RCLCPP_DEBUG(logger_, "waiting_for_best_coord_start_time : %f", waiting_for_best_coord_start_time);
 					state = std::string("LOOKUP_ARUCO_MARKER");
-					infos = std::string("Reason: robot's position converged ==> directly change state to ANGLE_TO_GOAL");
+					infos = std::string("Reason: camera's orientation first towards charger's marker ==> record the start time.");
 				}
 				else
 				{
-					RCLCPP_DEBUG(logger_, "robot_x: %f, robot_y: %f", robot_x, robot_y);
-					RCLCPP_DEBUG(logger_, "buffer_goal_point_x: %f, buffer_goal_point_y: %f", buffer_goal_point_x, buffer_goal_point_y);
-					dist_buffer_point = std::hypot(robot_x - buffer_goal_point_x,
-					                               robot_y - buffer_goal_point_y);
-					robot_current_yaw = tf2::getYaw(current_pose.getRotation());
-					robot_angle_to_buffer_point_yaw = std::atan2(buffer_goal_point_y - robot_y,
-					                                             buffer_goal_point_x - robot_x);
+					auto now_time = clock_->now().seconds();
 
-					// decide drive back or not
-					theta_positive = angles::shortest_angular_distance(
-						angles::normalize_angle(robot_current_yaw + M_PI),
-						robot_angle_to_buffer_point_yaw);
-					theta_negative = angles::shortest_angular_distance(robot_current_yaw,
-					                                                   robot_angle_to_buffer_point_yaw);
-					if (std::abs(theta_positive) < std::abs(theta_negative))
+					if (now_time - waiting_for_best_coord_start_time < params_ptr->localization_converged_time)
 					{
-						drive_back = false;
-						dist_buffer_point_yaw = theta_positive;
+						RCLCPP_DEBUG(logger_, "coords not converged, just wait.");
+						state = std::string("LOOKUP_ARUCO_MARKER");
+						infos = std::string("Reason: coords not converged ==> just wait.");
 					}
 					else
 					{
-						drive_back = true;
-						dist_buffer_point_yaw = theta_negative;
-					}
+						RCLCPP_DEBUG(logger_, "coords converged, change state.");
+						start_time_recorded = false;
 
-					RCLCPP_DEBUG(logger_, "robot_current_yaw: %f", robot_current_yaw);
-					RCLCPP_DEBUG(logger_, "robot_angle_to_buffer_point_yaw: %f", robot_angle_to_buffer_point_yaw);
-					RCLCPP_DEBUG(logger_, "theta_negative: %f", theta_negative);
-					RCLCPP_DEBUG(logger_, "theta_positive: %f", theta_positive);
-					RCLCPP_DEBUG(logger_, "dist_buffer_point: %f", dist_buffer_point);
-					RCLCPP_DEBUG(logger_, "dist_buffer_point_yaw: %f", dist_buffer_point_yaw);
-					pre_time = clock_->now().seconds();
-					navigate_state_ = NavigateStates::ANGLE_TO_BUFFER_POINT;
-					state = std::string("LOOKUP_ARUCO_MARKER");
-					infos = std::string("Reason: robot's position not converged ==> directly change state to ANGLE_TO_BUFFER_POINT");
+						double robot_x = current_pose.getOrigin().getX();
+						double robot_y = current_pose.getOrigin().getY();
+						float distance_tmp = params_ptr->last_docked_distance_offset_
+								+ params_ptr->distance_low_speed
+								+ params_ptr->second_goal_distance;
+						double theta = std::atan2(std::abs(robot_y), std::abs(robot_x) - distance_tmp);
+						RCLCPP_DEBUG(logger_, "robot_x: %f", robot_x);
+						RCLCPP_DEBUG(logger_, "robot_y: %f", robot_y);
+						RCLCPP_DEBUG(logger_, "theta_to_second_goal: %f", theta);
+						RCLCPP_DEBUG(logger_, "thre_angle_diff: %f", thre_angle_diff);
+
+						if (theta < thre_angle_diff && std::abs(robot_x) > (distance_tmp + params_ptr->deviate_second_goal_x))                                                                                                                                                                      // 0.7 <= 0.5 + 0.2(x_error)
+						{
+							navigate_state_ = NavigateStates::ANGLE_TO_GOAL;
+							state = std::string("LOOKUP_ARUCO_MARKER");
+							infos = std::string("Reason: robot's position converged ==> directly change state to ANGLE_TO_GOAL");
+						}
+						else
+						{
+							RCLCPP_DEBUG(logger_, "robot_x: %f, robot_y: %f", robot_x, robot_y);
+							RCLCPP_DEBUG(logger_, "buffer_goal_point_x: %f, buffer_goal_point_y: %f", buffer_goal_point_x, buffer_goal_point_y);
+							dist_buffer_point = std::hypot(robot_x - buffer_goal_point_x,
+										robot_y - buffer_goal_point_y);
+							robot_current_yaw = tf2::getYaw(current_pose.getRotation());
+							robot_angle_to_buffer_point_yaw = std::atan2(buffer_goal_point_y - robot_y,
+												buffer_goal_point_x - robot_x);
+
+							// decide drive back or not
+							theta_positive = angles::shortest_angular_distance(
+								angles::normalize_angle(robot_current_yaw + M_PI),
+								robot_angle_to_buffer_point_yaw);
+							theta_negative = angles::shortest_angular_distance(robot_current_yaw,
+													robot_angle_to_buffer_point_yaw);
+							if (std::abs(theta_positive) < std::abs(theta_negative))
+							{
+								drive_back = false;
+								dist_buffer_point_yaw = theta_positive;
+							}
+							else
+							{
+								drive_back = true;
+								dist_buffer_point_yaw = theta_negative;
+							}
+
+							RCLCPP_DEBUG(logger_, "robot_current_yaw: %f", robot_current_yaw);
+							RCLCPP_DEBUG(logger_, "robot_angle_to_buffer_point_yaw: %f", robot_angle_to_buffer_point_yaw);
+							RCLCPP_DEBUG(logger_, "theta_negative: %f", theta_negative);
+							RCLCPP_DEBUG(logger_, "theta_positive: %f", theta_positive);
+							RCLCPP_DEBUG(logger_, "dist_buffer_point: %f", dist_buffer_point);
+							RCLCPP_DEBUG(logger_, "dist_buffer_point_yaw: %f", dist_buffer_point_yaw);
+							pre_time = clock_->now().seconds();
+							navigate_state_ = NavigateStates::ANGLE_TO_BUFFER_POINT;
+							state = std::string("LOOKUP_ARUCO_MARKER");
+							infos = std::string("Reason: robot's position not converged ==> directly change state to ANGLE_TO_BUFFER_POINT");
+						}
+					}
+					
 				}
 			}
 		}
-		else
+		else // process for the case that don't use robot localization
 		{
-			auto angle_robot = tf2::getYaw(robot_pose_map.getRotation());
-			auto angle_charger = tf2::getYaw(charger_pose_map.getRotation());
-			auto dist_angle = angles::shortest_angular_distance(angle_robot, angle_charger);
-			RCLCPP_DEBUG(logger_, "angle_robot: %f", angle_robot);
-			RCLCPP_DEBUG(logger_, "angle_charger: %f", angle_charger);
-			RCLCPP_DEBUG(logger_, "dist_angle before bound: %", dist_angle);
-			bound_rotation(dist_angle, params_ptr->min_rotation, params_ptr->max_rotation);
-			RCLCPP_DEBUG(logger_, "dist_angle after bound: %", dist_angle);
-			servo_vel->angular.z = dist_angle;
-			RCLCPP_DEBUG(logger_, "can not see dock");
-			state = std::string("LOOKUP_ARUCO_MARKER");
-			infos = std::string("Reason: can not see marker ==> rotate robot");
+
 		}
+	
 		break;
 	}
 	case NavigateStates::ANGLE_TO_BUFFER_POINT:
@@ -959,8 +991,8 @@ double dist_buffer_point;
 double dist_buffer_point_yaw;
 double pre_time;
 double now_time;
-double first_sees_dock_time;
-bool first_sees_dock = true;
+double waiting_for_best_coord_start_time;
+bool start_time_recorded = false;
 double thre_angle_diff = 0.30; // 0.4461565280195475968735605160853 <= tan(32-arctan2(0.12/(0.32+0.1+0.5))
 
 // buffer_goal_point
@@ -993,6 +1025,8 @@ bool undocking = false;
 double undock_start_time;
 double undock_time;
 double undock_speed;
+
+bool using_localization{true};
 
 };
 

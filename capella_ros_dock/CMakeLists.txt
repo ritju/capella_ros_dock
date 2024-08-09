@@ -135,12 +135,19 @@ rclcpp_components_register_node(manual_dock_lib
   PLUGIN "capella_ros_dock::ManualDock" 
   EXECUTABLE manual_dock)
 
+# coord_optimize library
+add_library(coord_optimize SHARED src/coord_optimize.cpp)
+target_include_directories(coord_optimize PUBLIC include)
+ament_target_dependencies(coord_optimize ${dependencies})
+rclcpp_components_register_node(coord_optimize PLUGIN "capella_ros_dock::CoordOptimize" EXECUTABLE coord_optimize_node)
+
 ############install libraries
 set(libraries_names
   hazards_publisher_lib
   motion_control_lib
   camera_point_cloud_process_lib
   manual_dock_lib
+  coord_optimize
   # robot_state_lib
 )
 install(TARGETS ${libraries_names}

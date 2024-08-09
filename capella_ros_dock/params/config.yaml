@@ -35,17 +35,17 @@ motion_control:
     goal_angle_converged: 0.15
     dist_goal_converged: 0.3
     # last_docked_distance_offset_: 0.60
-    distance_low_speed: 0.10
+    distance_low_speed: 0.20
     translate_low_speed: 0.05
     rotation_low_speed: 0.10
     first_goal_distance: 0.0
-    second_goal_distance: 0.3
-    buffer_goal_distance: 0.3
+    second_goal_distance: 0.05
+    buffer_goal_distance: 0.45
     camera_horizontal_view: 58.0
-    localization_converged_time: 0.5 # wait (n) seconds for coordinates to be converged
+    localization_converged_time: 5.0 # wait (n) seconds for coordinates to be converged
     tolerance_angle: 0.02
     tolerance_r: 0.02
-    deviate_second_goal_x: 0.2
+    deviate_second_goal_x: 0.1
     dist_error_y_1: 0.05
     dist_error_x_and_y: 0.3
     motion_control_log_level: 'info'
