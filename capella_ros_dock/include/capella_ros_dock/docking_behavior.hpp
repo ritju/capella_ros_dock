@@ -186,7 +186,7 @@ bool check_undock_has_obstale(sensor_msgs::msg::LaserScan);
 double contact_state_change_time;
 double contact_state_now_time;
 bool contact_state_changed_recorded = false;
-bool contact_state_last = false;
+// bool contact_state_last = false;
 bool contact_state_pubbed_init = false;
 float contact_state_change_time_delta = 0.5;
 float charging_radius;
@@ -208,6 +208,8 @@ tf2::Transform tf_2markers_fixed;
 tf2::Transform tf_2markers_current;
 double w_fixed, x_fixed, y_fixed, z_fixed;
 double w_current, x_current, y_current, z_current;
+
+bool contact_state_last_{false};
 
 };
 

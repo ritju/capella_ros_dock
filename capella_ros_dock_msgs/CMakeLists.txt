@@ -34,6 +34,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/IrIntensityVector.msg"
   "msg/IrOpcode.msg"
   "msg/KidnapStatus.msg"
+  "msg/PoseScore.msg"
   "msg/StopStatus.msg"
   "msg/WheelStatus.msg"
   "msg/WheelVels.msg"

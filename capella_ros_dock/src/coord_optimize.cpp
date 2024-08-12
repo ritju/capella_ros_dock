@@ -15,6 +15,17 @@ namespace capella_ros_dock
                 tf_baselink_to_baselink_dummy_.setIdentity();
                 score_marker_best_ = 0.0;
 
+                marker_pose_out_ = MarkerPose();
+                marker_pose_out_.pose.header.stamp = this->get_clock()->now();
+                marker_pose_out_.pose.header.frame_id = std::string("charger");
+                marker_pose_out_.pose.pose.position.x = 0.0;
+                marker_pose_out_.pose.pose.position.y = 0.0;
+                marker_pose_out_.pose.pose.position.z = 0.0;
+                marker_pose_out_.pose.pose.orientation.w = 1.0;
+                marker_pose_out_.pose.pose.orientation.x = 0.0;
+                marker_pose_out_.pose.pose.orientation.y = 0.0;
+                marker_pose_out_.pose.pose.orientation.z = 0.0;
+
                 //subs
                 marker_pose_sub_ =     this->create_subscription<MarkerPose>("/pose_with_id", 20, std::bind(&CoordOptimize::marker_pose_sub_callback, this, _1));
                 odom_sub_ =            this->create_subscription<Odom>("/odom", 50, std::bind(&CoordOptimize::odom_sub_callback, this, _1));

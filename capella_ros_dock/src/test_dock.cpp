@@ -390,6 +390,7 @@ DockStatus TestDock::start_docking()
 		fail_count++;
 		status_ = DockStatus::FAILURE;
 		goal_rejected = true;
+		return status_;
 	}
 
 	while (true)

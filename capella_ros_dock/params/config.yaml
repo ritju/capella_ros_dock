@@ -14,11 +14,11 @@ hazards_vector_publisher:
 
 test_dock:
   ros__parameters:
-    test_count: 11
-    x_min: -140
-    x_max: -120
-    y_min: -15
-    y_max: 15
+    test_count: 10
+    x_min: -150
+    x_max: -110
+    y_min: -20
+    y_max: 20
 
 motion_control:
   ros__parameters:

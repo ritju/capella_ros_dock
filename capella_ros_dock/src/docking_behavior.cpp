@@ -217,7 +217,7 @@ void DockingBehavior::handle_dock_servo_accepted(
 	dock_rotation.setRPY(0, 0, 0);
 	dock_offset.setOrigin(tf2::Vector3(-dist_offset, 0, 0));
 	dock_offset.setRotation(dock_rotation);
-	dock_path.emplace_back(dock_pose * dock_offset, 0.01, true);
+	dock_path.emplace_back(dock_pose * dock_offset, 0.10, true);
 
 	dock_rotation.setRPY(0, 0, 0);
 	dock_offset.setOrigin(tf2::Vector3(-params_ptr->first_goal_distance, 0, 0));
@@ -492,6 +492,13 @@ void DockingBehavior::charge_state_callback(capella_ros_service_interfaces::msg:
 	// 	            msg->stamp.sec, msg->stamp.nanosec);
 	// } // 调试 需临时更改msg消息类型定义
 	this->is_docked_ = msg->has_contact;
+	if (this->is_docked_ != this->contact_state_last_)
+	{
+		RCLCPP_INFO(logger_, "motion_control node => contact state changed from %s to %s", 
+			this->contact_state_last_?"true":"false",
+			this->is_docked_?"true":"false");
+		this->contact_state_last_ = this->is_docked_;
+	}
 	this->bluetooth_connected = !(msg->pid.compare("") == 0);
 }
 

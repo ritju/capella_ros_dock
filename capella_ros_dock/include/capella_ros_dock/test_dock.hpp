@@ -142,7 +142,7 @@ public:
 	bool drive_back = true;
 
 	double charge_action_start_time = 0.0;
-	double charge_action_timeout = 120.0;
+	double charge_action_timeout = 300.0;
 	std::string state = std::string("idle");
 	std::string mac;
 	int marker_id;
