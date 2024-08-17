@@ -365,6 +365,10 @@ namespace capella_ros_dock
                                 RCLCPP_DEBUG(get_logger(), "update theta_in_delta_max_: %f", theta_in_delta_max_);
                         }
 
+                        RCLCPP_DEBUG(get_logger(), "x_out_delta     : %f", x_out_delta);
+                        RCLCPP_DEBUG(get_logger(), "y_out_delta     : %f", y_out_delta);
+                        RCLCPP_DEBUG(get_logger(), "theta_out_delta : %f", theta_out_delta);
+
                         if(x_out_delta > this->x_out_delta_max_)
                         {
                                 this->x_out_delta_max_ = x_out_delta;
