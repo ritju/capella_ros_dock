@@ -69,6 +69,18 @@ def generate_launch_description():
         print("Please modify CHARGING_RADIUS's value in docker-compose.yml")
         charging_radius = 0.8
 
+    camera_baselink_dis_ = 0.3
+    try:
+        if 'CAMERA_BASELINK_DIS' in os.environ:
+            camera_baselink_dis_ = float(os.environ.get('CAMERA_BASELINK_DIS'))
+            print(f'get camera_baselink_dis_ {camera_baselink_dis_} from docker-compose.yml')
+        else:
+            camera_baselink_dis_ = 0.3
+    except Exception as e:
+        print(f'exception: {str(e)}')
+        print("Please modify CAMERA_BASELINK_DIS's value in docker-compose.yml")
+        camera_baselink_dis_ = 0.3
+
     
     # declare launch arguments   
     # test_count_launch_arg = DeclareLaunchArgument('test_count', default_value=TextSubstitution(text="1"))
@@ -148,7 +160,7 @@ def generate_launch_description():
         name='motion_control',
         namespace='',
         output='screen',
-        parameters=[configured_params, {'charger_contact_condition_type': charger_contact_condition_type, 'charging_radius': charging_radius, 'last_docked_distance_offset_': last_docked_distance_offset_}],
+        parameters=[configured_params, {'charger_contact_condition_type': charger_contact_condition_type, 'charging_radius': charging_radius, 'last_docked_distance_offset_': last_docked_distance_offset_, 'camera_baselink_dis': camera_baselink_dis_}],
         arguments=['--ros-args', '--log-level', ['motion_control:=', LaunchConfiguration('log_level')]]
     )
 

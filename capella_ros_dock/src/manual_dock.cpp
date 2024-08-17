@@ -135,6 +135,7 @@ namespace capella_ros_dock
                 charger_position_pub_->publish(msg_bool);
                 is_in_charger_range_last = msg_bool.data;
                 RCLCPP_INFO(get_logger(), "publish /charger_position_bool false for init.");
+                robot_stop_time_start = this->get_clock()->now().seconds();
         }
 
         void ManualDock::get_robot_pose_map(float& robot_x, float& robot_y, float& yaw)
@@ -419,12 +420,15 @@ namespace capella_ros_dock
                                         is_docking_state = false;
                                 }
                                 bool manual_charge_satisfied = false;
+                                double current_time_ = this->get_clock()->now().seconds();
+                                bool stopped = ((!robot_state_moving_) && (current_time_ - robot_stop_time_start > stop_time));
                                 manual_charge_satisfied = charger_visible
                                         && is_in_charger_range_charger 
                                         && !charger_state.is_docking 
                                         && !charger_state.is_charging
                                         && !is_undocking_state
-                                        && !is_docking_state;
+                                        && !is_docking_state
+                                        && stopped;
                                 if (manual_charge_satisfied)
                                 {
                                         RCLCPP_INFO(this->get_logger(), " ====== manual charging satisfied ======");
@@ -611,6 +615,67 @@ namespace capella_ros_dock
                 odom_current_x = tf.getOrigin().getX();
                 odom_current_y = tf.getOrigin().getY();
                 odom_current_yaw = tf2::getYaw(tf.getRotation());
+
+                linear_  = msg->twist.twist.linear.x;
+                angular_ = msg->twist.twist.angular.z;
+
+                // generate value of robot_state_moving 
+                if (std::abs(linear_) < thre_moving_linear_ && std::abs(angular_) < thre_moving_angular_) // current data => stop
+                {
+                        odom_data_valid_count_moving_ = 0;
+
+                        if (robot_state_moving_last_) // last state => moving
+                        {
+                                odom_data_valid_count_stoping_++;
+
+                                if (odom_data_valid_count_stoping_ >= thre_odom_data_valid_count_)
+                                {
+                                        robot_state_moving_ = !robot_state_moving_last_; // change state
+                                        robot_stop_time_start = this->get_clock()->now().seconds();
+                                }
+                                else
+                                {
+                                        robot_state_moving_ = robot_state_moving_last_; // keep state
+                                }
+
+                        }
+                        else // last state => stoping
+                        {
+                                robot_state_moving_ = robot_state_moving_last_; // keep state
+                        }
+                }
+                else // current data => moving
+                {
+                        odom_data_valid_count_stoping_ = 0;
+
+                        if (!robot_state_moving_last_) // last state => stoping
+                        {
+                                odom_data_valid_count_moving_++;
+                                if (odom_data_valid_count_moving_ >= thre_odom_data_valid_count_) // change state
+                                {
+                                        robot_state_moving_ = !robot_state_moving_last_;
+                                }
+                                else // keep state
+                                {
+                                        robot_state_moving_ = robot_state_moving_last_;
+                                }
+
+                        }
+                        else // last state => moving
+                        {
+                                robot_state_moving_ = robot_state_moving_last_; // keep state
+                        }
+                } 
+
+                // echo infos when robot moving state changed for debug;
+                if(robot_state_moving_last_ != robot_state_moving_)
+                {
+                        RCLCPP_INFO(get_logger(), "Robot moving state changed from %s to %s", 
+                                robot_state_moving_last_?"true":"false",
+                                robot_state_moving_?"true":"false");
+                        RCLCPP_INFO(get_logger(), "linear_x: %f, angular_z: %f", linear_, angular_);
+                }
+                robot_state_moving_last_ = robot_state_moving_;
         }
 
 

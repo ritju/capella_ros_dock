@@ -51,6 +51,7 @@ struct motion_control_params
 	float contact_state_change_time_delta;
 	float charging_radius;
 	float similarity_threshold;
+	float camera_baselink_dis;
 };
 } // end namespace capella_ros_dock
 

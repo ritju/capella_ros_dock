@@ -348,6 +348,7 @@ DockStatus TestDock::start_docking()
 	if (!get_robot_pose())
 	{
 		status_ = DockStatus::UNKNOW_ROBOT_POSE;
+		RCLCPP_INFO(get_logger(), "unknow robot pose, fail_count++");
 		fail_count++;
 		return status_;
 	}
@@ -380,6 +381,7 @@ DockStatus TestDock::start_docking()
 	send_goal_options.feedback_callback = std::bind(&TestDock::charge_feedback_callback, this, _1, _2);
 
 	this->state = std::string("idle");
+	this->state_last = this->state;
 	auto goal_future = this->client_action_charge_->async_send_goal(goal_msg, send_goal_options);
 	charge_action_start_time = this->get_clock()->now().seconds();
 
@@ -387,6 +389,7 @@ DockStatus TestDock::start_docking()
 	{
 		RCLCPP_INFO(get_logger(), "Goal rejected.");
 		dock_end = true;
+		RCLCPP_INFO(get_logger(), "Goal rejected, fail_count++");
 		fail_count++;
 		status_ = DockStatus::FAILURE;
 		goal_rejected = true;
@@ -400,19 +403,27 @@ DockStatus TestDock::start_docking()
 		// RCLCPP_DEBUG(get_logger(),"sleep 1 second.");
 		if (cost_time < this->charge_action_timeout)
 		{
-			RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 4000, "feedback: %s", state.c_str());
-			// RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 4000, "cost_time: %f, timeout: %f",cost_time, charge_action_timeout);
-			if(state == std::string("charging"))
+			if (this->state_last != this->state)
+			{
+				RCLCPP_INFO(get_logger(), "Charge action state changed from %s to %s.", this->state_last.c_str(), this->state.c_str());
+				this->state_last = this->state;
+			}
+
+			if(this->is_charging)
 			{
 				RCLCPP_INFO(get_logger(), "charge action succeed.");
 				success_count++;
 				status_ = DockStatus::SUCCESS;
 				return status_;
 			}
-			else
+
+			if (dock_end)
 			{
-				sleep(1);
-			}			
+				RCLCPP_INFO(get_logger(), "Charge action ended, exit.");
+				return status_;
+			}
+
+			sleep(0.1);			
 			
 		}
 		else
@@ -504,28 +515,9 @@ double TestDock::bound_linear(double x)
 	}
 }
 
-// void TestDock::dock_result_callback(const GoalHandleDock::WrappedResult &result)
-// {
-// 	RCLCPP_DEBUG(get_logger(), "dock_result_callback");
-// 	switch (result.code)
-// 	{
-// 	case rclcpp_action::ResultCode::SUCCEEDED:
-// 		success_count++;
-// 		dock_success = true;
-// 		status_ = DockStatus::SUCCESS;
-// 		break;
-// 	case rclcpp_action::ResultCode::ABORTED:
-// 	default:
-// 		fail_count++;
-// 		status_ = DockStatus::FAILURE;
-// 		break;
-// 	}
-// 	dock_end = true;
-// }
-
 void TestDock::charge_result_callback(const GoalHandleCharge::WrappedResult &result)
 {
-	// 	RCLCPP_DEBUG(get_logger(), "dock_result_callback");
+	RCLCPP_INFO(get_logger(), "charge_result_callback");
 	RCLCPP_INFO(get_logger(), "goal result: %d(0:unknow,4:success,5:fail,6:abort)", result.code);
 	switch (result.code)
 	{
@@ -535,12 +527,12 @@ void TestDock::charge_result_callback(const GoalHandleCharge::WrappedResult &res
 		status_ = DockStatus::SUCCESS;
 		break;
 	case rclcpp_action::ResultCode::ABORTED:
-	default:
+	default:		
+		RCLCPP_INFO(get_logger(), "default, fail_count++");
 		fail_count++;
 		status_ = DockStatus::FAILURE;
 		break;
 	}
-	dock_end = true;
 }
 
 void TestDock::dock_visible_sub_callback(capella_ros_service_interfaces::msg::ChargeMarkerVisible msg)
@@ -600,6 +592,7 @@ void TestDock::robot_pose_sub_callback(aruco_msgs::msg::PoseWithId msg)
 void TestDock::charger_state_callback(capella_ros_service_interfaces::msg::ChargeState msg)
 {
 	this->has_contact = msg.has_contact;
+	this->is_charging = msg.is_charging;
 	this->has_contact_sub = true;
 }
 

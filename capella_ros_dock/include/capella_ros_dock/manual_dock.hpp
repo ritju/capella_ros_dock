@@ -133,6 +133,23 @@ public:
 
         bool bluetooth_connecting{false};
 
+        // threshold value for moving or not 
+        double thre_moving_linear_ = 0.01;
+        double thre_moving_angular_ = 0.01;
+
+        // manual dock only begin when robot stop time exceed 5 seconds, 
+        bool robot_stop_for_n_seconds{false};
+        int stop_time = 5;
+        double robot_stop_time_start;
+        bool robot_state_moving_{false};
+        bool robot_state_moving_last_{false};
+
+        int thre_odom_data_valid_count_ = 3;
+        int odom_data_valid_count_moving_ = 0;
+        int odom_data_valid_count_stoping_ = 0;
+
+        double linear_, angular_;
+
 };
 } // end of namespace
 

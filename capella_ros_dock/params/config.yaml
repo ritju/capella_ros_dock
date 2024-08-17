@@ -14,7 +14,7 @@ hazards_vector_publisher:
 
 test_dock:
   ros__parameters:
-    test_count: 10
+    test_count: 100
     x_min: -150
     x_max: -110
     y_min: -20
@@ -24,7 +24,7 @@ motion_control:
   ros__parameters:
     max_dock_action_run_time: 160
     min_rotation: 0.15
-    max_rotation: 0.25
+    max_rotation: 0.20
     go_to_goal_rotation_min: 0.05
     go_to_goal_rotation_max: 0.05
     min_translation: 0.02
@@ -84,4 +84,12 @@ manual_dock:
     pose_y_max: 0.1
     yaw_min: -3.14
     yaw_max: 3.14
+
+coord_optimize:
+  ros__parameters:
+    thre_odom_data_valid_count: 3
+    thre_moving_linear: 0.01
+    thre_moving_angular: 0.01
+    score_decline_rate: 0.99995
+
   

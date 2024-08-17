@@ -118,6 +118,7 @@ public:
 	int fail_count = 0;
 	bool dock_success = false;
 	bool has_contact = false;
+	bool is_charging = false;
 	bool has_contact_sub = false;
 	bool dock_end = false;
 	double time_start;
@@ -144,6 +145,7 @@ public:
 	double charge_action_start_time = 0.0;
 	double charge_action_timeout = 300.0;
 	std::string state = std::string("idle");
+	std::string state_last = std::string("idle");
 	std::string mac;
 	int marker_id;
 

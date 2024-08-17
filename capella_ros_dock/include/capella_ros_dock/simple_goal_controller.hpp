@@ -61,7 +61,7 @@ void init_params(motion_control_params* params_ptr)
 	float camera_horizontal_view, marker_size, camera_baselink_dis, goal_dis_x;
 		camera_horizontal_view = degree_to_radian(params_ptr->camera_horizontal_view);
 		marker_size = params_ptr->marker_size;
-		camera_baselink_dis = 0.3; //0.4 -0.1(gp.r)
+		camera_baselink_dis = params_ptr->camera_baselink_dis; //0.4 -0.1(gp.r)
 		goal_dis_x = params_ptr->last_docked_distance_offset_ + params_ptr->distance_low_speed + params_ptr->second_goal_distance;
 		RCLCPP_INFO(rclcpp::get_logger("simple_goal_controller"), "camera_horizontal_view: %f, marker_size: %f, camera_baselink_dis: %f, goal_dis_x: %f",
 			camera_horizontal_view, marker_size, camera_baselink_dis, goal_dis_x);
@@ -328,7 +328,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 
 			if (std::abs(dist_angle) > params_ptr->angle_to_goal_angle_converged)
 			{
-				RCLCPP_DEBUG(logger_, "x_robot_map: %f, y_robot_map", x_robot, y_robot);
+				RCLCPP_DEBUG(logger_, "x_robot_map: %f, y_robot_map: %f", x_robot, y_robot);
 				RCLCPP_DEBUG(logger_, "x_charger_map: %f, y_charger_map: %f", x_charger, y_charger);
 
 				RCLCPP_DEBUG(logger_, "angle_robot: %f", angle_robot);
@@ -524,18 +524,6 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		servo_vel = geometry_msgs::msg::Twist();
 		now_time = clock_->now().seconds();
 		double dt = now_time - pre_time;
-		if (sees_dock)
-		{
-			auto current_position_tmp = current_pose.getOrigin();
-			auto current_angle_tmp = tf2::getYaw(current_pose.getRotation());
-			RCLCPP_DEBUG(logger_, "robot =>  x: %f, y: %f, yaw: %f",
-			             current_position_tmp.getX(), current_position_tmp.getY(),
-			             current_angle_tmp);
-		}
-		else
-		{
-			RCLCPP_DEBUG(logger_, "robot =>  unknow position.");
-		}
 
 		double robot_yaw_marker = tf2::getYaw(current_pose.getRotation());
 		double dist_yaw_marker = angles::shortest_angular_distance(robot_yaw_marker, 0);
@@ -556,13 +544,14 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 
 			if (theta < thre_angle_diff && std::abs(robot_x) > (distance_tmp + params_ptr->deviate_second_goal_x)) 
 			{
+				RCLCPP_INFO(logger_, "converged ==>Change state to ANGLE_TO_GOAL");
 				navigate_state_ = NavigateStates::ANGLE_TO_GOAL;
 				state = std::string("ANGLE_TO_X_POSITIVE_ORIENTATION");
 				infos = std::string("Reason: ANGLE_TO_X_POSITIVE_ORIENTATION converged ==> change state to ANGLE_TO_GOAL");
 			}
 			else
 			{
-				RCLCPP_INFO(logger_, "To re-execute ANGLE_TO_BUFFER_POINT change state to LOOKUP_ARUCO_MARKER");
+				RCLCPP_INFO(logger_, "To re-execute ANGLE_TO_BUFFER_POINT, change state to LOOKUP_ARUCO_MARKER");
 				navigate_state_ = NavigateStates::LOOKUP_ARUCO_MARKER;
 				state = std::string("ANGLE_TO_X_POSITIVE_ORIENTATION");
 				infos = std::string("Reason: ANGLE_TO_X_POSITIVE_ORIENTATION not converged ==> change state to LOOKUP_ARUCO_MARKER");
@@ -705,23 +694,24 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 					infos = std::string("Reason: bluetooth disconnected ==> stop");
 					break;
 				}
-				// if (abs_ang > params_ptr->go_to_goal_apply_rotation_angle)
-				// {
-					// bound_rotation(ang, 0.01, params_ptr->rotation_low_speed);
-					// ang = generate_smooth_rotation_speed(last_rotation_speed_, last_rotation_speed_time_, ang, params_ptr, clock_);
-					servo_vel->angular.z = angles::shortest_angular_distance(current_angle, 0);;
-					RCLCPP_DEBUG(logger_, "low speed mode => angular.z: %f", ang);
 
-					state = std::string("GO_TO_GOAL_POSITION");
-					infos = std::string("GO_TO_GOAL_POSITION (low speed mode) ==> keep on moving");
-				// }
+				ang = angles::shortest_angular_distance(current_angle, 0);
+				bound_rotation(ang, params_ptr->go_to_goal_rotation_min, params_ptr->go_to_goal_rotation_max);
+				ang = generate_smooth_rotation_speed(last_rotation_speed_, last_rotation_speed_time_, ang, params_ptr, clock_, logger_);
+				servo_vel->angular.z = ang;
+
+				RCLCPP_DEBUG(logger_, "low speed mode => angular.z: %f", servo_vel->angular.z);
+
+				state = std::string("GO_TO_GOAL_POSITION");
+				infos = std::string("GO_TO_GOAL_POSITION (low speed mode) ==> keep on moving");
+			
 			}
 			else
 			{
 				RCLCPP_DEBUG(logger_, "normal speed mode ");
 				if (abs_ang > params_ptr->go_to_goal_apply_rotation_angle) {
 					bound_rotation(ang, params_ptr->go_to_goal_rotation_min, params_ptr->go_to_goal_rotation_max);
-					ang = generate_smooth_rotation_speed(last_rotation_speed_, last_rotation_speed_time_, ang, params_ptr, clock_);
+					ang = generate_smooth_rotation_speed(last_rotation_speed_, last_rotation_speed_time_, ang, params_ptr, clock_, logger_);
 					servo_vel->angular.z = ang;
 					RCLCPP_DEBUG(logger_, "normal speed mode => angular.z: %f", ang);
 
@@ -747,10 +737,11 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		             current_pose.getOrigin().getX(), current_pose.getOrigin().getY(),
 		             current_angle);
 		double ang = angles::shortest_angular_distance(current_angle, gp.theta);
-		bound_rotation(ang, params_ptr->min_rotation, params_ptr->max_rotation);
+		bound_rotation(ang, params_ptr->go_to_goal_rotation_min, params_ptr->go_to_goal_rotation_max);
 		RCLCPP_DEBUG(logger_, "diff angle: %f", ang);
 		servo_vel = geometry_msgs::msg::Twist();
 		double translate_x = params_ptr->max_translation;
+		translate_x = params_ptr->translate_low_speed;
 		if (gp.drive_backwards)
 		{
 			translate_x *= -1.0;
@@ -886,7 +877,7 @@ float camera_horizontal_view_y_coord(float theta_robot_to_goal, float camera_hor
 }
 
 // smooth rotation speed
-float generate_smooth_rotation_speed(float & last_rotation, double & last_rotation_time, float cur_rotation, motion_control_params* params_ptr, rclcpp::Clock::SharedPtr clock_)
+float generate_smooth_rotation_speed(float & last_rotation, double & last_rotation_time, float cur_rotation, motion_control_params* params_ptr, rclcpp::Clock::SharedPtr clock_, rclcpp::Logger logger_)
 {
 	float new_rotation_speed, rotation_max_change_abs, rotation_cur_change_abs;
 	float acc = params_ptr->speed_rotation_acceleration;
@@ -917,6 +908,12 @@ float generate_smooth_rotation_speed(float & last_rotation, double & last_rotati
 		{
 			new_rotation_speed = cur_rotation;
 		}
+		RCLCPP_DEBUG(logger_, "last_rotation          : %f", last_rotation);
+		RCLCPP_DEBUG(logger_, "cur_rotation           : %f", cur_rotation);
+		RCLCPP_DEBUG(logger_, "delta_time             : %f", delta_time);
+		RCLCPP_DEBUG(logger_, "rotation_max_change_abs: %f", rotation_max_change_abs);
+		RCLCPP_DEBUG(logger_, "rotation_cur_change_abs: %f", rotation_cur_change_abs);
+		RCLCPP_DEBUG(logger_, "new_rotation_speed     : %f", new_rotation_speed);
 	}
 
 	last_rotation = new_rotation_speed;

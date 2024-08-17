@@ -116,6 +116,7 @@ void MotionControlNode::init_params()
 	this->declare_parameter<float>("contact_state_change_time_delta", 0.5);
 	this->declare_parameter<float>("charging_radius", 1.0);
 	this->declare_parameter<float>("similarity_threshold", 0.95);
+	this->declare_parameter<float>("camera_baselink_dis", 0.30);
 
 	params.max_dock_action_run_time = this->get_parameter_or<int>("max_dock_action_run_time", 180);
 	params.min_rotation = this->get_parameter_or<float>("min_rotation", 0.15);
@@ -161,6 +162,7 @@ void MotionControlNode::init_params()
 	params.contact_state_change_time_delta = this->get_parameter("contact_state_change_time_delta").get_value<float>();
 	params.charging_radius = this->get_parameter("charging_radius").get_value<float>();
 	params.similarity_threshold = this->get_parameter("similarity_threshold").get_value<float>();
+	params.camera_baselink_dis = this->get_parameter("camera_baselink_dis").get_value<float>();
 	
 	RCLCPP_INFO_STREAM(this->get_logger(), "max_dock_action_run_time: " << params.max_dock_action_run_time 
 		<< ", last_docked_distanace_offset: " << params.last_docked_distance_offset_

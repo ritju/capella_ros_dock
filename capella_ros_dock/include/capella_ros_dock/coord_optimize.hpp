@@ -59,9 +59,20 @@ namespace capella_ros_dock
                 // member variables
                 MarkerPose marker_pose_in_;
                 MarkerPose marker_pose_out_;
-                double best_score_;
-                double last_score_;
-                double current_score_;
+                double x_in_, y_in_, theta_in_;
+                double x_out_, y_out_, theta_out_;
+                double x_in_last_, y_in_last_, theta_in_last_;
+                double x_out_last_, y_out_last_, theta_out_last_;
+
+                // debug
+                double x_in_delta_max_ = 0.0;
+                double y_in_delta_max_ = 0.0;
+                double theta_in_delta_max_ = 0.0;
+                double x_out_delta_max_ = 0.0;
+                double y_out_delta_max_ = 0.0;
+                double theta_out_delta_max_ = 0.0;
+
+
                 double x_best_, y_best_, theta_best_, similarity_best_, radius_best_;
                 MarkerVisible marker_visible_;
                 bool marker_pose_init_{false};
@@ -69,17 +80,10 @@ namespace capella_ros_dock
                 float marker_pose_last_time_;
                 double linear_, angular_;
 
-                Odom odom_current_;
-                tf2::Transform tf_odom_last_, tf_odom_current_;
-                tf2::Transform tf_odom_last_to_current_;
-                tf2::Transform tf_baselink_to_baselink_dummy_;
                 bool tf_baselink_to_baselink_dummy_bool_{false};
                 
-                double score_marker_best_;
                 double score_similarity_current_, score_radius_current_;
                 double score_similarity_best_, score_radius_best_;
-                double score_marker_current_;
-                bool robot_moved_{false};
 
                 // tf listener
                 std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
@@ -87,6 +91,40 @@ namespace capella_ros_dock
                 
                 // tf broadcaster
                 std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
+
+                
+                double score_decline_rate_ = 0.999;
+                MarkerPose marker_pose_in_last_, marker_pose_out_last_;
+
+                // scores
+                double score_marker_best_motionless_;
+                double score_last_{0.0};
+                double score_marker_current_;
+                double score_predict_;
+
+                // odom msg
+                Odom odom_current_;
+
+                // tfs
+                tf2::Transform tf_odom_last_, tf_odom_current_;
+                tf2::Transform tf_odom_last_to_current_;
+                tf2::Transform tf_baselink_to_baselink_dummy_;
+
+                // threshold value for moving or not 
+                double thre_moving_linear_ = 0.01;
+                double thre_moving_angular_ = 0.01;
+
+                bool using_predict_pose_{false};
+                bool robot_state_moving_{false};
+                bool robot_state_moving_last_{false};
+
+                int thre_odom_data_valid_count_ = 3;
+                int odom_data_valid_count_moving_ = 0;
+                int odom_data_valid_count_stoping_ = 0;
+
+                double similarity_, radius_;
+
+
         };
 }
 
