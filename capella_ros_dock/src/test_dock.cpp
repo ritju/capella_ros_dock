@@ -476,7 +476,7 @@ void TestDock::run()
 		}
 		double success_rate = success_count * 100 / (float)(current_number + 1);
 		RCLCPP_INFO(this->get_logger(), "Test count: %d, success: %d, fail: %d, success rate: %.2f%%", test_count, success_count, fail_count, success_rate);
-		RCLCPP_INFO(this->get_logger(), "robot pose => x: %f, y: %f, theta: %f", robot_current_pose.x, robot_current_pose.y, robot_current_pose.theta * (180 / M_PI));
+		RCLCPP_INFO(this->get_logger(), "robot pose => x: %f, y: %f, theta: %f", robot_current_pose_sub.x, robot_current_pose_sub.y, robot_current_pose_sub.theta * (180 / M_PI));
 		cout << endl; // SPACE
 		sleep(5);
 	}
@@ -586,6 +586,7 @@ void TestDock::robot_pose_sub_callback(aruco_msgs::msg::PoseWithId msg)
 		robot_current_pose_sub.y = transform.getOrigin().getY();
 		robot_current_pose_sub.theta = tf2::getYaw(transform.getRotation());
 		robot_current_pose_sub_sub = true;
+		RCLCPP_DEBUG_THROTTLE(get_logger(), *get_clock(), 1000, "x: %f, y: %f, theta: %f", robot_current_pose_sub.x, robot_current_pose_sub.y, robot_current_pose_sub.theta);
 	}
 	
 }

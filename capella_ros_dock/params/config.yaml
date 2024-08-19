@@ -14,7 +14,7 @@ hazards_vector_publisher:
 
 test_dock:
   ros__parameters:
-    test_count: 50
+    test_count: 205
     x_min: -150
     x_max: -110
     y_min: -20
