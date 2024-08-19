@@ -33,7 +33,7 @@ TestDock::TestDock(std::string name, GoalRect goal_rect) : Node(name)
 	cb_group_sub_robot_pose_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 	auto sub_opt_robot_pose = rclcpp::SubscriptionOptions();
 	sub_opt_robot_pose.callback_group = cb_group_sub_robot_pose_;
-	robot_pose_sub_ = this->create_subscription<aruco_msgs::msg::PoseWithId>("/pose_with_id", 5, std::bind(&TestDock::robot_pose_sub_callback, this, _1), sub_opt_robot_pose);
+	robot_pose_sub_ = this->create_subscription<aruco_msgs::msg::PoseWithId>("/pose_with_id_optimize", 5, std::bind(&TestDock::robot_pose_sub_callback, this, _1), sub_opt_robot_pose);
 
 	cmd_vel_pub_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
 	// --ros-args -p test_count:=10
@@ -476,6 +476,7 @@ void TestDock::run()
 		}
 		double success_rate = success_count * 100 / (float)(current_number + 1);
 		RCLCPP_INFO(this->get_logger(), "Test count: %d, success: %d, fail: %d, success rate: %.2f%%", test_count, success_count, fail_count, success_rate);
+		RCLCPP_INFO(this->get_logger(), "robot pose => x: %f, y: %f, theta: %f", robot_current_pose.x, robot_current_pose.y, robot_current_pose.theta * (180 / M_PI));
 		cout << endl; // SPACE
 		sleep(5);
 	}

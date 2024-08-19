@@ -39,15 +39,16 @@ namespace capella_ros_dock
                 marker_pose_out_.pose.pose.orientation.z = 0.0;
 
                 //subs
-                marker_pose_sub_ =     this->create_subscription<MarkerPose>("/pose_with_id", 20, std::bind(&CoordOptimize::marker_pose_sub_callback, this, _1));
-                odom_sub_ =            this->create_subscription<Odom>("/odom", 50, std::bind(&CoordOptimize::odom_sub_callback, this, _1));
-                marker_visible_sub_ =  this->create_subscription<MarkerVisible>("/marker_visible", 15, std::bind(&CoordOptimize::marker_visible_callback, this, _1));
+                marker_pose_sub_    = this->create_subscription<MarkerPose>("/pose_with_id", 20, std::bind(&CoordOptimize::marker_pose_sub_callback, this, _1));
+                odom_sub_           = this->create_subscription<Odom>("/odom", 50, std::bind(&CoordOptimize::odom_sub_callback, this, _1));
+                marker_visible_sub_ = this->create_subscription<MarkerVisible>("/marker_visible", 15, std::bind(&CoordOptimize::marker_visible_callback, this, _1));
+                cmd_vel_sub_        = this->create_subscription<CmdVel>("cmd_vel", 10, std::bind(&CoordOptimize::cmd_vel_sub_callback, this, _1));
 
                 //pubs
                 marker_pose_out_pub_ = this->create_publisher<MarkerPose>("/pose_with_id_optimize", 20);
                 
                 // timers
-                marker_pose_out_timer_ = this->create_wall_timer(std::chrono::milliseconds(50), std::bind(&CoordOptimize::marker_pose_out_timer_callback, this));
+                marker_pose_out_timer_ = this->create_wall_timer(std::chrono::milliseconds(20), std::bind(&CoordOptimize::marker_pose_out_timer_callback, this));
 
                 // tf
                 tf_buffer_   = std::make_unique<tf2_ros::Buffer>(this->get_clock());
@@ -86,8 +87,14 @@ namespace capella_ros_dock
         }
 
         void CoordOptimize::odom_sub_callback(Odom::ConstSharedPtr msg)
-        {
+        {               
+                odom_current_ = *msg;
+                linear_ = odom_current_.twist.twist.linear.x;
+                angular_ = odom_current_.twist.twist.angular.z;
                 
+                RCLCPP_DEBUG(get_logger(), "odom callback.");
+                RCLCPP_DEBUG(get_logger(), "odom twist => linear_x: %f, angular_z: %f", linear_, angular_);
+
                 geometry_msgs::msg::TransformStamped tf_stamped_msg;
                 tf2::Stamped<tf2::Transform> tf_stamped;
 
@@ -108,14 +115,10 @@ namespace capella_ros_dock
                 }
                 else
                 {
-                        odom_current_ = *msg;
-
-                        linear_ = odom_current_.twist.twist.linear.x;
-                        angular_ = odom_current_.twist.twist.angular.z;
-
                         // generate value of robot_state_moving 
                         if (std::abs(linear_) < thre_moving_linear_ && std::abs(angular_) < thre_moving_angular_) // current data => stop
                         {
+                                RCLCPP_DEBUG(get_logger(), "current state: stopping");
                                 odom_data_valid_count_moving_ = 0;
 
                                 if (robot_state_moving_last_) // last state => moving
@@ -141,19 +144,27 @@ namespace capella_ros_dock
                                 }
                                 else // last state => stoping
                                 {
-                                        robot_state_moving_ = robot_state_moving_last_; // keep state
+                                        robot_state_moving_ = robot_state_moving_last_; // keep state                                   
                                 }
-                        }
+                        } // end of current data => stop
                         else // current data => moving
                         {
+                                RCLCPP_DEBUG(get_logger(), "current state: moving");
+                                RCLCPP_DEBUG(get_logger(), "x: %f, thre: %f", linear_, thre_moving_linear_);
+                                RCLCPP_DEBUG(get_logger(), "z: %f, thre: %f", angular_, thre_moving_angular_);
                                 odom_data_valid_count_stoping_ = 0;
 
                                 if (!robot_state_moving_last_) // last state => stoping
                                 {
                                         odom_data_valid_count_moving_++;
-                                        if (odom_data_valid_count_moving_ >= thre_odom_data_valid_count_) // change state
+                                        
+                                        double now_time = this->get_clock()->now().seconds();
+
+                                        if ((odom_data_valid_count_moving_ >= thre_odom_data_valid_count_) || (this->moving_via_cmd_vel_ && (now_time - this->moving_via_cmd_vel_time_ < 0.13))) // 10hz
                                         {
-                                                robot_state_moving_ = !robot_state_moving_last_;
+                                                RCLCPP_DEBUG(get_logger(), "now_time: %f, moving_via_cmd_vel_time_: %f", now_time, this->moving_via_cmd_vel_time_);
+                                                RCLCPP_DEBUG(get_logger(), "moving_via_cmd_vel_: %s", this->moving_via_cmd_vel_?"true":"false"); 
+                                                robot_state_moving_ = !robot_state_moving_last_; // change state
                                         }
                                         else // keep state
                                         {
@@ -174,7 +185,6 @@ namespace capella_ros_dock
                                 RCLCPP_INFO(get_logger(), "Robot moving state changed from %s to %s", 
                                         robot_state_moving_last_?"true":"false",
                                         robot_state_moving_?"true":"false");
-                                RCLCPP_DEBUG(get_logger(), "linear_x: %f, angular_z: %f", linear_, angular_);
                         }
                         robot_state_moving_last_ = robot_state_moving_;
 
@@ -206,7 +216,7 @@ namespace capella_ros_dock
 
                                 if (score_marker_current_ > score_predict_)
                                 {
-                                        RCLCPP_DEBUG(get_logger(), "-----------------marker + moving => marker-----------------");
+                                        RCLCPP_DEBUG(get_logger(), "\n-----------------marker + moving => marker-----------------");
                                         RCLCPP_DEBUG(get_logger(), "score_marker : %f   %s", score_marker_current_, score_marker_current_ > score_predict_ ? "=> selected":"");
                                         RCLCPP_DEBUG(get_logger(), "score_predict: %f   %s", score_predict_,        score_predict_ > score_marker_current_ ? "=> selected":"");
 
@@ -217,14 +227,14 @@ namespace capella_ros_dock
                                 else
                                 {
                                         using_predict_pose_ = true;
-                                        RCLCPP_DEBUG(get_logger(), "-----------------marker + moving => predict-----------------");
+                                        RCLCPP_DEBUG(get_logger(), "\n-----------------marker + moving => predict-----------------");
                                         RCLCPP_DEBUG(get_logger(), "score_marker : %f   %s", score_marker_current_, score_marker_current_ > score_predict_ ? "=> selected":"");
                                         RCLCPP_DEBUG(get_logger(), "score_predict: %f   %s", score_predict_,        score_predict_ > score_marker_current_ ? "=> selected":"");
                                 }
                         } // end of visible: true  + moving
                         else // visible: true + stopping
                         {
-                                RCLCPP_DEBUG(get_logger(), "-----------------marker + stop => converge-----------------");
+                                RCLCPP_DEBUG(get_logger(), "\n-----------------marker + stop => converge-----------------");
                                 RCLCPP_DEBUG(get_logger(), "last_score   : %f", score_marker_best_motionless_);
                                 RCLCPP_DEBUG(get_logger(), "current_score: %f", score_marker_current_);
                                 
@@ -251,7 +261,7 @@ namespace capella_ros_dock
                                         RCLCPP_DEBUG(get_logger(), "x: %f, y: %f, theta: %f", x_best_, y_best_, theta_best_);
                                         RCLCPP_DEBUG(get_logger(), "similarity: %f, radius: %f", similarity_best_, radius_best_);
                                         RCLCPP_DEBUG(get_logger(), "score_similarity: %f, score_radius: %f, score_best: %f", score_similarity_best_, score_radius_best_, score_marker_best_motionless_);
-                                        RCLCPP_DEBUG(get_logger(), "******************************************************************\n");
+                                        RCLCPP_DEBUG(get_logger(), "******************************************************************");
                                 }
                                 else // don't update pose, only update stamp
                                 {
@@ -268,16 +278,16 @@ namespace capella_ros_dock
                                         RCLCPP_DEBUG(get_logger(), "x: %f, y: %f, theta: %f", x_best_, y_best_, theta_best_);
                                         RCLCPP_DEBUG(get_logger(), "similarity: %f, radius: %f", similarity_best_, radius_best_);
                                         RCLCPP_DEBUG(get_logger(), "score_similarity: %f, score_radius: %f, score_best: %f", score_similarity_best_, score_radius_best_, score_marker_best_motionless_);
-                                        RCLCPP_DEBUG(get_logger(), "-----------------------------------------------------------\n");
+                                        RCLCPP_DEBUG(get_logger(), "-----------------------------------------------------------");
                                 }
                         } // end of marker_visible:true + stopping
                 } // end of marker_visible:true
                 else // marker_visible: false
                 {
+                        RCLCPP_DEBUG(get_logger(), "\n*****************No marker => predict*****************");
                         RCLCPP_DEBUG(get_logger(), "marker visible: false, decline");
                         score_predict_ = score_last_ * score_decline_rate_;
                         using_predict_pose_ = true;
-                        RCLCPP_DEBUG(get_logger(), "*****************No marker => predict*****************");
                         RCLCPP_DEBUG(get_logger(), "score_predict: %f", score_predict_);
                 }
                 
@@ -329,7 +339,7 @@ namespace capella_ros_dock
                 {
                         RCLCPP_DEBUG(get_logger(), "x_in : %f, y_in : %f, theta_in : %f", this->x_in_, this->y_in_, this->theta_in_);
                 }
-                RCLCPP_INFO(get_logger(), "x_out: %f, y_out: %f, theta_out: %f", this->x_out_, this->y_out_, this->theta_out_);
+                RCLCPP_DEBUG(get_logger(), "x_out: %f, y_out: %f, theta_out: %f", this->x_out_, this->y_out_, this->theta_out_);
 
                 double x_in_delta, y_in_delta, theta_in_delta;
                 double x_out_delta, y_out_delta, theta_out_delta;
@@ -365,10 +375,6 @@ namespace capella_ros_dock
                                 RCLCPP_DEBUG(get_logger(), "update theta_in_delta_max_: %f", theta_in_delta_max_);
                         }
 
-                        RCLCPP_DEBUG(get_logger(), "x_out_delta     : %f", x_out_delta);
-                        RCLCPP_DEBUG(get_logger(), "y_out_delta     : %f", y_out_delta);
-                        RCLCPP_DEBUG(get_logger(), "theta_out_delta : %f", theta_out_delta);
-
                         if(x_out_delta > this->x_out_delta_max_)
                         {
                                 this->x_out_delta_max_ = x_out_delta;
@@ -385,7 +391,11 @@ namespace capella_ros_dock
                         {
                                 this->theta_out_delta_max_ = theta_out_delta;
                                 RCLCPP_INFO(get_logger(), "update theta_out_delta_max_: %f", theta_out_delta_max_);
-                        }                        
+                        }
+
+                        RCLCPP_DEBUG(get_logger(), "x_out_delta     : %f", x_out_delta);
+                        RCLCPP_DEBUG(get_logger(), "y_out_delta     : %f", y_out_delta);
+                        RCLCPP_DEBUG(get_logger(), "theta_out_delta : %f", theta_out_delta);                     
                 }               
 
                 this->x_in_last_ = this->x_in_;
@@ -402,6 +412,17 @@ namespace capella_ros_dock
                 score_last_ = score_predict_;
                 using_predict_pose_ = false;
                 
+        }
+
+        void CoordOptimize::cmd_vel_sub_callback(CmdVel::ConstSharedPtr msg)
+        {
+                double linear, angular;
+                linear = std::abs(msg->linear.x);
+                angular = std::abs(msg->angular.z);
+                this->moving_via_cmd_vel_ = (linear > 0.01) || (angular > 0.01);
+                this->moving_via_cmd_vel_time_ = this->get_clock()->now().seconds();
+                RCLCPP_DEBUG(get_logger(), "cmd_vel => linear_x: %f, angular_z: %f", linear, angular);
+                RCLCPP_DEBUG(get_logger(), "moving_via_cmd_vel_time_: %f", this->moving_via_cmd_vel_time_);
         }
 
         bool CoordOptimize::getTransform(

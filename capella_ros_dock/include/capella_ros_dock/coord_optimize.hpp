@@ -9,6 +9,7 @@
 #include "geometry_msgs/msg/twist.hpp"
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "nav_msgs/msg/odometry.hpp"
+#include "geometry_msgs/msg/twist.hpp"
 
 #include <tf2_ros/transform_broadcaster.h>
 #include "tf2_ros/buffer.h"
@@ -22,6 +23,7 @@ namespace capella_ros_dock
         using Twist = geometry_msgs::msg::Twist;
         using Odom = nav_msgs::msg::Odometry;
         using MarkerVisible = capella_ros_service_interfaces::msg::ChargeMarkerVisible;
+        using CmdVel = geometry_msgs::msg::Twist;
 
 /**
  * @brief This class generate coords in frame of charger marker
@@ -37,6 +39,7 @@ namespace capella_ros_dock
                 rclcpp::Subscription<MarkerPose>::SharedPtr marker_pose_sub_;
                 rclcpp::Subscription<Odom>::SharedPtr odom_sub_;
                 rclcpp::Subscription<MarkerVisible>::SharedPtr marker_visible_sub_;
+                rclcpp::Subscription<CmdVel>::SharedPtr cmd_vel_sub_;
 
                 // pubs
                 rclcpp::Publisher<MarkerPose>::SharedPtr marker_pose_out_pub_;
@@ -50,6 +53,10 @@ namespace capella_ros_dock
                 void odom_sub_callback(Odom::ConstSharedPtr msg);
                 void marker_visible_callback(MarkerVisible::ConstSharedPtr msg);
                 void marker_pose_out_timer_callback();
+                void cmd_vel_sub_callback(CmdVel::ConstSharedPtr msg);
+
+                bool moving_via_cmd_vel_{false};
+                double moving_via_cmd_vel_time_{0.0};
 
                 bool getTransform(
                         const std::string & refFrame, const std::string & childFrame,
