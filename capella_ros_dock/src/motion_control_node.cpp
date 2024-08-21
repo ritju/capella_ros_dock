@@ -117,6 +117,10 @@ void MotionControlNode::init_params()
 	this->declare_parameter<float>("charging_radius", 1.0);
 	this->declare_parameter<float>("similarity_threshold", 0.95);
 	this->declare_parameter<float>("camera_baselink_dis", 0.30);
+	this->declare_parameter<float>("goal_y_correction", 0.01);
+	this->declare_parameter<float>("go_to_goal_linear_acc", 0.075);
+	this->declare_parameter<float>("go_to_goal_translation_min", 0.05);
+	this->declare_parameter<float>("go_to_goal_translation_max", 0.055);
 
 	params.max_dock_action_run_time = this->get_parameter_or<int>("max_dock_action_run_time", 180);
 	params.min_rotation = this->get_parameter_or<float>("min_rotation", 0.15);
@@ -163,6 +167,10 @@ void MotionControlNode::init_params()
 	params.charging_radius = this->get_parameter("charging_radius").get_value<float>();
 	params.similarity_threshold = this->get_parameter("similarity_threshold").get_value<float>();
 	params.camera_baselink_dis = this->get_parameter("camera_baselink_dis").get_value<float>();
+	params.goal_y_correction = this->get_parameter("goal_y_correction").get_value<float>();
+	params.go_to_goal_linear_acc = this->get_parameter("go_to_goal_linear_acc").get_value<float>();
+	params.go_to_goal_translation_min = this->get_parameter("go_to_goal_translation_min").get_value<float>();
+	params.go_to_goal_translation_max = this->get_parameter("go_to_goal_translation_max").get_value<float>();
 	
 	RCLCPP_INFO_STREAM(this->get_logger(), "max_dock_action_run_time: " << params.max_dock_action_run_time 
 		<< ", last_docked_distanace_offset: " << params.last_docked_distance_offset_

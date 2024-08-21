@@ -52,6 +52,10 @@ struct motion_control_params
 	float charging_radius;
 	float similarity_threshold;
 	float camera_baselink_dis;
+	float goal_y_correction;
+	float go_to_goal_linear_acc;
+	float go_to_goal_translation_min;
+	float go_to_goal_translation_max;
 };
 } // end namespace capella_ros_dock
 

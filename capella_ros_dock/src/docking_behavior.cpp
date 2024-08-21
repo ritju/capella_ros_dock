@@ -215,14 +215,14 @@ void DockingBehavior::handle_dock_servo_accepted(
 	tf2::Quaternion dock_rotation;
 
 	dock_rotation.setRPY(0, 0, 0);
-	dock_offset.setOrigin(tf2::Vector3(-dist_offset, 0, 0));
+	dock_offset.setOrigin(tf2::Vector3(-dist_offset, params_ptr->goal_y_correction, 0));
 	dock_offset.setRotation(dock_rotation);
-	dock_path.emplace_back(dock_pose * dock_offset, 0.10, true);
+	dock_path.emplace_back(dock_pose * dock_offset, 0.10, true); // second goal
 
-	dock_rotation.setRPY(0, 0, 0);
+	dock_rotation.setRPY(0, params_ptr->goal_y_correction, 0);
 	dock_offset.setOrigin(tf2::Vector3(-params_ptr->first_goal_distance, 0, 0));
 	dock_offset.setRotation(dock_rotation);
-	dock_path.emplace_back(dock_pose * dock_offset, 0.01, true);
+	dock_path.emplace_back(dock_pose * dock_offset, 0.01, true); // first goal
 
 	goal_controller_->initialize_goal(dock_path, 0.2, 0.10);
 	// Setup behavior to override other commanded motion

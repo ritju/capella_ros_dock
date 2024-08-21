@@ -324,9 +324,9 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			auto angle_charger_to_robot = std::atan2(y_robot - y_charger, x_robot - x_charger);
 			auto dist_angle = angles::shortest_angular_distance(angle_robot, angle_charger_to_robot);
 			RCLCPP_DEBUG(logger_, "using localization: %s", using_localization?"true":"false");
+			double angular_z_ = std::copysign(params_ptr->max_rotation, dist_angle);
 
-
-			if (std::abs(dist_angle) > params_ptr->angle_to_goal_angle_converged)
+			if (!sees_dock)
 			{
 				RCLCPP_DEBUG(logger_, "x_robot_map: %f, y_robot_map: %f", x_robot, y_robot);
 				RCLCPP_DEBUG(logger_, "x_charger_map: %f, y_charger_map: %f", x_charger, y_charger);
@@ -336,9 +336,8 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 				RCLCPP_DEBUG(logger_, "dist_angle: %f", dist_angle);
 
 				start_time_recorded = false;
-				RCLCPP_DEBUG(logger_, "Need rotate robot for turning the camera towards the charger marker direction.");
-				bound_rotation(dist_angle, params_ptr->min_rotation, params_ptr->max_rotation);
-				servo_vel->angular.z = dist_angle;
+				RCLCPP_DEBUG(logger_, "Need rotate robot for it can see the marker.");
+				servo_vel->angular.z = angular_z_;
 				RCLCPP_DEBUG(logger_, "angular_z: %f", servo_vel->angular.z);
 				
 				state = std::string("LOOKUP_ARUCO_MARKER");
@@ -562,6 +561,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			RCLCPP_DEBUG(logger_, "executing ANGLE_TO X_POSITIVE_ORIENTATION. dist_yaw_marker: %f", dist_yaw_marker);
 			bound_rotation(dist_yaw_marker, params_ptr->min_rotation, params_ptr->max_rotation);
 			servo_vel->angular.z = dist_yaw_marker;
+			RCLCPP_DEBUG(logger_, "angular.z: %f", servo_vel->angular.z);
 			RCLCPP_DEBUG(logger_, "executing ANGLE_TO X_POSITIVE_ORIENTATION. angular_z: %f", servo_vel->angular.z);
 		}
 
@@ -586,6 +586,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		if (dist_to_goal <= gp.radius || delta_y < params_ptr->dist_error_y_1) {
 			servo_vel = geometry_msgs::msg::Twist();
 			navigate_state_ = NavigateStates::GO_TO_GOAL_POSITION;
+			pose_x_init_recoreded_ = false;
 			state = std::string("ANGLE_TO_GOAL");
 			infos = std::string("Reason: ANGLE_TO_GOAL converged ==> change state to GO_TO_GOAL_POSITION");
 		}
@@ -601,6 +602,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			// fix bug when robot had angle to marker but y coord error or odom data error,  10 degree(0.174533)
 			if (std::abs(ang_save) < params_ptr->angle_to_goal_angle_converged || (sees_dock && std::abs(std::abs(current_angle) - M_PI) <  0.174533)) {
 				navigate_state_ = NavigateStates::GO_TO_GOAL_POSITION;
+				pose_x_init_recoreded_ = false;
 				RCLCPP_DEBUG(logger_, " ******** change to state GO_TO_GOAL_POSITION ******** ");
 				state = std::string("ANGLE_TO_GOAL");
 				infos = std::string("Reason: ANGLE_TO_GOAL converged ==> change state to GO_TO_GOAL_POSITION");
@@ -627,6 +629,14 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			RCLCPP_DEBUG(logger_, "the first goal.");
 			gp.x = -(params_ptr->last_docked_distance_offset_ - 0.05);
 		}
+		
+		if (!pose_x_init_recoreded_)
+		{
+			pose_x_init_ = current_pose.getOrigin().getX();
+			pose_x_init_recoreded_ = true;
+			RCLCPP_DEBUG(logger_, "recored the pose_x: %f", pose_x_init_);
+		}
+
 		RCLCPP_DEBUG(logger_, "goal =>  x: %f, y: %f, yaw: %f",
 		             gp.x, gp.y, gp.theta);
 		RCLCPP_DEBUG(logger_, "robot =>  x: %f, y: %f, yaw: %f",
@@ -640,11 +650,45 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 
 		RCLCPP_DEBUG(logger_, "diff angle: %f", ang);
 		double abs_ang = std::abs(ang);
+
+		double translate_velocity = params_ptr->go_to_goal_translation_max;
+
+		auto robot_abs_x = std::abs(current_position.getX());
+		auto dist_low_speed = params_ptr->last_docked_distance_offset_ + params_ptr->distance_low_speed;
+		auto dist_speed_down_length = (params_ptr->go_to_goal_translation_max + params_ptr->go_to_goal_translation_min) / 2.0 * 
+			((params_ptr->go_to_goal_translation_max - params_ptr->go_to_goal_translation_min) / params_ptr->go_to_goal_linear_acc);
+		auto dist_speed_down_range = params_ptr->go_to_goal_translation_max - params_ptr->go_to_goal_translation_min;
+		auto dist_speed_down = dist_low_speed + dist_speed_down_length;
+
+		if(robot_abs_x >= std::abs(pose_x_init_)) // linear_low_speed(0.05)
+		{
+			translate_velocity = params_ptr->go_to_goal_translation_min;
+		}
+
+		if((robot_abs_x > dist_speed_down) && (robot_abs_x < std::abs(pose_x_init_))) // linear_low_speed(0.05) => linear_max_speed(0.2)
+		{
+			double max_linear_speed = params_ptr->go_to_goal_translation_max;
+			translate_velocity = std::min(params_ptr->go_to_goal_translation_min + 
+				(std::abs(pose_x_init_) - robot_abs_x) / dist_speed_down_length * dist_speed_down_range, max_linear_speed);
+		}
+		
+		if ((robot_abs_x <= dist_speed_down) && robot_abs_x >= dist_low_speed) // linear_max_speed(0.2) => linear_low_speed(0.05)
+		{
+			translate_velocity = params_ptr->go_to_goal_translation_max -
+						(dist_speed_down - robot_abs_x) / dist_speed_down_length * dist_speed_down_range;
+		}
+
+		if (robot_abs_x < dist_low_speed) // linear_low_speed(0.05)
+		{
+			translate_velocity = params_ptr->go_to_goal_translation_min;
+		}
+
 		// If robot is close enough to goal, move to final stage
 		if (dist_to_goal < goal_points_.front().radius || std::abs(current_position.getX()) < std::abs(gp.x)) {
 			navigate_state_ = NavigateStates::GOAL_ANGLE;
 			RCLCPP_DEBUG(logger_, " ******** change to state GOAL_ANGLE ******** ");
-			servo_vel->linear.x = gp.drive_backwards ? -params_ptr->translate_low_speed : params_ptr->translate_low_speed;
+			servo_vel->linear.x = gp.drive_backwards ? -translate_velocity : translate_velocity;
+			RCLCPP_DEBUG(logger_, "linear_x: %f", servo_vel->linear.x);
 			state = std::string("GO_TO_GOAL_POSITION");
 			infos = std::string("GO_TO_GOAL_POSITION converged ==> change state to GOAL_ANGLE");
 			// If robot angle has deviated too much from path, reset
@@ -655,28 +699,8 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		// If neither of above conditions met, drive towards goal
 		// }
 		else {
-			double translate_velocity = dist_to_goal;
-			if (translate_velocity > params_ptr->max_translation) {
-				translate_velocity = params_ptr->max_translation;
-			}
-			translate_velocity = params_ptr->max_translation;
-			auto robot_abs_x = std::abs(current_position.getX());
-			auto dist_low_speed = params_ptr->last_docked_distance_offset_ + params_ptr->distance_low_speed;
-			auto dist_speed_down_length = (params_ptr->max_translation - params_ptr->translate_low_speed) * 5.0;
-			auto dist_speed_down_range = params_ptr->max_translation - params_ptr->translate_low_speed;
-			auto dist_speed_down = dist_low_speed + dist_speed_down_length;
-			if (robot_abs_x < dist_speed_down)
-			{
-				translate_velocity = params_ptr->max_translation -
-				                     (dist_speed_down - robot_abs_x) / dist_speed_down_length * dist_speed_down_range;
-			}
-			if (robot_abs_x < dist_low_speed)
-			{
-				translate_velocity = params_ptr->translate_low_speed;
-			}
-
 			// only use low speed for test
-			translate_velocity = params_ptr->translate_low_speed;
+			// translate_velocity = params_ptr->go_to_goal_translation_min;
 
 			if (gp.drive_backwards) {
 				translate_velocity *= -1;
@@ -740,13 +764,30 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		bound_rotation(ang, params_ptr->go_to_goal_rotation_min, params_ptr->go_to_goal_rotation_max);
 		RCLCPP_DEBUG(logger_, "diff angle: %f", ang);
 		servo_vel = geometry_msgs::msg::Twist();
-		double translate_x = params_ptr->max_translation;
-		translate_x = params_ptr->translate_low_speed;
+
+		double translate_velocity = params_ptr->max_translation;
+
+		auto robot_abs_x = std::abs(current_position.getX());
+		auto dist_low_speed = params_ptr->last_docked_distance_offset_ + params_ptr->distance_low_speed;
+		auto dist_speed_down_length = (params_ptr->max_translation + params_ptr->go_to_goal_translation_min) / 2.0 * 
+			((params_ptr->max_translation - params_ptr->go_to_goal_translation_min) / params_ptr->go_to_goal_linear_acc);
+		auto dist_speed_down_range = params_ptr->max_translation - params_ptr->go_to_goal_translation_min;
+		auto dist_speed_down = dist_low_speed + dist_speed_down_length;
+		if (robot_abs_x < dist_speed_down)
+		{
+			translate_velocity = params_ptr->max_translation -
+						(dist_speed_down - robot_abs_x) / dist_speed_down_length * dist_speed_down_range;
+		}
+		if (robot_abs_x < dist_low_speed)
+		{
+			translate_velocity = params_ptr->go_to_goal_translation_min;
+		}
+
 		if (gp.drive_backwards)
 		{
-			translate_x *= -1.0;
+			translate_velocity *= -1.0;
 		}
-		servo_vel->linear.x = translate_x;
+		servo_vel->linear.x = translate_velocity;
 
 		if (std::abs(ang) > params_ptr->goal_angle_converged) {
 			servo_vel->angular.z = ang;
@@ -1018,6 +1059,9 @@ double undock_time;
 double undock_speed;
 
 bool using_localization{true};
+
+bool pose_x_init_recoreded_{false};
+double pose_x_init_;
 
 };
 
