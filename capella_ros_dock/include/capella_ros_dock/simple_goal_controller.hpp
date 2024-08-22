@@ -648,7 +648,6 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		double dist_to_goal = std::hypot(delta_x, delta_y);
 		double ang = diff_angle(gp, current_position, current_angle, logger_);
 
-		RCLCPP_DEBUG(logger_, "diff angle: %f", ang);
 		double abs_ang = std::abs(ang);
 
 		double translate_velocity = params_ptr->go_to_goal_translation_max;
@@ -720,11 +719,12 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 				}
 
 				ang = angles::shortest_angular_distance(current_angle, 0);
-				bound_rotation(ang, params_ptr->go_to_goal_rotation_min, params_ptr->go_to_goal_rotation_max);
+				RCLCPP_DEBUG(logger_, "diff_angle_marker_positive: %f", ang);
 				ang = generate_smooth_rotation_speed(last_rotation_speed_, last_rotation_speed_time_, ang, params_ptr, clock_, logger_);
+				bound_rotation(ang, params_ptr->go_to_goal_rotation_min, params_ptr->go_to_goal_rotation_max);
 				servo_vel->angular.z = ang;
 
-				RCLCPP_DEBUG(logger_, "low speed mode => angular.z: %f", servo_vel->angular.z);
+				RCLCPP_DEBUG(logger_, "angular.z: %f", servo_vel->angular.z);
 
 				state = std::string("GO_TO_GOAL_POSITION");
 				infos = std::string("GO_TO_GOAL_POSITION (low speed mode) ==> keep on moving");
@@ -733,11 +733,12 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			else
 			{
 				RCLCPP_DEBUG(logger_, "normal speed mode ");
+				RCLCPP_DEBUG(logger_, "diff angle_goal: %f", ang);
 				if (abs_ang > params_ptr->go_to_goal_apply_rotation_angle) {
-					bound_rotation(ang, params_ptr->go_to_goal_rotation_min, params_ptr->go_to_goal_rotation_max);
 					ang = generate_smooth_rotation_speed(last_rotation_speed_, last_rotation_speed_time_, ang, params_ptr, clock_, logger_);
+					bound_rotation(ang, params_ptr->go_to_goal_rotation_min, params_ptr->go_to_goal_rotation_max);
 					servo_vel->angular.z = ang;
-					RCLCPP_DEBUG(logger_, "normal speed mode => angular.z: %f", ang);
+					RCLCPP_DEBUG(logger_, "angular.z: %f", ang);
 
 					state = std::string("GO_TO_GOAL_POSITION");
 					infos = std::string("GO_TO_GOAL_POSITION (normal speed mode) ==> keep on moving");

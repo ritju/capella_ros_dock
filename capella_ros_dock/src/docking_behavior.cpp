@@ -219,8 +219,8 @@ void DockingBehavior::handle_dock_servo_accepted(
 	dock_offset.setRotation(dock_rotation);
 	dock_path.emplace_back(dock_pose * dock_offset, 0.10, true); // second goal
 
-	dock_rotation.setRPY(0, params_ptr->goal_y_correction, 0);
-	dock_offset.setOrigin(tf2::Vector3(-params_ptr->first_goal_distance, 0, 0));
+	dock_rotation.setRPY(0, 0, 0);
+	dock_offset.setOrigin(tf2::Vector3(-params_ptr->first_goal_distance, params_ptr->goal_y_correction, 0));
 	dock_offset.setRotation(dock_rotation);
 	dock_path.emplace_back(dock_pose * dock_offset, 0.01, true); // first goal
 
