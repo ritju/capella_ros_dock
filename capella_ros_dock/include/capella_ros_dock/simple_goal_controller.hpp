@@ -720,10 +720,9 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 
 				ang = angles::shortest_angular_distance(current_angle, 0);
 				RCLCPP_DEBUG(logger_, "diff_angle_marker_positive: %f", ang);
-				ang = generate_smooth_rotation_speed(last_rotation_speed_, last_rotation_speed_time_, ang, params_ptr, clock_, logger_);
 				bound_rotation(ang, params_ptr->go_to_goal_rotation_min, params_ptr->go_to_goal_rotation_max);
+				ang = generate_smooth_rotation_speed(last_rotation_speed_, last_rotation_speed_time_, ang, params_ptr, clock_, logger_);
 				servo_vel->angular.z = ang;
-
 				RCLCPP_DEBUG(logger_, "angular.z: %f", servo_vel->angular.z);
 
 				state = std::string("GO_TO_GOAL_POSITION");
@@ -733,19 +732,26 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			else
 			{
 				RCLCPP_DEBUG(logger_, "normal speed mode ");
-				RCLCPP_DEBUG(logger_, "diff angle_goal: %f", ang);
+				RCLCPP_DEBUG(logger_, "diff angle_to_goal: %f", ang);
+				RCLCPP_DEBUG(logger_, "abs_angle: %f", abs_ang);
+				RCLCPP_DEBUG(logger_, "thre: %f", params_ptr->go_to_goal_apply_rotation_angle);
 				if (abs_ang > params_ptr->go_to_goal_apply_rotation_angle) {
-					ang = generate_smooth_rotation_speed(last_rotation_speed_, last_rotation_speed_time_, ang, params_ptr, clock_, logger_);
+					RCLCPP_DEBUG(logger_, "Need adjust direction.");
 					bound_rotation(ang, params_ptr->go_to_goal_rotation_min, params_ptr->go_to_goal_rotation_max);
+					ang = generate_smooth_rotation_speed(last_rotation_speed_, last_rotation_speed_time_, ang, params_ptr, clock_, logger_);
 					servo_vel->angular.z = ang;
-					RCLCPP_DEBUG(logger_, "angular.z: %f", ang);
 
 					state = std::string("GO_TO_GOAL_POSITION");
 					infos = std::string("GO_TO_GOAL_POSITION (normal speed mode) ==> keep on moving");
 				}
+				else
+				{
+					RCLCPP_DEBUG(logger_, "Don't need adjust direction.");
+				}
 			}
 			servo_vel->linear.x = translate_velocity;
-			RCLCPP_DEBUG(logger_, "linear_x: %f", translate_velocity);
+			RCLCPP_DEBUG(logger_, "linear_x: %f", servo_vel->linear.x);
+			RCLCPP_DEBUG(logger_, "angular.z: %f", servo_vel->angular.z);
 
 		}
 		break;
@@ -766,23 +772,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		RCLCPP_DEBUG(logger_, "diff angle: %f", ang);
 		servo_vel = geometry_msgs::msg::Twist();
 
-		double translate_velocity = params_ptr->max_translation;
-
-		auto robot_abs_x = std::abs(current_position.getX());
-		auto dist_low_speed = params_ptr->last_docked_distance_offset_ + params_ptr->distance_low_speed;
-		auto dist_speed_down_length = (params_ptr->max_translation + params_ptr->go_to_goal_translation_min) / 2.0 * 
-			((params_ptr->max_translation - params_ptr->go_to_goal_translation_min) / params_ptr->go_to_goal_linear_acc);
-		auto dist_speed_down_range = params_ptr->max_translation - params_ptr->go_to_goal_translation_min;
-		auto dist_speed_down = dist_low_speed + dist_speed_down_length;
-		if (robot_abs_x < dist_speed_down)
-		{
-			translate_velocity = params_ptr->max_translation -
-						(dist_speed_down - robot_abs_x) / dist_speed_down_length * dist_speed_down_range;
-		}
-		if (robot_abs_x < dist_low_speed)
-		{
-			translate_velocity = params_ptr->go_to_goal_translation_min;
-		}
+		double translate_velocity = params_ptr->go_to_goal_translation_max;
 
 		if (gp.drive_backwards)
 		{
@@ -936,6 +926,7 @@ float generate_smooth_rotation_speed(float & last_rotation, double & last_rotati
 
 	if (first_pub_rotation_speed)
 	{
+		RCLCPP_DEBUG(logger_, "first pub rotation speed.");
 		new_rotation_speed = std::copysign(params_ptr->speed_rotation_init_abs, cur_rotation);
 	}
 	else
