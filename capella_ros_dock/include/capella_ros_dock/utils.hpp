@@ -56,6 +56,7 @@ struct motion_control_params
 	float go_to_goal_linear_acc;
 	float go_to_goal_translation_min;
 	float go_to_goal_translation_max;
+	float score_weight_similarity;
 };
 } // end namespace capella_ros_dock
 

@@ -25,6 +25,21 @@ namespace capella_ros_dock
         using MarkerVisible = capella_ros_service_interfaces::msg::ChargeMarkerVisible;
         using CmdVel = geometry_msgs::msg::Twist;
 
+        enum class CoordStateCode : int8_t
+        {
+                INIT                  = 0,
+                MARKER_MOVING_MARKER  = 1, // marker visible: true, robot is moving, coord of marker is selected;
+                MARKER_MOVING_PREDICT = 2,
+                MARKER_STOP_UPDATE    = 3,
+                MARKER_STOP_KEEP      = 4,
+                NO_MARKER_PREDICT     = 5,
+        };
+
+        struct WrappedCoordState
+        {
+                CoordStateCode code;
+        };
+
 /**
  * @brief This class generate coords in frame of charger marker
  */
@@ -69,16 +84,7 @@ namespace capella_ros_dock
                 double x_in_, y_in_, theta_in_;
                 double x_out_, y_out_, theta_out_;
                 double x_in_last_, y_in_last_, theta_in_last_;
-                double x_out_last_, y_out_last_, theta_out_last_;
-
-                // debug
-                double x_in_delta_max_ = 0.0;
-                double y_in_delta_max_ = 0.0;
-                double theta_in_delta_max_ = 0.0;
-                double x_out_delta_max_ = 0.0;
-                double y_out_delta_max_ = 0.0;
-                double theta_out_delta_max_ = 0.0;
-
+                double x_out_last_ {0.0}, y_out_last_{0.0}, theta_out_last_{0.0};
 
                 double x_best_, y_best_, theta_best_, similarity_best_, radius_best_;
                 MarkerVisible marker_visible_;
@@ -107,7 +113,10 @@ namespace capella_ros_dock
                 double score_marker_best_motionless_;
                 double score_last_{0.0};
                 double score_marker_current_;
-                double score_predict_;
+                double score_predict_{0.0};
+                double score_marker_similarity_, score_marker_radius_;
+                double score_predict_similarity_, score_predict_radius_;
+                double score_predict_b_decline_{0.0};
 
                 // odom msg
                 Odom odom_current_;
@@ -129,7 +138,17 @@ namespace capella_ros_dock
                 int odom_data_valid_count_moving_ = 0;
                 int odom_data_valid_count_stoping_ = 0;
 
-                double similarity_, radius_;
+                double similarity_out_last_{0.5}, radius_out_last_{0.4};
+                double similarity_marker_{0.5}, radius_marker_{0.4};
+
+                double score_weight_similarity_;
+
+                WrappedCoordState coord_state_current_;
+                WrappedCoordState coord_state_last_;
+                
+                std::map<int8_t, std::string> map_code_string_;
+
+                int predict_count_ = 0;
 
 
         };

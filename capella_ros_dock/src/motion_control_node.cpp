@@ -121,6 +121,7 @@ void MotionControlNode::init_params()
 	this->declare_parameter<float>("go_to_goal_linear_acc", 0.075);
 	this->declare_parameter<float>("go_to_goal_translation_min", 0.05);
 	this->declare_parameter<float>("go_to_goal_translation_max", 0.055);
+	this->declare_parameter<float>("score_weight_similarity", 0.5);
 
 	params.max_dock_action_run_time = this->get_parameter_or<int>("max_dock_action_run_time", 180);
 	params.min_rotation = this->get_parameter_or<float>("min_rotation", 0.15);
@@ -171,6 +172,7 @@ void MotionControlNode::init_params()
 	params.go_to_goal_linear_acc = this->get_parameter("go_to_goal_linear_acc").get_value<float>();
 	params.go_to_goal_translation_min = this->get_parameter("go_to_goal_translation_min").get_value<float>();
 	params.go_to_goal_translation_max = this->get_parameter("go_to_goal_translation_max").get_value<float>();
+	params.score_weight_similarity = this->get_parameter("score_weight_similarity").get_value<float>();
 	
 	RCLCPP_INFO_STREAM(this->get_logger(), "max_dock_action_run_time: " << params.max_dock_action_run_time 
 		<< ", last_docked_distanace_offset: " << params.last_docked_distance_offset_
