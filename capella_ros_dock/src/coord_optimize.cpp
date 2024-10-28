@@ -66,6 +66,21 @@ namespace capella_ros_dock
                 tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
                 tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(this);
 
+                // get tf from map to base_link as last data
+                geometry_msgs::msg::TransformStamped tf_stamped_msg;
+                tf2::Stamped<tf2::Transform> tf_stamped;
+                if (getTransform("map", "base_link", tf_stamped_msg))
+                {
+                        tf2::fromMsg(tf_stamped_msg, tf_stamped);
+                        tf_baselink_last = static_cast<tf2::Transform>(tf_stamped);
+                }
+                else
+                {
+                        RCLCPP_WARN(get_logger(), "cann't get tf from map to base_link");
+                        tf_baselink_last.setIdentity();
+                }
+
+
         }
 
         double CoordOptimize::sigmoid_(double value)
@@ -224,6 +239,26 @@ namespace capella_ros_dock
                 // get TF from pre_time to now_time
                 tf2::convert(odom_current_.pose.pose, tf_odom_current_);
                 tf_odom_last_to_current_ = (tf_odom_last_ * tf_baselink_to_baselink_dummy_).inverse() * (tf_odom_current_ * tf_baselink_to_baselink_dummy_) ;
+
+                // get tf from map to base_link as current data
+                geometry_msgs::msg::TransformStamped tf_stamped_msg;
+                tf2::Stamped<tf2::Transform> tf_stamped;
+                if (getTransform("map", "base_link", tf_stamped_msg))
+                {
+                        tf2::fromMsg(tf_stamped_msg, tf_stamped);
+                        tf_baselink_current = static_cast<tf2::Transform>(tf_stamped);
+                }
+                else
+                {
+                        RCLCPP_WARN(get_logger(), "cann't get tf from map to base_link");
+                        tf_baselink_current.setIdentity();
+                }
+
+                tf_baselink_last_to_current = tf_baselink_last.inverse() * tf_baselink_current;
+
+                // update tf_odom_last_to_current by using tf_base_link_last_to_current's orientation
+                tf_odom_last_to_current_.setRotation(tf_baselink_last_to_current.getRotation());
+                tf_baselink_last = tf_baselink_current;
                 
                 if (marker_visible_.marker_visible) // marker_visisble: true
                 {
@@ -248,6 +283,7 @@ namespace capella_ros_dock
                                         {
                                                 this->predict_count_++; // fix bug for predict_count=0 when the algorithm is continuously using markers to update coordinates;
                                                 RCLCPP_WARN(get_logger(), "********** Coords jumping occurs **********");
+                                                RCLCPP_INFO(get_logger(), "delta_x: %f, delta_y: %f, delta_theta: %f", delta_x, delta_y, delta_theta);
                                                 double score_p_similarity, score_p_radius;
                                                 score_p_similarity = this->sigmoid_(1.0 - this->similarity_out_last_) / 0.5 * this->score_weight_similarity_;
                                                 score_p_radius = this->sigmoid_(this->radius_out_last_) / 0.5 * (1.0 - this->score_weight_similarity_);
@@ -264,8 +300,8 @@ namespace capella_ros_dock
                                                 RCLCPP_DEBUG(get_logger(), "score_m_radius         :  %f  score_r: %s%f", this->score_marker_radius_, (this->score_marker_radius_- score_p_radius)>0?" ":"", this->score_marker_radius_- score_p_radius);
                                                 RCLCPP_DEBUG(get_logger(), "score_p_raidus         :  %f", score_p_radius);
                                                 RCLCPP_DEBUG(get_logger(), "marker_x               : %f  delta_x: %s%f", marker_x, (marker_x - this->x_out_last_)>0?" ":"", marker_x - this->x_out_last_);
-                                                RCLCPP_DEBUG(get_logger(), "marker_y               : %s%f  delta_y: %s%f", marker_y, marker_y>0?" ":"" , (marker_y - this->y_out_last_)>0?" ":"",marker_y - this->y_out_last_);
-                                                RCLCPP_DEBUG(get_logger(), "marker_theta           : %s%f  delta_t: %s%f", marker_theta, marker_theta>0?" ":"", (marker_theta - this->theta_out_last_)>0?" ":"",marker_theta - this->theta_out_last_);
+                                                RCLCPP_DEBUG(get_logger(), "marker_y               : %s%f  delta_y: %s%f", marker_y>0?" ":"" ,marker_y,  (marker_y - this->y_out_last_)>0?" ":"",marker_y - this->y_out_last_);
+                                                RCLCPP_DEBUG(get_logger(), "marker_theta           : %s%f  delta_t: %s%f", marker_theta>0?" ":"",marker_theta,  (marker_theta - this->theta_out_last_)>0?" ":"",(double)(marker_theta - this->theta_out_last_));
                                                 RCLCPP_DEBUG(get_logger(), "last_x                 : %f", this->x_out_last_);
                                                 RCLCPP_DEBUG(get_logger(), "last_y                 : %s%f", this->y_out_last_>0?" ": "", this->y_out_last_);
                                                 RCLCPP_DEBUG(get_logger(), "last_theta             : %s%f", this->theta_in_last_>0?" ":"", this->theta_out_last_);
@@ -326,8 +362,8 @@ namespace capella_ros_dock
                                         RCLCPP_DEBUG(get_logger(), "score_m_radius         :  %f  score_r: %s%f", this->score_marker_radius_, (this->score_marker_radius_- score_p_radius)>0?" ":"", this->score_marker_radius_- score_p_radius);
                                         RCLCPP_DEBUG(get_logger(), "score_p_raidus         :  %f", score_p_radius);
                                         RCLCPP_DEBUG(get_logger(), "marker_x               : %f  delta_x: %s%f", marker_x, (marker_x - this->x_out_last_)>0?" ":"", marker_x - this->x_out_last_);
-                                        RCLCPP_DEBUG(get_logger(), "marker_y               : %s%f  delta_y: %s%f", marker_y, marker_y>0?" ":"" , (marker_y - this->y_out_last_)>0?" ":"",marker_y - this->y_out_last_);
-                                        RCLCPP_DEBUG(get_logger(), "marker_theta           : %s%f  delta_t: %s%f", marker_theta, marker_theta>0?" ":"", (marker_theta - this->theta_out_last_)>0?" ":"",marker_theta - this->theta_out_last_);
+                                        RCLCPP_DEBUG(get_logger(), "marker_y               : %s%f  delta_y: %s%f", marker_y>0?" ":"" ,marker_y,  (marker_y - this->y_out_last_)>0?" ":"",marker_y - this->y_out_last_);
+                                        RCLCPP_DEBUG(get_logger(), "marker_theta           : %s%f  delta_t: %s%f",  marker_theta>0?" ":"",marker_theta, (marker_theta - this->theta_out_last_)>0?" ":"",(double)(marker_theta - this->theta_out_last_));
                                         RCLCPP_DEBUG(get_logger(), "last_x                 : %f", this->x_out_last_);
                                         RCLCPP_DEBUG(get_logger(), "last_y                 : %s%f", this->y_out_last_>0?" ": "", this->y_out_last_);
                                         RCLCPP_DEBUG(get_logger(), "last_theta             : %s%f", this->theta_in_last_>0?" ":"", this->theta_out_last_);

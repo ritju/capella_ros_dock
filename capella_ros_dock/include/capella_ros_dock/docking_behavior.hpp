@@ -37,6 +37,14 @@
 
 #include "std_msgs/msg/bool.hpp"
 
+
+// collision check
+#include "nav2_costmap_2d/footprint_collision_checker.hpp"
+#include "nav_msgs/msg/occupancy_grid.hpp"
+#include "geometry_msgs/msg/polygon_stamped.hpp"
+#include "geometry_msgs/msg/point.hpp"
+#include "nav2_costmap_2d/costmap_2d.hpp"
+
 namespace capella_ros_dock
 {
 
@@ -210,6 +218,21 @@ double w_fixed, x_fixed, y_fixed, z_fixed;
 double w_current, x_current, y_current, z_current;
 
 bool contact_state_last_{false};
+
+
+//  footprint collision check
+nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*> footprint_collision_checker_;
+nav2_costmap_2d::Costmap2D costmap2d_;
+geometry_msgs::msg::PolygonStamped footprint_;
+nav_msgs::msg::OccupancyGrid local_costmap_;
+std::vector<geometry_msgs::msg::Point> footprint_vec_;
+
+rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr local_costmap_sub_;
+rclcpp::Subscription<geometry_msgs::msg::PolygonStamped>::SharedPtr footprint_sub_;
+
+void local_costmap_sub_callback_(const nav_msgs::msg::OccupancyGrid &msg);
+void footprint_sub_callback_(const geometry_msgs::msg::PolygonStamped &msg);
+
 
 };
 

@@ -122,6 +122,12 @@ void MotionControlNode::init_params()
 	this->declare_parameter<float>("go_to_goal_translation_min", 0.05);
 	this->declare_parameter<float>("go_to_goal_translation_max", 0.055);
 	this->declare_parameter<float>("score_weight_similarity", 0.5);
+	this->declare_parameter<float>("robot_rotate_radius", 1.25);
+	this->declare_parameter<float>("base_link_y_thr", 0.05);
+	this->declare_parameter<float>("base_link_charge_dis", 0.474);
+	this->declare_parameter<float>("last_goal_angle_to_x_positive_dis", 0.05);
+	this->declare_parameter<float>("last_goal_angle_to_x_positive_y", 0.01);
+	this->declare_parameter<bool>("rotation_collision_check", false);
 
 	params.max_dock_action_run_time = this->get_parameter_or<int>("max_dock_action_run_time", 180);
 	params.min_rotation = this->get_parameter_or<float>("min_rotation", 0.15);
@@ -173,6 +179,12 @@ void MotionControlNode::init_params()
 	params.go_to_goal_translation_min = this->get_parameter("go_to_goal_translation_min").get_value<float>();
 	params.go_to_goal_translation_max = this->get_parameter("go_to_goal_translation_max").get_value<float>();
 	params.score_weight_similarity = this->get_parameter("score_weight_similarity").get_value<float>();
+	params.robot_rotate_radius = this->get_parameter("robot_rotate_radius").get_value<float>();
+	params.base_link_y_thr = this->get_parameter("base_link_y_thr").get_value<float>();
+	params.base_link_charge_dis = this->get_parameter("base_link_charge_dis").get_value<float>();
+	params.last_goal_angle_to_x_positive_dis = this->get_parameter("last_goal_angle_to_x_positive_dis").get_value<float>();
+	params.last_goal_angle_to_x_positive_y = this->get_parameter("last_goal_angle_to_x_positive_y").get_value<float>();
+	params.rotation_collision_check = this->get_parameter("rotation_collision_check").get_value<bool>();
 	
 	RCLCPP_INFO_STREAM(this->get_logger(), "max_dock_action_run_time: " << params.max_dock_action_run_time 
 		<< ", last_docked_distanace_offset: " << params.last_docked_distance_offset_

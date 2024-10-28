@@ -14,7 +14,7 @@ hazards_vector_publisher:
 
 test_dock:
   ros__parameters:
-    test_count: 35
+    test_count: 1
     x_min: -150
     x_max: -110
     y_min: -20
@@ -37,12 +37,12 @@ motion_control:
     goal_angle_converged: 0.15
     dist_goal_converged: 0.3
     # last_docked_distance_offset_: 0.60
-    distance_low_speed: 0.20
+    distance_low_speed: 0.30
     translate_low_speed: 0.05
     rotation_low_speed: 0.10
     first_goal_distance: 0.0
     second_goal_distance: 0.05
-    buffer_goal_distance: 0.45
+    buffer_goal_distance: 0.20
     camera_horizontal_view: 58.0
     localization_converged_time: 5.0 # wait (n) seconds for coordinates to be converged
     tolerance_angle: 0.02
@@ -64,8 +64,14 @@ motion_control:
     undock_time: 5.0
     undock_obstacle_lr: 0.5 # lr, left_right
     undock_obstacle_front: 1.0
-    goal_y_correction: 0.01
+    goal_y_correction: 0.0
     go_to_goal_linear_acc: 0.05
+    robot_rotate_radius: 1.25
+    base_link_y_thr: 0.08
+    base_link_charge_dis: 0.46
+    last_goal_angle_to_x_positive_dis: 0.05
+    last_goal_angle_to_x_positive_y: 0.01
+    rotation_collision_check: false
 
 
 camera_point_cloud_process:
@@ -82,7 +88,7 @@ camera_point_cloud_process:
 
 manual_dock:
   ros__parameters:
-    pose_x_min: -0.9
+    pose_x_min: -0.4
     pose_x_max: -0.15
     pose_y_min: -0.1
     pose_y_max: 0.1

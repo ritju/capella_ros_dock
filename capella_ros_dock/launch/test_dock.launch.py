@@ -46,7 +46,7 @@ def generate_launch_description():
 
     last_docked_distance_offset_ = 0.60
     try:
-        if 'LAST_DOCKED_DISTANCE_OFFSET' in os.environ:
+        if '' in os.environ:
             last_docked_distance_offset_ = float(os.environ.get('LAST_DOCKED_DISTANCE_OFFSET'))
             print(f'get last_docked_distance_offset_ from docker-compose.yaml file')
         else:
@@ -129,6 +129,18 @@ def generate_launch_description():
         namespace='',
         output='screen',
         parameters=[configured_params],
+        
+    )
+    
+    # coord node
+    coord_optimize_node = Node(
+        executable='coord_optimize_node',
+        package='capella_ros_dock',
+        name='coord_optimize_node',
+        namespace='',
+        output='screen',
+        parameters=[configured_params],
+        # remappings=[('pose_with_id_optimize', 'pose_test')],
         
     )
 
@@ -229,6 +241,7 @@ def generate_launch_description():
     launch_description.add_action(charge_action_node)
 
     launch_description.add_action(manual_dock_node)
+    launch_description.add_action(coord_optimize_node)
     # launch_description.add_action(camera_launch_file)
 
     # choose marker type: aruco marker or apriltag marker

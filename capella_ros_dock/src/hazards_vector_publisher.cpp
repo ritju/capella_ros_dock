@@ -27,7 +27,7 @@ HazardsVectorPublisher::HazardsVectorPublisher(const rclcpp::NodeOptions & optio
   RCLCPP_DEBUG(this->get_logger(), "publisher_topic: %s", publisher_topic_.c_str());
   RCLCPP_DEBUG(this->get_logger(), "publish_rate: %d", publish_rate);
   std::stringstream s;
-  for(int i = 0; i < subscription_topics_.size(); i++)
+  for(int i = 0; i < (int)subscription_topics_.size(); i++)
   {
     s << subscription_topics_[i] << " ";
   }

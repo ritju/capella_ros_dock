@@ -57,6 +57,12 @@ struct motion_control_params
 	float go_to_goal_translation_min;
 	float go_to_goal_translation_max;
 	float score_weight_similarity;
+	float robot_rotate_radius;
+	float base_link_y_thr;
+	float base_link_charge_dis;
+	float last_goal_angle_to_x_positive_dis;
+	float last_goal_angle_to_x_positive_y;
+	bool rotation_collision_check;
 };
 } // end namespace capella_ros_dock
 

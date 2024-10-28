@@ -85,7 +85,18 @@ DockingBehavior::DockingBehavior(
 		rclcpp::QoS(rclcpp::KeepLast(30)),
 		std::bind(&DockingBehavior::marker_and_mac_callback, this, _1)
 		);
-	
+	footprint_sub_ = rclcpp::create_subscription<geometry_msgs::msg::PolygonStamped>(
+		node_topics_interface,
+		"/local_costmap/published_footprint",
+		rclcpp::QoS(rclcpp::KeepLast(1)),
+		std::bind(&DockingBehavior::footprint_sub_callback_, this, _1)
+	);
+	local_costmap_sub_ = rclcpp::create_subscription<nav_msgs::msg::OccupancyGrid>(
+		node_topics_interface,
+		"/local_costmap/costmap",
+		rclcpp::QoS(rclcpp::KeepLast(1)),
+		std::bind(&DockingBehavior::local_costmap_sub_callback_, this, _1)
+	);
 
 	docking_action_server_ = rclcpp_action::create_server<capella_ros_dock_msgs::action::Dock>(
 		node_base_interface,
@@ -115,8 +126,32 @@ DockingBehavior::DockingBehavior(
 	// Set number from observation, but will repopulate on undock with calibrated value
 	last_docked_distance_offset_ = 0.32;
 	action_start_time_ = clock_->now();
+
+	this->footprint_collision_checker_ =  nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*>();
 }
 
+void DockingBehavior::local_costmap_sub_callback_(const nav_msgs::msg::OccupancyGrid & msg)
+{
+	this->local_costmap_ = msg;
+	costmap2d_ = nav2_costmap_2d::Costmap2D(this->local_costmap_);
+	footprint_collision_checker_.setCostmap(&(this->costmap2d_));
+}
+
+void DockingBehavior::footprint_sub_callback_(const geometry_msgs::msg::PolygonStamped &msg)
+{
+	this->footprint_ = msg;
+
+	std::vector<geometry_msgs::msg::Point>().swap(this->footprint_vec_);
+	for (size_t i = 0; i < footprint_.polygon.points.size(); i++)
+	{
+		geometry_msgs::msg::Point point;
+		point.x = footprint_.polygon.points[i].x;
+		point.y = footprint_.polygon.points[i].y;
+		point.z = footprint_.polygon.points[i].z;
+		footprint_vec_.push_back(point);
+	}
+	
+}
 
 void DockingBehavior::raw_vel_sub_callback(capella_ros_msg::msg::Velocities raw_vel)
 {
@@ -214,17 +249,37 @@ void DockingBehavior::handle_dock_servo_accepted(
 	tf2::Transform dock_offset(tf2::Transform::getIdentity());
 	tf2::Quaternion dock_rotation;
 
-	dock_rotation.setRPY(0, 0, 0);
-	dock_offset.setOrigin(tf2::Vector3(-dist_offset, params_ptr->goal_y_correction, 0));
-	dock_offset.setRotation(dock_rotation);
-	dock_path.emplace_back(dock_pose * dock_offset, 0.10, true); // second goal
 
-	dock_rotation.setRPY(0, 0, 0);
-	dock_offset.setOrigin(tf2::Vector3(-params_ptr->first_goal_distance, params_ptr->goal_y_correction, 0));
-	dock_offset.setRotation(dock_rotation);
-	dock_path.emplace_back(dock_pose * dock_offset, 0.01, true); // first goal
+	// dock_rotation.setRPY(0, 0, 0);
+	// dock_offset.setOrigin(tf2::Vector3(-dist_offset , params_ptr->goal_y_correction, 0));
+	// dock_offset.setRotation(dock_rotation);
+	// dock_path.emplace_back(dock_pose * dock_offset, 0.10, true); // third goal
 
-	goal_controller_->initialize_goal(dock_path, 0.2, 0.10);
+	// dock_rotation.setRPY(0, 0, 0);
+	// dock_offset.setOrigin(tf2::Vector3(-(params_ptr->last_docked_distance_offset_ + 0.10), params_ptr->goal_y_correction, 0));
+	// dock_offset.setRotation(dock_rotation);
+	// dock_path.emplace_back(dock_pose * dock_offset, 0.01, true); // second goal
+
+	float dx = 0.05;
+	float start_point_x = -(dist_offset + params_ptr->buffer_goal_distance);
+	float end_point_x = -params_ptr->last_docked_distance_offset_;
+	int size = std::floor(std::abs(end_point_x - start_point_x) / dx);
+	for (int i = 1; i <= size; i++)
+	{
+		float x_coord = start_point_x + dx * i;
+		RCLCPP_INFO(logger_, "goal_x: %f", x_coord);
+		dock_rotation.setRPY(0, 0, 0);
+		dock_offset.setOrigin(tf2::Vector3(x_coord, params_ptr->goal_y_correction, 0));
+		dock_offset.setRotation(dock_rotation);
+		dock_path.emplace_back(dock_pose * dock_offset, 0.01, true); 
+	}
+
+	// dock_rotation.setRPY(0, 0, 0);
+	// dock_offset.setOrigin(tf2::Vector3(-params_ptr->first_goal_distance, params_ptr->goal_y_correction, 0));
+	// dock_offset.setRotation(dock_rotation);
+	// dock_path.emplace_back(dock_pose * dock_offset, 0.01, true); // first goal
+
+	goal_controller_->initialize_goal(dock_path);
 	// Setup behavior to override other commanded motion
 	BehaviorsScheduler::BehaviorsData data;
 	data.run_func = std::bind(&DockingBehavior::execute_dock_servo, this, goal_handle, _1);
@@ -274,12 +329,31 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_dock_servo(
 		robot_pose = last_robot_pose_;
 	}
 	auto hazards = current_state.hazards;
-	servo_cmd = goal_controller_->get_velocity_for_position(robot_pose, current_state.pose, current_state.charger_pose, sees_dock_, is_docked_, bluetooth_connected,
-	                                                        odom_msg, clock_, logger_, params_ptr, hazards, state, infos);
+	servo_cmd = goal_controller_->get_velocity_for_position(robot_pose, current_state.pose, current_state.charger_pose, sees_dock_, is_docked_,
+	 bluetooth_connected,  odom_msg, clock_, logger_, params_ptr, hazards, state, infos, footprint_collision_checker_, footprint_vec_);
 	if(this->is_docked_)
 	{
 		RCLCPP_DEBUG(logger_, "zero cmd time => sec: %f", this->clock_.get()->now().seconds());
 	}
+
+	// tmp for test clean_robot
+	// double x,y,r;
+	// x = this->last_robot_pose_.getOrigin().getX();
+	// y = this->last_robot_pose_.getOrigin().getY();
+	// r = std::hypot(x,y);
+	// if (r < (this->params_ptr->last_docked_distance_offset_ + this->params_ptr->distance_low_speed))
+	// {
+	// 	RCLCPP_INFO(logger_, "distance: %f,  return success for testing.", r);
+	// 	auto result = std::make_shared<capella_ros_dock_msgs::action::Dock::Result>();
+	// 	result->is_docked = true;
+	// 	RCLCPP_INFO(logger_, "Dock Servo Goal Succeeded\n");
+	// 	goal_handle->succeed(result);
+
+	// 	goal_controller_->reset();
+	// 	running_dock_action_ = false;
+	// 	return servo_cmd;
+	// }
+
 	if (!servo_cmd || exceeded_runtime) {
 		auto result = std::make_shared<capella_ros_dock_msgs::action::Dock::Result>();
 		if (is_docked_) {
@@ -323,9 +397,8 @@ rclcpp_action::GoalResponse DockingBehavior::handle_undock_goal(
 		return rclcpp_action::GoalResponse::REJECT;
 	}
 	auto current_pose = last_robot_pose_.getOrigin();
-	double x,y;
+	double x;
 	x = current_pose.getX();
-	y = current_pose.getY();
 	if (std::abs(x) > (params_ptr->last_docked_distance_offset_ + 0.5))
 	{
 		RCLCPP_WARN(logger_, "Robot had undocked, reject");
@@ -393,7 +466,7 @@ void DockingBehavior::handle_undock_accepted(
 	face_away_dock.setRotation(undock_rotation);
 	tf2::Transform undocked_goal = undock_offset * face_away_dock;
 	undock_path.emplace_back(undocked_goal, 0.05, false);
-	goal_controller_->initialize_goal(undock_path, M_PI / 4.0, 0.10);
+	goal_controller_->initialize_goal(undock_path);
 
 	BehaviorsScheduler::BehaviorsData data;
 	data.run_func = std::bind(&DockingBehavior::execute_undock, this, goal_handle, _1);
@@ -441,8 +514,8 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_undock(
 	}
 	auto hazards = current_state.hazards;
 	servo_cmd = goal_controller_->get_velocity_for_position(robot_pose, current_state.pose, current_state.charger_pose, sees_dock_,
-	                                                        is_docked_, bluetooth_connected,
-								 odom_msg, clock_, logger_, params_ptr, hazards, state, infos);
+	                                                        is_docked_, bluetooth_connected, odom_msg, clock_, logger_, params_ptr,
+								 hazards, state, infos, footprint_collision_checker_, footprint_vec_);
 
 	
 	auto msg = std_msgs::msg::Bool();
@@ -512,7 +585,7 @@ void DockingBehavior::robot_pose_callback(aruco_msgs::msg::PoseWithId::ConstShar
 	}
 	else
 	{
-		RCLCPP_DEBUG_THROTTLE(logger_, *clock_, 5000, "topic /pose_with_id's marker_id: %d, node's marker_id_: %d", msg->marker_id, marker_id_);
+		RCLCPP_DEBUG_THROTTLE(logger_, *clock_, 5000, "topic /pose_with_id's marker_id: %d, node's marker_id_: %d", (int)(msg->marker_id), marker_id_);
 	}
 }
 

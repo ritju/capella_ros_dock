@@ -126,6 +126,9 @@ namespace capella_ros_dock
                 tf2::Transform tf_odom_last_to_current_;
                 tf2::Transform tf_baselink_to_baselink_dummy_;
 
+                tf2::Transform tf_baselink_current, tf_baselink_last;
+                tf2::Transform tf_baselink_last_to_current;
+
                 // threshold value for moving or not 
                 double thre_moving_linear_ = 0.01;
                 double thre_moving_angular_ = 0.01;

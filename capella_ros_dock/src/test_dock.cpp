@@ -519,7 +519,7 @@ double TestDock::bound_linear(double x)
 void TestDock::charge_result_callback(const GoalHandleCharge::WrappedResult &result)
 {
 	RCLCPP_INFO(get_logger(), "charge_result_callback");
-	RCLCPP_INFO(get_logger(), "goal result: %d(0:unknow,4:success,5:fail,6:abort)", result.code);
+	RCLCPP_INFO(get_logger(), "goal result: %d(0:unknow,4:success,5:fail,6:abort)", (int)(result.code));
 	switch (result.code)
 	{
 	case rclcpp_action::ResultCode::SUCCEEDED:

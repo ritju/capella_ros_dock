@@ -30,6 +30,9 @@ find_package(image_transport REQUIRED)
 find_package(aruco_msgs)
 find_package(charge_manager_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(nav2_costmap_2d REQUIRED)
+find_package(ament_cmake REQUIRED)
+find_package(nav2_common REQUIRED)
 
 set(dependencies
   angles
@@ -51,7 +54,12 @@ set(dependencies
   aruco_msgs
   charge_manager_msgs
   std_msgs
+  nav2_costmap_2d
+  ament_cmake
+  nav2_common
 )
+
+nav2_package()
 
 # Hazards vector publisher
 add_library(hazards_publisher_lib  SHARED)

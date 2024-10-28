@@ -368,7 +368,7 @@ namespace capella_ros_dock
                 this->pose_with_id = msg;
                 this->marker_id = pose_with_id.marker_id;
                 // RCLCPP_INFO(this->get_logger(), "marker_id: %d", marker_id);
-                for(int i = 0; i < marker_and_mac.marker_and_mac_vector.size(); i++)
+                for(int i = 0; i < (int)(marker_and_mac.marker_and_mac_vector.size()); i++)
                 {
                         if (marker_and_mac.marker_and_mac_vector[i].marker_id == marker_id)
                         {
@@ -540,6 +540,7 @@ namespace capella_ros_dock
         {
                 this->charge_action_executing = false;
                 RCLCPP_INFO(get_logger(), "====== manual-charing ended! ======");
+                RCLCPP_INFO(get_logger(), "result.code: %d", (int)(result.code));
         }
 
         void ManualDock::charge_goal_response_callback(const rclcpp_action::ClientGoalHandle<charge_manager_msgs::action::Charge>::SharedPtr & goal_handle)
