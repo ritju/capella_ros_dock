@@ -46,7 +46,7 @@ def generate_launch_description():
 
     last_docked_distance_offset_ = 0.60
     try:
-        if '' in os.environ:
+        if 'LAST_DOCKED_DISTANCE_OFFSET' in os.environ:
             last_docked_distance_offset_ = float(os.environ.get('LAST_DOCKED_DISTANCE_OFFSET'))
             print(f'get last_docked_distance_offset_ from docker-compose.yaml file')
         else:
@@ -259,7 +259,7 @@ def generate_launch_description():
     else:
         launch_description.add_action(aruco_launch_file) 
 
-    launch_description.add_action(motion_control_node)
+    # launch_description.add_action(motion_control_node)
     launch_description.add_action(hazards_vector_publisher_node)
     launch_description.add_action(camera_point_cloud_process_node)
     # launch_description.add_action(test_docking_node)

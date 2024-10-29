@@ -1,4 +1,5 @@
 # Request
+string mac
 ---
 # Result
 bool is_docked

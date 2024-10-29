@@ -213,6 +213,17 @@ void DockingBehavior::handle_dock_servo_accepted(
 	running_dock_action_ = true;
 	action_start_time_ = clock_->now();
 
+	const auto goal = goal_handle->get_goal();
+	charger_id_ = goal->mac;
+
+	for(size_t i = 0; i < marker_and_mac_vector.marker_and_mac_vector.size(); i++)
+	{
+		if(charger_id_.compare(marker_and_mac_vector.marker_and_mac_vector[i].bluetooth_mac) == 0)
+		{
+			marker_id_ = marker_and_mac_vector.marker_and_mac_vector[i].marker_id;
+		}
+	}
+
 	// Generate point offset from dock facing dock then point at dock
 	SimpleGoalController::CmdPath dock_path;
 	tf2::Transform robot_pose(tf2::Transform::getIdentity());
