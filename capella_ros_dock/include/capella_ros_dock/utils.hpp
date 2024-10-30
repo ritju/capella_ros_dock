@@ -63,6 +63,7 @@ struct motion_control_params
 	float last_goal_angle_to_x_positive_dis;
 	float last_goal_angle_to_x_positive_y;
 	bool rotation_collision_check;
+	std::string footprint;
 };
 } // end namespace capella_ros_dock
 

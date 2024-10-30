@@ -128,6 +128,19 @@ DockingBehavior::DockingBehavior(
 	action_start_time_ = clock_->now();
 
 	this->footprint_collision_checker_ =  nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*>();
+	if (nav2_costmap_2d::makeFootprintFromString(params_ptr->footprint, footprint_base_))
+	{
+		RCLCPP_INFO(logger_, "get base footprint.");
+		for (size_t i = 0; i < footprint_base_.size(); i++)
+		{
+			auto point = footprint_base_[i];
+			RCLCPP_INFO(logger_, "Point(%f, %f)", point.x, point.y);
+		}
+	}
+	else
+	{
+		RCLCPP_ERROR(logger_, "Invalid footprint_base.");
+	}
 }
 
 void DockingBehavior::local_costmap_sub_callback_(const nav_msgs::msg::OccupancyGrid & msg)
@@ -215,6 +228,7 @@ void DockingBehavior::handle_dock_servo_accepted(
 
 	const auto goal = goal_handle->get_goal();
 	charger_id_ = goal->mac;
+	RCLCPP_INFO(logger_, "Dock goal => request.mac: %s", charger_id_.c_str());
 
 	for(size_t i = 0; i < marker_and_mac_vector.marker_and_mac_vector.size(); i++)
 	{
@@ -341,7 +355,7 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_dock_servo(
 	}
 	auto hazards = current_state.hazards;
 	servo_cmd = goal_controller_->get_velocity_for_position(robot_pose, current_state.pose, current_state.charger_pose, sees_dock_, is_docked_,
-	 bluetooth_connected,  odom_msg, clock_, logger_, params_ptr, hazards, state, infos, footprint_collision_checker_, footprint_vec_);
+	 bluetooth_connected,  odom_msg, clock_, logger_, params_ptr, hazards, state, infos, footprint_collision_checker_, footprint_base_);
 	if(this->is_docked_)
 	{
 		RCLCPP_DEBUG(logger_, "zero cmd time => sec: %f", this->clock_.get()->now().seconds());
@@ -526,7 +540,7 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_undock(
 	auto hazards = current_state.hazards;
 	servo_cmd = goal_controller_->get_velocity_for_position(robot_pose, current_state.pose, current_state.charger_pose, sees_dock_,
 	                                                        is_docked_, bluetooth_connected, odom_msg, clock_, logger_, params_ptr,
-								 hazards, state, infos, footprint_collision_checker_, footprint_vec_);
+								 hazards, state, infos, footprint_collision_checker_, footprint_base_);
 
 	
 	auto msg = std_msgs::msg::Bool();

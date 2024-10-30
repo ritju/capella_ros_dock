@@ -29,6 +29,7 @@
 #include "geometry_msgs/msg/point.hpp"
 #include "nav2_costmap_2d/cost_values.hpp"
 #include "nav2_costmap_2d/costmap_2d.hpp"
+#include "nav2_costmap_2d/footprint.hpp"
 
 using namespace std;
 
@@ -344,34 +345,50 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 				RCLCPP_DEBUG(logger_, "dist_angle: %f", dist_angle);
 
 				start_time_recorded = false;
-				RCLCPP_DEBUG(logger_, "Need rotate robot for it can see the marker.");
+				RCLCPP_DEBUG(logger_, "Need rotate robot for it can see the marker.");				
 
-				// before rotation, collision_check first
-				double x, y, theta;
-				x = robot_pose_map.getOrigin().getX();
-				y = robot_pose_map.getOrigin().getY();
-				theta = tf2::getYaw(robot_pose_map.getRotation());
-				// double cost = collision_checker.footprintCostAtPose(x, y, theta, footprint_vec);
-				double cost = collision_checker.footprintCost(footprint_vec);
-				RCLCPP_DEBUG(logger_, "x: %f, y: %f, theta: %f", x, y, theta);
-				for (size_t index = 0; index < footprint_vec.size(); index++)
+				servo_vel->angular.z = angular_z_;
+				RCLCPP_DEBUG(logger_, "angular_z: %f", servo_vel->angular.z);
+
+				// before actually begin rotation, collision_check first
+				double cost_value = get_cost_value(logger_,collision_checker, footprint_vec, true, 0.0, servo_vel->angular.z,
+					2.0, params_ptr->cmd_vel_hz, 0.8);
+				if ((cost_value == static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE)) && params_ptr->rotation_collision_check)
 				{
-					RCLCPP_DEBUG(logger_, "footprint Point(%f, %f)", footprint_vec[index].x, footprint_vec[index].y);
-				}
-				if ((cost >= static_cast<double>(251)) && params_ptr->rotation_collision_check)
-				{
-					RCLCPP_DEBUG(logger_, "cost value: %f >= %f", cost, static_cast<double>(251));	
+					RCLCPP_DEBUG(logger_, "cost value: %f == %f", cost_value,  static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));	
 					servo_vel->angular.z = 0.0;
 					return servo_vel;			
 				}
 				else
 				{
-					RCLCPP_DEBUG(logger_, "cost value: %f, go on ......", cost);
+					RCLCPP_DEBUG(logger_, "cost value: %f, go on ......", cost_value);
 					RCLCPP_DEBUG(logger_, "rotation_collision_check: %s", params_ptr->rotation_collision_check ? "true":"false");
 				}
 
-				servo_vel->angular.z = angular_z_;
-				RCLCPP_DEBUG(logger_, "angular_z: %f", servo_vel->angular.z);
+
+
+				// double x, y, theta;
+				// x = robot_pose_map.getOrigin().getX();
+				// y = robot_pose_map.getOrigin().getY();
+				// theta = tf2::getYaw(robot_pose_map.getRotation());
+				// // double cost = collision_checker.footprintCostAtPose(x, y, theta, footprint_vec);
+				// double cost = collision_checker.footprintCost(footprint_vec);
+				// RCLCPP_DEBUG(logger_, "x: %f, y: %f, theta: %f", x, y, theta);
+				// for (size_t index = 0; index < footprint_vec.size(); index++)
+				// {
+				// 	RCLCPP_DEBUG(logger_, "footprint Point(%f, %f)", footprint_vec[index].x, footprint_vec[index].y);
+				// }
+				// if ((cost >= static_cast<double>(251)) && params_ptr->rotation_collision_check)
+				// {
+				// 	RCLCPP_DEBUG(logger_, "cost value: %f >= %f", cost, static_cast<double>(251));	
+				// 	servo_vel->angular.z = 0.0;
+				// 	return servo_vel;			
+				// }
+				// else
+				// {
+				// 	RCLCPP_DEBUG(logger_, "cost value: %f, go on ......", cost);
+				// 	RCLCPP_DEBUG(logger_, "rotation_collision_check: %s", params_ptr->rotation_collision_check ? "true":"false");
+				// }
 				
 				state = std::string("LOOKUP_ARUCO_MARKER");
 				infos = std::string("Reason: camera's orientation not towards charger's marker ==> rotate robot");
@@ -995,6 +1012,52 @@ void bound_rotation(double & rotation_velocity, float min, float max)
 	}
 }
 
+double get_cost_value(rclcpp::Logger logger_, nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*>  collision_checker,
+	std::vector<geometry_msgs::msg::Point> footprint, bool rotation,
+	 double linear, double angular, double predict_time, int hz, double scale)
+{
+	double cost_value = 0.0;
+	double x,y,theta;
+	tf2::Transform tf_robot;
+	tf2::Transform tf_offset;
+	tf2::Transform tf_new;
+	tf_robot.setIdentity();
+	tf_offset.setIdentity();
+	int counts_number = std::floor(predict_time * hz);
+
+	if (rotation)
+	{		
+		double vel_angular = angular * scale;
+		tf2::Quaternion q;
+		for (int i = 0; i < counts_number; i++)
+		{
+			tf_offset.setOrigin(tf2::Vector3(0,0,0));
+			double yaw = 1.0 / hz * vel_angular * i;
+			q.setRPY(0, 0, yaw);
+			tf_offset.setRotation(q);
+			tf_new = tf_robot * tf_offset;
+			x = tf_new.getOrigin().getX();
+			y = tf_new.getOrigin().getY();
+			theta = tf2::getYaw(tf_new.getRotation());
+			// RCLCPP_DEBUG(logger_, "x: %f, y: %f, theta: %f", x, y, theta);
+			// RCLCPP_DEBUG(logger_,"base footprint");
+			// RCLCPP_DEBUG(logger_, "Point(%f, %f)", footprint[0].x, footprint[0].y);
+			// RCLCPP_DEBUG(logger_, "Point(%f, %f)", footprint[1].x, footprint[1].y);
+			// RCLCPP_DEBUG(logger_, "Point(%f, %f)", footprint[2].x, footprint[2].y);
+			// RCLCPP_DEBUG(logger_, "Point(%f, %f)", footprint[3].x, footprint[3].y);
+			double cost_value_tmp = collision_checker.footprintCostAtPose(x, y, theta, footprint);
+			RCLCPP_DEBUG(logger_, "%d => cost_value: %f", i, cost_value_tmp);
+			cost_value = std::max(cost_value, cost_value_tmp);
+		}
+	}
+	else
+	{
+		double vel_linear = linear * scale;
+		cost_value = vel_linear;
+	}
+
+	return cost_value;
+}
 
 float degree_to_radian(float degree)
 {

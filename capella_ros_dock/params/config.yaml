@@ -58,7 +58,7 @@ motion_control:
     time_sleep: 5.0
     speed_rotation_acceleration: 0.3
     speed_rotation_init_abs: 0.02
-    max_action_runtime: 180
+    max_action_runtime: 1800
     contacted_keep_move_time: 0.10
     undock_speed: 0.15
     undock_time: 5.0
@@ -71,7 +71,8 @@ motion_control:
     base_link_charge_dis: 0.46
     last_goal_angle_to_x_positive_dis: 0.05
     last_goal_angle_to_x_positive_y: 0.01
-    rotation_collision_check: false
+    rotation_collision_check: true
+    footprint: "[ [-0.376, -0.376], [-0.376, 0.376], [0.376, 0.376], [0.376, -0.376] ]"
 
 
 camera_point_cloud_process:

@@ -44,6 +44,7 @@
 #include "geometry_msgs/msg/polygon_stamped.hpp"
 #include "geometry_msgs/msg/point.hpp"
 #include "nav2_costmap_2d/costmap_2d.hpp"
+#include "nav2_costmap_2d/footprint.hpp"
 
 namespace capella_ros_dock
 {
@@ -226,6 +227,7 @@ nav2_costmap_2d::Costmap2D costmap2d_;
 geometry_msgs::msg::PolygonStamped footprint_;
 nav_msgs::msg::OccupancyGrid local_costmap_;
 std::vector<geometry_msgs::msg::Point> footprint_vec_;
+std::vector<geometry_msgs::msg::Point> footprint_base_;
 
 rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr local_costmap_sub_;
 rclcpp::Subscription<geometry_msgs::msg::PolygonStamped>::SharedPtr footprint_sub_;
