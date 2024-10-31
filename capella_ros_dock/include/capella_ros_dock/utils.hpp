@@ -65,6 +65,7 @@ struct motion_control_params
 	bool rotation_collision_check;
 	std::string footprint;
 	float collision_predict_time;
+	float time_local_costmap_clear_min;
 };
 } // end namespace capella_ros_dock
 

@@ -15,6 +15,8 @@ DockingBehavior::DockingBehavior(
 	rclcpp::node_interfaces::NodeLoggingInterface::SharedPtr node_logging_interface,
 	rclcpp::node_interfaces::NodeTopicsInterface::SharedPtr node_topics_interface,
 	rclcpp::node_interfaces::NodeWaitablesInterface::SharedPtr node_waitables_interface,
+	rclcpp::node_interfaces::NodeGraphInterface::SharedPtr node_graph_interface,
+	rclcpp::node_interfaces::NodeServicesInterface::SharedPtr node_service_interface,
 	motion_control_params* params_ptr,
 	std::shared_ptr<BehaviorsScheduler> behavior_scheduler)
 	: clock_(node_clock_interface->get_clock()),
@@ -98,6 +100,23 @@ DockingBehavior::DockingBehavior(
 		std::bind(&DockingBehavior::local_costmap_sub_callback_, this, _1)
 	);
 
+	rmw_qos_profile_t qos;
+	qos.history = rmw_qos_history_policy_t::RMW_QOS_POLICY_HISTORY_KEEP_LAST;
+	qos.depth = 1;
+	qos.reliability = rmw_qos_reliability_policy_t::RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
+	qos.durability = rmw_qos_durability_policy_t::RMW_QOS_POLICY_DURABILITY_VOLATILE;
+	
+	rclcpp::CallbackGroup::SharedPtr cb_group1 = node_base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+	
+	client_clear_entire_local_costmap_ = rclcpp::create_client<nav2_msgs::srv::ClearEntireCostmap>(
+		node_base_interface,
+		node_graph_interface,
+		node_service_interface,
+		"/local_costmap/clear_entire_local_costmap",
+		qos,
+		cb_group1
+	);
+
 	docking_action_server_ = rclcpp_action::create_server<capella_ros_dock_msgs::action::Dock>(
 		node_base_interface,
 		node_clock_interface,
@@ -128,19 +147,21 @@ DockingBehavior::DockingBehavior(
 	action_start_time_ = clock_->now();
 
 	this->footprint_collision_checker_ =  nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*>();
-	if (nav2_costmap_2d::makeFootprintFromString(params_ptr->footprint, footprint_base_))
-	{
-		RCLCPP_INFO(logger_, "get base footprint.");
-		for (size_t i = 0; i < footprint_base_.size(); i++)
-		{
-			auto point = footprint_base_[i];
-			RCLCPP_INFO(logger_, "Point(%f, %f)", point.x, point.y);
-		}
-	}
-	else
-	{
-		RCLCPP_ERROR(logger_, "Invalid footprint_base.");
-	}
+
+	// delete , get footprint_base from topic
+	// if (nav2_costmap_2d::makeFootprintFromString(params_ptr->footprint, footprint_base_))
+	// {
+	// 	RCLCPP_INFO(logger_, "get base footprint.");
+	// 	for (size_t i = 0; i < footprint_base_.size(); i++)
+	// 	{
+	// 		auto point = footprint_base_[i];
+	// 		RCLCPP_INFO(logger_, "Point(%f, %f)", point.x, point.y);
+	// 	}
+	// }
+	// else
+	// {
+	// 	RCLCPP_ERROR(logger_, "Invalid footprint_base.");
+	// }
 }
 
 void DockingBehavior::local_costmap_sub_callback_(const nav_msgs::msg::OccupancyGrid & msg)
@@ -163,7 +184,31 @@ void DockingBehavior::footprint_sub_callback_(const geometry_msgs::msg::PolygonS
 		point.z = footprint_.polygon.points[i].z;
 		footprint_vec_.push_back(point);
 	}
+
+	// for (size_t i = 0; i < footprint_base_.size(); i++)
+	// {
+	// 	auto point = footprint_vec_[i];
+	// 	RCLCPP_INFO(logger_, "published footprint Point(%f, %f)", point.x, point.y);
+	// }
 	
+	// transform footprint from origin frame to base_link frame
+	double x, y, theta;
+	x = tf_robot_map.getOrigin().getX();
+	y = tf_robot_map.getOrigin().getY();
+	theta = tf2::getYaw(tf_robot_map.getRotation());
+	// RCLCPP_INFO(logger_, "x: %f, y: %f, theta: %f", x, y, theta);
+
+	std::vector<geometry_msgs::msg::Point> temp;
+	nav2_costmap_2d::transformFootprint(-x, -y, 0, footprint_vec_, temp);
+	nav2_costmap_2d::transformFootprint(0, 0, -theta, temp, footprint_base_);
+
+	// for (size_t i = 0; i < footprint_base_.size(); i++)
+	// {
+	// 	auto point = footprint_base_[i];
+	// 	RCLCPP_INFO(logger_, "base footprint Point(%f, %f)", point.x, point.y);
+	// }
+
+
 }
 
 void DockingBehavior::raw_vel_sub_callback(capella_ros_msg::msg::Velocities raw_vel)
@@ -330,6 +375,7 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_dock_servo(
 		rclcpp_action::ServerGoalHandle<capella_ros_dock_msgs::action::Dock> > goal_handle,
 	const RobotState & current_state)
 {
+	this->tf_robot_map = current_state.pose;
 	BehaviorsScheduler::optional_output_t servo_cmd;
 	// Handle if goal is cancelling
 	if (goal_handle->is_canceling()) {
@@ -355,7 +401,7 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_dock_servo(
 	}
 	auto hazards = current_state.hazards;
 	servo_cmd = goal_controller_->get_velocity_for_position(robot_pose, current_state.pose, current_state.charger_pose, sees_dock_, is_docked_,
-	 bluetooth_connected,  odom_msg, clock_, logger_, params_ptr, hazards, state, infos, footprint_collision_checker_, footprint_base_);
+	 bluetooth_connected,  odom_msg, clock_, logger_, params_ptr, hazards, state, infos, footprint_collision_checker_, footprint_base_, client_clear_entire_local_costmap_);
 	if(this->is_docked_)
 	{
 		RCLCPP_DEBUG(logger_, "zero cmd time => sec: %f", this->clock_.get()->now().seconds());
@@ -519,6 +565,7 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_undock(
 		rclcpp_action::ServerGoalHandle<capella_ros_service_interfaces::action::Undock> > goal_handle,
 	const RobotState & current_state)
 {
+	this->tf_robot_map = current_state.pose;
 	BehaviorsScheduler::optional_output_t servo_cmd;
 	// Handle if goal is cancelling
 	if (goal_handle->is_canceling()) {
@@ -540,7 +587,7 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_undock(
 	auto hazards = current_state.hazards;
 	servo_cmd = goal_controller_->get_velocity_for_position(robot_pose, current_state.pose, current_state.charger_pose, sees_dock_,
 	                                                        is_docked_, bluetooth_connected, odom_msg, clock_, logger_, params_ptr,
-								 hazards, state, infos, footprint_collision_checker_, footprint_base_);
+								 hazards, state, infos, footprint_collision_checker_, footprint_base_, client_clear_entire_local_costmap_);
 
 	
 	auto msg = std_msgs::msg::Bool();

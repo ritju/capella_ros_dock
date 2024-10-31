@@ -45,6 +45,7 @@
 #include "geometry_msgs/msg/point.hpp"
 #include "nav2_costmap_2d/costmap_2d.hpp"
 #include "nav2_costmap_2d/footprint.hpp"
+#include "nav2_msgs/srv/clear_entire_costmap.hpp"
 
 namespace capella_ros_dock
 {
@@ -63,7 +64,9 @@ DockingBehavior(
 	rclcpp::node_interfaces::NodeLoggingInterface::SharedPtr node_logging_interface,
 	rclcpp::node_interfaces::NodeTopicsInterface::SharedPtr node_topics_interface,
 	rclcpp::node_interfaces::NodeWaitablesInterface::SharedPtr node_waitables_interface,
-  motion_control_params *params_ptr,
+	rclcpp::node_interfaces::NodeGraphInterface::SharedPtr node_graph_interface,
+	rclcpp::node_interfaces::NodeServicesInterface::SharedPtr node_service_interface,
+  	motion_control_params *params_ptr,
 	std::shared_ptr<BehaviorsScheduler> behavior_scheduler);
 ~DockingBehavior() = default;
 
@@ -132,6 +135,8 @@ rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr laserScan_sub_;
 
 rclcpp::Subscription<std_msgs::msg::String>::SharedPtr charger_id_sub_;
 rclcpp::Subscription<aruco_msgs::msg::MarkerAndMacVector>::SharedPtr marker_and_mac_sub_;
+
+rclcpp::Client<nav2_msgs::srv::ClearEntireCostmap>::SharedPtr client_clear_entire_local_costmap_;
 
 rclcpp::Clock::SharedPtr clock_;
 rclcpp::Logger logger_;
@@ -234,6 +239,8 @@ rclcpp::Subscription<geometry_msgs::msg::PolygonStamped>::SharedPtr footprint_su
 
 void local_costmap_sub_callback_(const nav_msgs::msg::OccupancyGrid &msg);
 void footprint_sub_callback_(const geometry_msgs::msg::PolygonStamped &msg);
+
+tf2::Transform tf_robot_map;
 
 
 };

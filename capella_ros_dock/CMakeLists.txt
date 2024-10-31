@@ -57,6 +57,7 @@ set(dependencies
   nav2_costmap_2d
   ament_cmake
   nav2_common
+  nav2_msgs
 )
 
 nav2_package()

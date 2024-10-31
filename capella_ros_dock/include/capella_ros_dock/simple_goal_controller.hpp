@@ -30,6 +30,9 @@
 #include "nav2_costmap_2d/cost_values.hpp"
 #include "nav2_costmap_2d/costmap_2d.hpp"
 #include "nav2_costmap_2d/footprint.hpp"
+#include "nav2_msgs/srv/clear_entire_costmap.hpp"
+
+
 
 using namespace std;
 
@@ -179,7 +182,7 @@ void reset()
 BehaviorsScheduler::optional_output_t get_velocity_for_position(
 	const tf2::Transform & current_pose, const tf2::Transform & robot_pose_map, const tf2::Transform & charger_pose_map, bool sees_dock, bool is_docked, bool bluetooth_connected,
 	nav_msgs::msg::Odometry odom_msg, rclcpp::Clock::SharedPtr clock_, rclcpp::Logger logger_, motion_control_params* params_ptr, capella_ros_dock_msgs::msg::HazardDetectionVector hazards, std::string & state, std::string & infos,
-	nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*>  collision_checker, std::vector<geometry_msgs::msg::Point> footprint_vec)
+	nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*>  collision_checker, std::vector<geometry_msgs::msg::Point> footprint_vec, rclcpp::Client<nav2_msgs::srv::ClearEntireCostmap>::SharedPtr client_clear_entire_local_costmap)
 {	
 	// impl undock (go to undock state)
 	if (goal_points_.size() >0 && !(goal_points_.front().drive_backwards))
@@ -357,6 +360,24 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 				{
 					RCLCPP_DEBUG(logger_, "cost value: %f == %f", cost_value,  static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));	
 					servo_vel->angular.z = 0.0;
+
+					double clear_time_now, clear_time_delta;
+					clear_time_now = clock_->now().seconds();
+					clear_time_delta = clear_time_now - time_last_local_costmap_clear;
+					if (clear_time_delta > params_ptr->time_local_costmap_clear_min)
+					{
+						auto request = std::make_shared<nav2_msgs::srv::ClearEntireCostmap::Request>();
+						RCLCPP_DEBUG(logger_, "clear_time_now: %f", clear_time_now);
+						RCLCPP_DEBUG(logger_, "clear_time_last: %f", time_last_local_costmap_clear);
+						RCLCPP_DEBUG(logger_, "clear_time_delta: %f", clear_time_delta);
+						RCLCPP_INFO(logger_, "call service for clear local_costmap.");
+						time_last_local_costmap_clear = clear_time_now;
+						client_clear_entire_local_costmap->async_send_request(request);
+					}
+					else
+					{
+						time_last_local_costmap_clear = clear_time_now;
+					}
 					return servo_vel;			
 				}
 				else
@@ -1254,6 +1275,8 @@ double dist_move_to_buffer_point;
 tf2::Transform tf_before_angle_to_buffer_point;
 tf2::Transform tf_after_angle_to_buffer_point;
 tf2::Transform tf_after_move_to_buffer_point;
+
+float time_last_local_costmap_clear = 0.0;
 
 };
 
