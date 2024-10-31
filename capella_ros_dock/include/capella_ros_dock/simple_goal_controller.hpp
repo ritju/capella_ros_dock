@@ -351,8 +351,8 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 				RCLCPP_DEBUG(logger_, "angular_z: %f", servo_vel->angular.z);
 
 				// before actually begin rotation, collision_check first
-				double cost_value = get_cost_value(logger_,collision_checker, footprint_vec, true, 0.0, servo_vel->angular.z,
-					2.0, params_ptr->cmd_vel_hz, 0.8);
+				double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, true, 0.0, servo_vel->angular.z,
+					params_ptr->collision_predict_time, params_ptr->cmd_vel_hz, 0.8);
 				if ((cost_value == static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE)) && params_ptr->rotation_collision_check)
 				{
 					RCLCPP_DEBUG(logger_, "cost value: %f == %f", cost_value,  static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));	
@@ -1013,15 +1013,13 @@ void bound_rotation(double & rotation_velocity, float min, float max)
 }
 
 double get_cost_value(rclcpp::Logger logger_, nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*>  collision_checker,
-	std::vector<geometry_msgs::msg::Point> footprint, bool rotation,
+	tf2::Transform tf_robot,std::vector<geometry_msgs::msg::Point> footprint, bool rotation,
 	 double linear, double angular, double predict_time, int hz, double scale)
 {
 	double cost_value = 0.0;
 	double x,y,theta;
-	tf2::Transform tf_robot;
 	tf2::Transform tf_offset;
 	tf2::Transform tf_new;
-	tf_robot.setIdentity();
 	tf_offset.setIdentity();
 	int counts_number = std::floor(predict_time * hz);
 
@@ -1046,8 +1044,12 @@ double get_cost_value(rclcpp::Logger logger_, nav2_costmap_2d::FootprintCollisio
 			// RCLCPP_DEBUG(logger_, "Point(%f, %f)", footprint[2].x, footprint[2].y);
 			// RCLCPP_DEBUG(logger_, "Point(%f, %f)", footprint[3].x, footprint[3].y);
 			double cost_value_tmp = collision_checker.footprintCostAtPose(x, y, theta, footprint);
-			RCLCPP_DEBUG(logger_, "%d => cost_value: %f", i, cost_value_tmp);
+			RCLCPP_DEBUG(logger_, "predict number %d cost_value: %f", i, cost_value_tmp);
 			cost_value = std::max(cost_value, cost_value_tmp);
+			if (cost_value == static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE))
+			{
+				return cost_value;
+			}
 		}
 	}
 	else

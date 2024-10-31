@@ -129,6 +129,7 @@ void MotionControlNode::init_params()
 	this->declare_parameter<float>("last_goal_angle_to_x_positive_y", 0.01);
 	this->declare_parameter<bool>("rotation_collision_check", false);
 	this->declare_parameter<std::string>("footprint", "[]");
+	this->declare_parameter<float>("collision_predict_time", 2.0);
 
 	params.max_dock_action_run_time = this->get_parameter_or<int>("max_dock_action_run_time", 180);
 	params.min_rotation = this->get_parameter_or<float>("min_rotation", 0.15);
@@ -187,6 +188,7 @@ void MotionControlNode::init_params()
 	params.last_goal_angle_to_x_positive_y = this->get_parameter("last_goal_angle_to_x_positive_y").get_value<float>();
 	params.rotation_collision_check = this->get_parameter("rotation_collision_check").get_value<bool>();
 	params.footprint = this->get_parameter("footprint").get_value<std::string>();
+	params.collision_predict_time = this->get_parameter("collision_predict_time").get_value<float>();
 	
 	RCLCPP_INFO_STREAM(this->get_logger(), "max_dock_action_run_time: " << params.max_dock_action_run_time 
 		<< ", last_docked_distanace_offset: " << params.last_docked_distance_offset_

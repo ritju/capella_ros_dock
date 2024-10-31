@@ -73,6 +73,7 @@ motion_control:
     last_goal_angle_to_x_positive_y: 0.01
     rotation_collision_check: true
     footprint: "[ [-0.376, -0.376], [-0.376, 0.376], [0.376, 0.376], [0.376, -0.376] ]"
+    collision_predict_time: 5.0
 
 
 camera_point_cloud_process:
