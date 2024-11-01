@@ -66,6 +66,7 @@ struct motion_control_params
 	std::string footprint;
 	float collision_predict_time;
 	float time_local_costmap_clear_min;
+	float odom_twist_scale;
 };
 } // end namespace capella_ros_dock
 

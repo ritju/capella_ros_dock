@@ -133,6 +133,7 @@ void MotionControlNode::init_params()
 	this->declare_parameter<std::string>("footprint", "[]");
 	this->declare_parameter<float>("collision_predict_time", 2.0);
 	this->declare_parameter<float>("time_local_costmap_clear_min", 4.5);
+	this->declare_parameter<float>("odom_twist_scale", 0.85);
 
 	params.max_dock_action_run_time = this->get_parameter_or<int>("max_dock_action_run_time", 180);
 	params.min_rotation = this->get_parameter_or<float>("min_rotation", 0.15);
@@ -193,6 +194,7 @@ void MotionControlNode::init_params()
 	params.footprint = this->get_parameter("footprint").get_value<std::string>();
 	params.collision_predict_time = this->get_parameter("collision_predict_time").get_value<float>();
 	params.time_local_costmap_clear_min = this->get_parameter("time_local_costmap_clear_min").get_value<float>();
+	params.odom_twist_scale = this->get_parameter("odom_twist_scale").get_value<float>();
 	
 	RCLCPP_INFO_STREAM(this->get_logger(), "max_dock_action_run_time: " << params.max_dock_action_run_time 
 		<< ", last_docked_distanace_offset: " << params.last_docked_distance_offset_

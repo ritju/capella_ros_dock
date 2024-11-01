@@ -75,6 +75,7 @@ motion_control:
     footprint: "[ [-0.376, -0.376], [-0.376, 0.376], [0.376, 0.376], [0.376, -0.376] ]"
     collision_predict_time: 5.0
     time_local_costmap_clear_min: 2.0
+    odom_twist_scale: 0.8
 
 
 camera_point_cloud_process:

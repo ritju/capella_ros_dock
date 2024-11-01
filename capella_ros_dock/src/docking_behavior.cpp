@@ -101,10 +101,11 @@ DockingBehavior::DockingBehavior(
 	);
 
 	rmw_qos_profile_t qos;
-	qos.history = rmw_qos_history_policy_t::RMW_QOS_POLICY_HISTORY_KEEP_LAST;
-	qos.depth = 1;
-	qos.reliability = rmw_qos_reliability_policy_t::RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
-	qos.durability = rmw_qos_durability_policy_t::RMW_QOS_POLICY_DURABILITY_VOLATILE;
+	qos = rmw_qos_profile_services_default;
+	// qos.history = rmw_qos_history_policy_t::RMW_QOS_POLICY_HISTORY_KEEP_LAST;
+	// qos.depth = 1;
+	// qos.reliability = rmw_qos_reliability_policy_t::RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
+	// qos.durability = rmw_qos_durability_policy_t::RMW_QOS_POLICY_DURABILITY_VOLATILE;
 	
 	rclcpp::CallbackGroup::SharedPtr cb_group1 = node_base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 	
@@ -112,7 +113,7 @@ DockingBehavior::DockingBehavior(
 		node_base_interface,
 		node_graph_interface,
 		node_service_interface,
-		"/local_costmap/clear_entire_local_costmap",
+		"/local_costmap/clear_entirely_local_costmap",
 		qos,
 		cb_group1
 	);
