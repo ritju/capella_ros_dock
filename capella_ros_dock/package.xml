@@ -21,10 +21,6 @@
   <depend>image_transport</depend>
   <depend>nav2_common</depend>
 
-  <build_depend>capella_ros_msg</build_depend>
-  <build_depend>capella_ros_service_interfaces</build_depend>
-  <build_depend>capella_ros_dock_msgs</build_depend>
-
   <export>
     <build_type>ament_cmake</build_type>
   </export>
