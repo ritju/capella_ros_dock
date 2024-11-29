@@ -164,6 +164,15 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(os.path.join(apriltag_pkg_path, 'launch', 'apriltag_ros_double.launch.py'))
     )
 
+    # apriltag single-marker-for-relocation launch file
+
+    apriltag_single_re_location_launch_file1 = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(os.path.join(apriltag_pkg_path, 'launch', 'apriltag_ros apriltag_ros_camera1.launch.py'))
+    )
+    apriltag_single_re_location_launch_file3 = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(os.path.join(apriltag_pkg_path, 'launch', 'apriltag_ros apriltag_ros_camera3.launch.py'))
+    )
+
 
     # motion_control Node
     motion_control_node = Node(
@@ -259,9 +268,12 @@ def generate_launch_description():
     else:
         launch_description.add_action(aruco_launch_file) 
 
-    # launch_description.add_action(motion_control_node)
+    launch_description.add_action(motion_control_node)
     launch_description.add_action(hazards_vector_publisher_node)
     launch_description.add_action(camera_point_cloud_process_node)
     # launch_description.add_action(test_docking_node)
+
+    launch_description.add_action(apriltag_single_re_location_launch_file1)
+    launch_description.add_action(apriltag_single_re_location_launch_file3)
 
     return launch_description
