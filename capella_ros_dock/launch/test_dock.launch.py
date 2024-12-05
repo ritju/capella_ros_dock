@@ -152,7 +152,7 @@ def generate_launch_description():
 
     # launch_description.add_action(wifi_node)
     # launch_description.add_action(bluetooth_node)
-    # launch_description.add_action(bluetooth_old_node)
+    launch_description.add_action(bluetooth_old_node)
     launch_description.add_action(charge_manager_node)
     launch_description.add_action(charge_action_node)
 
