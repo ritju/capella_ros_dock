@@ -167,10 +167,10 @@ def generate_launch_description():
     # apriltag single-marker-for-relocation launch file
 
     apriltag_single_re_location_launch_file1 = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(os.path.join(apriltag_pkg_path, 'launch', 'apriltag_ros apriltag_ros_camera1.launch.py'))
+        PythonLaunchDescriptionSource(os.path.join(apriltag_pkg_path, 'launch', 'apriltag_ros_camera1.launch.py'))
     )
     apriltag_single_re_location_launch_file3 = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(os.path.join(apriltag_pkg_path, 'launch', 'apriltag_ros apriltag_ros_camera3.launch.py'))
+        PythonLaunchDescriptionSource(os.path.join(apriltag_pkg_path, 'launch', 'apriltag_ros_camera3.launch.py'))
     )
 
 
