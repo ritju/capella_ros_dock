@@ -71,7 +71,7 @@ motion_control:
     base_link_charge_dis: 0.46
     last_goal_angle_to_x_positive_dis: 0.05
     last_goal_angle_to_x_positive_y: 0.01
-    rotation_collision_check: true
+    rotation_collision_check: false
     footprint: "[ [-0.376, -0.376], [-0.376, 0.376], [0.376, 0.376], [0.376, -0.376] ]"
     collision_predict_time: 5.0
     time_local_costmap_clear_min: 2.0
