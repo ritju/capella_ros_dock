@@ -250,7 +250,6 @@ def generate_launch_description():
     launch_description.add_action(charge_action_node)
 
     launch_description.add_action(manual_dock_node)
-    launch_description.add_action(coord_optimize_node)
     # launch_description.add_action(camera_launch_file)
 
     # choose marker type: aruco marker or apriltag marker
@@ -262,6 +261,7 @@ def generate_launch_description():
             launch_description.add_action(apriltag_launch_file)
         elif marker_type.upper() == "APRILTAG_DOUBLE":
             launch_description.add_action(apriltag_double_launch_file)
+            launch_description.add_action(coord_optimize_node)
         else:
             print(f'The value of CHARGER_MARKER_TYPE is {marker_type}, just use default value ARUCO.')
             launch_description.add_action(aruco_launch_file)
