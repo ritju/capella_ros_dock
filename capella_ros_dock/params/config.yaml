@@ -92,7 +92,7 @@ camera_point_cloud_process:
 
 manual_dock:
   ros__parameters:
-    pose_x_min: -0.4
+    pose_x_min: -0.70
     pose_x_max: -0.15
     pose_y_min: -0.1
     pose_y_max: 0.1
