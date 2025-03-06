@@ -465,17 +465,21 @@ rclcpp_action::GoalResponse DockingBehavior::handle_undock_goal(
 	
 	if (!sees_dock_)
 	{
-		RCLCPP_WARN(logger_, "Robot cannot see the aruco marker, reject");
-		return rclcpp_action::GoalResponse::REJECT;
+		// RCLCPP_WARN(logger_, "Robot cannot see the aruco marker, reject");
+		// return rclcpp_action::GoalResponse::REJECT;
 	}
-	auto current_pose = last_robot_pose_.getOrigin();
-	double x;
-	x = current_pose.getX();
-	if (std::abs(x) > (params_ptr->last_docked_distance_offset_ + 0.5))
+	else
 	{
-		RCLCPP_WARN(logger_, "Robot had undocked, reject");
-		return rclcpp_action::GoalResponse::REJECT;
+		auto current_pose = last_robot_pose_.getOrigin();
+		double x;
+		x = current_pose.getX();
+		if (std::abs(x) > (params_ptr->last_docked_distance_offset_ + 0.5))
+		{
+			RCLCPP_WARN(logger_, "Robot had undocked, reject");
+			return rclcpp_action::GoalResponse::REJECT;
+		}
 	}
+	
 
 	if (!undocking_behavior_is_done()) {
 		RCLCPP_WARN(logger_, "An un_docking behavior is already running, reject");

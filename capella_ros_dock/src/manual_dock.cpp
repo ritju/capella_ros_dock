@@ -331,16 +331,50 @@ namespace capella_ros_dock
                         if(localization_score < 0.8)
                         {
                                 is_in_charger_range = !robot_moved_odom;
+                                if (is_in_charger_range != is_in_charger_range_last)
+                                {
+                                        RCLCPP_INFO(get_logger(), "is_in_charger_range state change from %s to %s", 
+                                                is_in_charger_range_last?"true":"false",
+                                                is_in_charger_range?"true":"false");
+                                        RCLCPP_INFO(get_logger(), "condition => charger_visible: %s, localization_score: %.2f, robot_moved_odom: %s",
+                                                charger_visible?"true":"false",
+                                                localization_score,
+                                                robot_moved_odom?"true":"false");
+                                }
                         }
                         else
                         {
                                 if(score_max > 0.8)
                                 {
                                         is_in_charger_range =  (!robot_moved_odom) || (!robot_moved_baselink);
+                                        if (is_in_charger_range != is_in_charger_range_last)
+                                        {
+                                                RCLCPP_INFO(get_logger(), "is_in_charger_range state change from %s to %s", 
+                                                        is_in_charger_range_last?"true":"false",
+                                                        is_in_charger_range?"true":"false");
+                                                RCLCPP_INFO(get_logger(), "condition => charger_visible: %s, localization_score: %.2f, score_max > 0.8: %s,robot_moved_odom: %s, robot_moved_baselink: %s",
+                                                        charger_visible?"true":"false",
+                                                        localization_score,
+                                                        score_max>0.8?"true":"false",
+                                                        robot_moved_odom?"true":"false",
+                                                        robot_moved_baselink?"true":"false");
+                                        }
                                 }
                                 else
                                 {
                                         is_in_charger_range = !robot_moved_odom;
+                                        if (is_in_charger_range != is_in_charger_range_last)
+                                        {
+                                                RCLCPP_INFO(get_logger(), "is_in_charger_range state change from %s to %s", 
+                                                        is_in_charger_range_last?"true":"false",
+                                                        is_in_charger_range?"true":"false");
+                                                RCLCPP_INFO(get_logger(), "condition => charger_visible: %s, localization_score: %.2f, score_max > 0.8: %s,robot_moved_odom: %s, robot_moved_baselink: %s",
+                                                        charger_visible?"true":"false",
+                                                        localization_score,
+                                                        score_max>0.8?"true":"false",
+                                                        robot_moved_odom?"true":"false",
+                                                        robot_moved_baselink?"true":"false");
+                                        }
                                 }
                         }                                            
                 }
@@ -352,6 +386,15 @@ namespace capella_ros_dock
                         is_in_charger_range_map = false;
 
                         is_in_charger_range = is_in_charger_range_charger || is_in_charger_range_map;
+                        if (is_in_charger_range != is_in_charger_range_last)
+                        {
+                                RCLCPP_INFO(get_logger(), "is_in_charger_range state change from %s to %s", 
+                                        is_in_charger_range_last?"true":"false",
+                                        is_in_charger_range?"true":"false");
+                                RCLCPP_INFO(get_logger(), "condition => charger_visible: %s, is_in_charger_range_charger: %.s",
+                                                        charger_visible?"true":"false",
+                                                        is_in_charger_range_charger?"true":"false");
+                        }
                 }
 
                 if (is_in_charger_range != is_in_charger_range_last)
