@@ -117,7 +117,7 @@ namespace capella_ros_dock
                 );
 
                 odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
-                        "odom_plicp",
+                        "icp_odom",
                         1,
                         std::bind(&ManualDock::odom_sub_callback, this, std::placeholders::_1),
                         sub_ops9
