@@ -391,7 +391,7 @@ namespace capella_ros_dock
                                 RCLCPP_INFO(get_logger(), "is_in_charger_range state change from %s to %s", 
                                         is_in_charger_range_last?"true":"false",
                                         is_in_charger_range?"true":"false");
-                                RCLCPP_INFO(get_logger(), "condition => charger_visible: %s, is_in_charger_range_charger: %.s",
+                                RCLCPP_INFO(get_logger(), "condition => charger_visible: %s, is_in_charger_range_charger: %s",
                                                         charger_visible?"true":"false",
                                                         is_in_charger_range_charger?"true":"false");
                         }

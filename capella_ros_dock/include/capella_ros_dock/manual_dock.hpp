@@ -134,8 +134,8 @@ public:
         bool bluetooth_connecting{false};
 
         // threshold value for moving or not 
-        double thre_moving_linear_ = 0.01;
-        double thre_moving_angular_ = 0.01;
+        double thre_moving_linear_ = 0.1;
+        double thre_moving_angular_ = 0.05;
 
         // manual dock only begin when robot stop time exceed 5 seconds, 
         bool robot_stop_for_n_seconds{false};
