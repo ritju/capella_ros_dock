@@ -279,7 +279,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		return servo_vel;
 	}
 
-	if(!sees_dock && navigate_state_ > NavigateStates::ANGLE_TO_X_POSITIVE_ORIENTATION)
+	if(!sees_dock && navigate_state_ > NavigateStates::ANGLE_TO_X_POSITIVE_ORIENTATION && !undocking)
 	{
 		if (first_cannot_see_dock)
 		{
