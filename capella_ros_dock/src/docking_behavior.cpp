@@ -473,8 +473,10 @@ rclcpp_action::GoalResponse DockingBehavior::handle_undock_goal(
 		auto current_pose = last_robot_pose_.getOrigin();
 		double x;
 		x = current_pose.getX();
-		if (std::abs(x) > (params_ptr->last_docked_distance_offset_ + 0.5))
+		if (std::abs(x) > (std::abs(params_ptr->last_docked_distance_offset_) + 0.6))
 		{
+			RCLCPP_INFO(logger_, "abs(x): %f, std::abs(params_ptr->last_docked_distance_offset_) + 0.6: %f", 
+				std::abs(x), std::abs(params_ptr->last_docked_distance_offset_) + 0.6);
 			RCLCPP_WARN(logger_, "Robot had undocked, reject");
 			return rclcpp_action::GoalResponse::REJECT;
 		}
