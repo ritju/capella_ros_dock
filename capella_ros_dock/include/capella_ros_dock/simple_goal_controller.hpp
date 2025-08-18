@@ -356,44 +356,47 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 				RCLCPP_DEBUG(logger_, "angular_z: %f", servo_vel->angular.z);
 
 				// before actually begin rotation, collision_check first
-				double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, true, 0.0, servo_vel->angular.z,
-					params_ptr->collision_predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
-				if ((cost_value >= static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE)) && params_ptr->rotation_collision_check)
+				
+				if (params_ptr->rotation_collision_check)
 				{
-					RCLCPP_DEBUG(logger_, "cost value: %f == %f", cost_value,  static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));	
-					servo_vel->angular.z = 0.0;
-
-					clear_time_now = clock_->now().seconds();
-					clear_time_delta = clear_time_now - clear_time_last;
-
-					RCLCPP_DEBUG(logger_, "clear_time_now: %f", clear_time_now);
-					RCLCPP_DEBUG(logger_, "clear_time_last: %f", clear_time_last);
-					RCLCPP_DEBUG(logger_, "clear_time_delta: %f", clear_time_delta);
-
-					if (clear_time_delta > params_ptr->time_local_costmap_clear_min)
+					double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, true, 0.0, servo_vel->angular.z,
+						params_ptr->collision_predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
+					if (cost_value >= nav2_costmap_2d::LETHAL_OBSTACLE)
 					{
-						auto request = std::make_shared<nav2_msgs::srv::ClearEntireCostmap::Request>();						
-						
-						auto ret = client_clear_entire_local_costmap->wait_for_service(0.05s);
-						if (!ret)
+						RCLCPP_DEBUG(logger_, "cost value: %f == %f", cost_value,  static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));	
+						servo_vel->angular.z = 0.0;
+
+						clear_time_now = clock_->now().seconds();
+						clear_time_delta = clear_time_now - clear_time_last;
+
+						RCLCPP_DEBUG(logger_, "clear_time_now: %f", clear_time_now);
+						RCLCPP_DEBUG(logger_, "clear_time_last: %f", clear_time_last);
+						RCLCPP_DEBUG(logger_, "clear_time_delta: %f", clear_time_delta);
+
+						if (clear_time_delta > params_ptr->time_local_costmap_clear_min)
 						{
-							RCLCPP_INFO(logger_, "/local_costmap/clear_entirely_local_costmap service not online.");
+							auto request = std::make_shared<nav2_msgs::srv::ClearEntireCostmap::Request>();						
+							
+							auto ret = client_clear_entire_local_costmap->wait_for_service(0.05s);
+							if (!ret)
+							{
+								RCLCPP_INFO(logger_, "/local_costmap/clear_entirely_local_costmap service not online.");
+							}
+							else
+							{
+								clear_time_last = clear_time_now;
+								RCLCPP_INFO(logger_, "call service for clear local_costmap.");
+								client_clear_entire_local_costmap->async_send_request(request);
+							}
 						}
 						else
 						{
-							clear_time_last = clear_time_now;
-							RCLCPP_INFO(logger_, "call service for clear local_costmap.");
-							client_clear_entire_local_costmap->async_send_request(request);
 						}
-					}
-					else
-					{
-					}
-					return servo_vel;			
+						return servo_vel;
+					}			
 				}
 				else
 				{
-					RCLCPP_DEBUG(logger_, "cost value: %f, go on ......", cost_value);
 					RCLCPP_DEBUG(logger_, "rotation_collision_check: %s", params_ptr->rotation_collision_check ? "true":"false");
 				}
 
@@ -553,6 +556,11 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		servo_vel = geometry_msgs::msg::Twist();
 		now_time = clock_->now().seconds();
 		double dt = now_time - pre_time;
+		if (abs(dt) > 1.5 / params_ptr->cmd_vel_hz)
+		{
+			RCLCPP_WARN(logger_, "error occurs, dt: %f", dt);
+			dt = 1.0 / params_ptr->cmd_vel_hz;
+		}
 
 		RCLCPP_DEBUG(logger_, "dt: %f", dt);
 		RCLCPP_DEBUG(logger_, "angular.z: %f", odom_msg.twist.twist.angular.z);
@@ -611,44 +619,46 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			RCLCPP_DEBUG(logger_, "angular.z: %f", angle_dist);
 
 			// before actually begin rotation, collision_check first
-			double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, true, 0.0, servo_vel->angular.z,
-				params_ptr->collision_predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
-			if ((cost_value >= static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE)) && params_ptr->rotation_collision_check)
+			if (params_ptr->rotation_collision_check)
 			{
-				RCLCPP_DEBUG(logger_, "cost value: %f == %f", cost_value,  static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));	
-				servo_vel->angular.z = 0.0;
+				double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, true, 0.0, servo_vel->angular.z,
+					params_ptr->collision_predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
+				if (cost_value >= nav2_costmap_2d::LETHAL_OBSTACLE)
+				{				
+					RCLCPP_DEBUG(logger_, "cost value: %f == %f", cost_value,  static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));	
+					servo_vel->angular.z = 0.0;
 
-				clear_time_now = clock_->now().seconds();
-				clear_time_delta = clear_time_now - clear_time_last;
+					clear_time_now = clock_->now().seconds();
+					clear_time_delta = clear_time_now - clear_time_last;
 
-				RCLCPP_DEBUG(logger_, "clear_time_now: %f", clear_time_now);
-				RCLCPP_DEBUG(logger_, "clear_time_last: %f", clear_time_last);
-				RCLCPP_DEBUG(logger_, "clear_time_delta: %f", clear_time_delta);
+					RCLCPP_DEBUG(logger_, "clear_time_now: %f", clear_time_now);
+					RCLCPP_DEBUG(logger_, "clear_time_last: %f", clear_time_last);
+					RCLCPP_DEBUG(logger_, "clear_time_delta: %f", clear_time_delta);
 
-				if (clear_time_delta > params_ptr->time_local_costmap_clear_min)
-				{
-					auto request = std::make_shared<nav2_msgs::srv::ClearEntireCostmap::Request>();						
-					
-					auto ret = client_clear_entire_local_costmap->wait_for_service(0.05s);
-					if (!ret)
+					if (clear_time_delta > params_ptr->time_local_costmap_clear_min)
 					{
-						RCLCPP_INFO(logger_, "/local_costmap/clear_entirely_local_costmap service not online.");
+						auto request = std::make_shared<nav2_msgs::srv::ClearEntireCostmap::Request>();						
+						
+						auto ret = client_clear_entire_local_costmap->wait_for_service(0.05s);
+						if (!ret)
+						{
+							RCLCPP_INFO(logger_, "/local_costmap/clear_entirely_local_costmap service not online.");
+						}
+						else
+						{
+							clear_time_last = clear_time_now;
+							RCLCPP_INFO(logger_, "call service for clear local_costmap.");
+							client_clear_entire_local_costmap->async_send_request(request);
+						}
 					}
 					else
 					{
-						clear_time_last = clear_time_now;
-						RCLCPP_INFO(logger_, "call service for clear local_costmap.");
-						client_clear_entire_local_costmap->async_send_request(request);
 					}
-				}
-				else
-				{
-				}
-				return servo_vel;			
+					return servo_vel;
+				}			
 			}
 			else
 			{
-				RCLCPP_DEBUG(logger_, "cost value: %f, go on ......", cost_value);
 				RCLCPP_DEBUG(logger_, "rotation_collision_check: %s", params_ptr->rotation_collision_check ? "true":"false");
 			}
 
@@ -663,6 +673,11 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		servo_vel = geometry_msgs::msg::Twist();
 		now_time = clock_->now().seconds();
 		double dt = now_time - pre_time;
+		if (abs(dt) > 1.5 / params_ptr->cmd_vel_hz)
+		{
+			RCLCPP_WARN(logger_, "error occurs, dt: %f", dt);
+			dt = 1.0 / params_ptr->cmd_vel_hz;
+		}
 		dist_buffer_point -= dt * std::abs(odom_msg.twist.twist.linear.x);
 		pre_time = now_time;
 		double dist_y = dist_buffer_point;
@@ -694,48 +709,54 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			if (std::abs(translate_velocity) > params_ptr->max_translation) {
 				translate_velocity = std::copysign(params_ptr->max_translation, translate_velocity);
 			}
+			if (std::abs(translate_velocity) < params_ptr->min_translation) {
+				translate_velocity = std::copysign(params_ptr->min_translation, translate_velocity);
+			}
 			servo_vel->linear.x = translate_velocity;
 			RCLCPP_DEBUG(logger_, "linear.x: : %f", translate_velocity);
 
 			// before actually begin moving, collision_check first
-			double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, false, servo_vel->linear.x, 0.0,
-				params_ptr->collision_predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
-			if ((cost_value >= static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE)) && params_ptr->rotation_collision_check)
+			if (params_ptr->rotation_collision_check)
 			{
-				RCLCPP_DEBUG(logger_, "cost value: %f >= %f", cost_value,  static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));	
-				servo_vel->linear.x = 0.0;
-
-				clear_time_now = clock_->now().seconds();
-				clear_time_delta = clear_time_now - clear_time_last;
-
-				RCLCPP_DEBUG(logger_, "clear_time_now: %f", clear_time_now);
-				RCLCPP_DEBUG(logger_, "clear_time_last: %f", clear_time_last);
-				RCLCPP_DEBUG(logger_, "clear_time_delta: %f", clear_time_delta);
-
-				if (clear_time_delta > params_ptr->time_local_costmap_clear_min)
+				double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, false, servo_vel->linear.x, 0.0,
+					params_ptr->collision_predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
+				if (cost_value >= nav2_costmap_2d::LETHAL_OBSTACLE)
 				{
-					auto request = std::make_shared<nav2_msgs::srv::ClearEntireCostmap::Request>();						
-					
-					auto ret = client_clear_entire_local_costmap->wait_for_service(0.05s);
-					if (!ret)
+
+					RCLCPP_DEBUG(logger_, "cost value: %f >= %f", cost_value,  static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));	
+					servo_vel->linear.x = 0.0;
+
+					clear_time_now = clock_->now().seconds();
+					clear_time_delta = clear_time_now - clear_time_last;
+
+					RCLCPP_DEBUG(logger_, "clear_time_now: %f", clear_time_now);
+					RCLCPP_DEBUG(logger_, "clear_time_last: %f", clear_time_last);
+					RCLCPP_DEBUG(logger_, "clear_time_delta: %f", clear_time_delta);
+
+					if (clear_time_delta > params_ptr->time_local_costmap_clear_min)
 					{
-						RCLCPP_INFO(logger_, "/local_costmap/clear_entirely_local_costmap service not online.");
+						auto request = std::make_shared<nav2_msgs::srv::ClearEntireCostmap::Request>();						
+						
+						auto ret = client_clear_entire_local_costmap->wait_for_service(0.05s);
+						if (!ret)
+						{
+							RCLCPP_INFO(logger_, "/local_costmap/clear_entirely_local_costmap service not online.");
+						}
+						else
+						{
+							clear_time_last = clear_time_now;
+							RCLCPP_INFO(logger_, "call service for clear local_costmap.");
+							client_clear_entire_local_costmap->async_send_request(request);
+						}
 					}
 					else
 					{
-						clear_time_last = clear_time_now;
-						RCLCPP_INFO(logger_, "call service for clear local_costmap.");
-						client_clear_entire_local_costmap->async_send_request(request);
 					}
-				}
-				else
-				{
-				}
-				return servo_vel;			
+					return servo_vel;
+				}			
 			}
 			else
 			{
-				RCLCPP_DEBUG(logger_, "cost value: %f, go on ......", cost_value);
 				RCLCPP_DEBUG(logger_, "rotation_collision_check: %s", params_ptr->rotation_collision_check ? "true":"false");
 			}
 
@@ -797,45 +818,47 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			bound_rotation(dist_yaw_marker, params_ptr->min_rotation, params_ptr->max_rotation);
 			servo_vel->angular.z = dist_yaw_marker;
 
-			// before actually begin rotation, collision_check first
-			double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, true, 0.0, servo_vel->angular.z,
-				params_ptr->collision_predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
-			if ((cost_value >= static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE)) && params_ptr->rotation_collision_check)
+			// before actually begin rotation, collision_check first			
+			if (params_ptr->rotation_collision_check)
 			{
-				RCLCPP_DEBUG(logger_, "cost value: %f >= %f", cost_value,  static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));	
-				servo_vel->angular.z = 0.0;
-
-				clear_time_now = clock_->now().seconds();
-				clear_time_delta = clear_time_now - clear_time_last;
-
-				RCLCPP_DEBUG(logger_, "clear_time_now: %f", clear_time_now);
-				RCLCPP_DEBUG(logger_, "clear_time_last: %f", clear_time_last);
-				RCLCPP_DEBUG(logger_, "clear_time_delta: %f", clear_time_delta);
-
-				if (clear_time_delta > params_ptr->time_local_costmap_clear_min)
+				double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, true, 0.0, servo_vel->angular.z,
+				params_ptr->collision_predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
+				if (cost_value >= nav2_costmap_2d::LETHAL_OBSTACLE)
 				{
-					auto request = std::make_shared<nav2_msgs::srv::ClearEntireCostmap::Request>();						
-					
-					auto ret = client_clear_entire_local_costmap->wait_for_service(0.05s);
-					if (!ret)
+					RCLCPP_DEBUG(logger_, "cost value: %f >= %f", cost_value,  static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));	
+					servo_vel->angular.z = 0.0;
+
+					clear_time_now = clock_->now().seconds();
+					clear_time_delta = clear_time_now - clear_time_last;
+
+					RCLCPP_DEBUG(logger_, "clear_time_now: %f", clear_time_now);
+					RCLCPP_DEBUG(logger_, "clear_time_last: %f", clear_time_last);
+					RCLCPP_DEBUG(logger_, "clear_time_delta: %f", clear_time_delta);
+
+					if (clear_time_delta > params_ptr->time_local_costmap_clear_min)
 					{
-						RCLCPP_INFO(logger_, "/local_costmap/clear_entirely_local_costmap service not online.");
+						auto request = std::make_shared<nav2_msgs::srv::ClearEntireCostmap::Request>();						
+						
+						auto ret = client_clear_entire_local_costmap->wait_for_service(0.05s);
+						if (!ret)
+						{
+							RCLCPP_INFO(logger_, "/local_costmap/clear_entirely_local_costmap service not online.");
+						}
+						else
+						{
+							clear_time_last = clear_time_now;
+							RCLCPP_INFO(logger_, "call service for clear local_costmap.");
+							client_clear_entire_local_costmap->async_send_request(request);
+						}
 					}
 					else
 					{
-						clear_time_last = clear_time_now;
-						RCLCPP_INFO(logger_, "call service for clear local_costmap.");
-						client_clear_entire_local_costmap->async_send_request(request);
 					}
-				}
-				else
-				{
-				}
-				return servo_vel;			
+					return servo_vel;
+				}			
 			}
 			else
 			{
-				RCLCPP_DEBUG(logger_, "cost value: %f, go on ......", cost_value);
 				RCLCPP_DEBUG(logger_, "rotation_collision_check: %s", params_ptr->rotation_collision_check ? "true":"false");
 			}
 
@@ -1176,6 +1199,7 @@ double get_cost_value(rclcpp::Logger logger_, nav2_costmap_2d::FootprintCollisio
 	tf2::Transform tf_robot,std::vector<geometry_msgs::msg::Point> footprint, bool rotation,
 	 double linear, double angular, double predict_time, int hz, double scale)
 {
+	(void) logger_;
 	double cost_value = 0.0;
 	double x,y,theta;
 	tf2::Transform tf_offset;
@@ -1204,7 +1228,7 @@ double get_cost_value(rclcpp::Logger logger_, nav2_costmap_2d::FootprintCollisio
 			// RCLCPP_DEBUG(logger_, "Point(%f, %f)", footprint[2].x, footprint[2].y);
 			// RCLCPP_DEBUG(logger_, "Point(%f, %f)", footprint[3].x, footprint[3].y);
 			double cost_value_tmp = collision_checker.footprintCostAtPose(x, y, theta, footprint);
-			RCLCPP_DEBUG(logger_, "predict number %d cost_value: %f", i, cost_value_tmp);
+			// RCLCPP_DEBUG(logger_, "predict number %d cost_value: %f", i, cost_value_tmp);
 			cost_value = std::max(cost_value, cost_value_tmp);
 			if (cost_value >= static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE))
 			{
@@ -1230,7 +1254,7 @@ double get_cost_value(rclcpp::Logger logger_, nav2_costmap_2d::FootprintCollisio
 			// RCLCPP_DEBUG(logger_, "Point(%f, %f)", footprint[2].x, footprint[2].y);
 			// RCLCPP_DEBUG(logger_, "Point(%f, %f)", footprint[3].x, footprint[3].y);
 			double cost_value_tmp = collision_checker.footprintCostAtPose(x, y, theta, footprint);
-			RCLCPP_DEBUG(logger_, "predict number %d cost_value: %f", i, cost_value_tmp);
+			// RCLCPP_DEBUG(logger_, "predict number %d cost_value: %f", i, cost_value_tmp);
 			cost_value = std::max(cost_value, cost_value_tmp);
 			if (cost_value >= static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE))
 			{

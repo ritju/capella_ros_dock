@@ -43,7 +43,7 @@ motion_control:
     first_goal_distance: 0.0
     second_goal_distance: 0.05
     buffer_goal_distance: 0.20
-    camera_horizontal_view: 58.0
+    camera_horizontal_view: 100.0
     localization_converged_time: 3.0 # wait (n) seconds for coordinates to be converged
     tolerance_angle: 0.02
     tolerance_r: 0.02
@@ -59,7 +59,7 @@ motion_control:
     speed_rotation_acceleration: 0.3
     speed_rotation_init_abs: 0.02
     max_action_runtime: 1800
-    contacted_keep_move_time: 0.10
+    contacted_keep_move_time: 0.3
     undock_speed: 0.15
     undock_time: 5.0
     undock_obstacle_lr: 0.5 # lr, left_right
@@ -68,7 +68,7 @@ motion_control:
     go_to_goal_linear_acc: 0.05
     robot_rotate_radius: 1.25
     base_link_y_thr: 0.08
-    base_link_charge_dis: 0.46
+    base_link_charge_dis: 0.345
     last_goal_angle_to_x_positive_dis: 0.05
     last_goal_angle_to_x_positive_y: 0.01
     rotation_collision_check: false
