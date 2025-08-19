@@ -18,9 +18,29 @@ def generate_launch_description():
     aruco_pkg_path = get_package_share_directory('aruco_ros')
     apriltag_pkg_path = get_package_share_directory('apriltag_ros')
     dock_pkg_path = get_package_share_directory('capella_ros_dock')
+    usb_cam_pkg_path = get_package_share_directory('usb_cam')
+
+    dock_param_file_name = 'config.yaml'
+    robot_version = 'real_robot_mk'
+    try:
+        if 'ROBOT_VERSION' in os.environ:
+            robot_version = os.environ.get('ROBOT_VERSION')
+            print(f'get ROBOT_VERSION {robot_version} from docker-compose.yaml file')
+        else:
+            robot_version = 'real_robot_mk.yaml'
+            print("Using default robot_version real_robot_mk.")
+    except Exception as e:
+        print(f'exception: {str(e)}')
+        print("Please input ROBOT_VERSION in docker-compose.yaml")
+        robot_version = 'real_robot_mk.yaml'
+    
+    if robot_version == 'outdoor_cleaner_1':
+        dock_param_file_name = 'config_s1.yaml'
+    elif robot_version == 'real_robot_mk2' or robot_version == 'real_robot_mk3' or robot_version == 'real_robot':
+        dock_param_file_name = 'config.yaml'
 
     # create launch configuration variables
-    params_file_path = LaunchConfiguration('params_files', default=os.path.join(dock_pkg_path, 'params', 'config.yaml'))
+    params_file_path = LaunchConfiguration('params_files', default=os.path.join(dock_pkg_path, 'params', dock_param_file_name))
     motion_control_log_level = LaunchConfiguration('motion_control_log_level')
     test_count = LaunchConfiguration('test_count', default = 1)
     
@@ -164,6 +184,11 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(os.path.join(apriltag_pkg_path, 'launch', 'apriltag_ros_double.launch.py'))
     )
 
+    # rgb_camera_back
+    rgb_camera_back_launch_file = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(os.path.join(usb_cam_pkg_path, 'launch', 'camera.launch.py'))
+    )
+
 
     # motion_control Node
     motion_control_node = Node(
@@ -259,9 +284,11 @@ def generate_launch_description():
     else:
         launch_description.add_action(aruco_launch_file) 
 
-    # launch_description.add_action(motion_control_node)
+    launch_description.add_action(motion_control_node)
     launch_description.add_action(hazards_vector_publisher_node)
     launch_description.add_action(camera_point_cloud_process_node)
+    launch_description.add_action(rgb_camera_back_launch_file)
+
     # launch_description.add_action(test_docking_node)
 
     return launch_description
