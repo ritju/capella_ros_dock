@@ -184,8 +184,8 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(os.path.join(apriltag_pkg_path, 'launch', 'apriltag_ros_double.launch.py'))
     )
 
-    # rgb_camera_back
-    rgb_camera_back_launch_file = IncludeLaunchDescription(
+    # 使用usb_cam包启动rgb相机
+    usb_cam_launch_file = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(os.path.join(usb_cam_pkg_path, 'launch', 'camera.launch.py'))
     )
 
@@ -287,7 +287,7 @@ def generate_launch_description():
     launch_description.add_action(motion_control_node)
     launch_description.add_action(hazards_vector_publisher_node)
     launch_description.add_action(camera_point_cloud_process_node)
-    # launch_description.add_action(rgb_camera_back_launch_file)
+    launch_description.add_action(usb_cam_launch_file)
 
     # launch_description.add_action(test_docking_node)
 
