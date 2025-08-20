@@ -287,7 +287,7 @@ def generate_launch_description():
     launch_description.add_action(motion_control_node)
     launch_description.add_action(hazards_vector_publisher_node)
     launch_description.add_action(camera_point_cloud_process_node)
-    launch_description.add_action(rgb_camera_back_launch_file)
+    # launch_description.add_action(rgb_camera_back_launch_file)
 
     # launch_description.add_action(test_docking_node)
 
