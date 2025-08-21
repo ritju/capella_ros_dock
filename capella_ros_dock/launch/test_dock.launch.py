@@ -19,7 +19,7 @@ def generate_launch_description():
     apriltag_pkg_path = get_package_share_directory('apriltag_ros')
     dock_pkg_path = get_package_share_directory('capella_ros_dock')
     usb_cam_pkg_path = get_package_share_directory('usb_cam')
-
+    laserscan_3d_to_2d_path = get_package_share_directory('pointcloud_to_laserscan') 
     dock_param_file_name = 'config.yaml'
     robot_version = 'real_robot_mk'
     try:
@@ -189,6 +189,10 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(os.path.join(usb_cam_pkg_path, 'launch', 'camera.launch.py'))
     )
 
+    # 3d激光雷达转2d激光雷达
+    laserscan_3d_to_2d = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(os.path.join(laserscan_3d_to_2d_path, 'launch', 'sample_pointcloud_to_laserscan_launch.py'))
+    )
 
     # motion_control Node
     motion_control_node = Node(
