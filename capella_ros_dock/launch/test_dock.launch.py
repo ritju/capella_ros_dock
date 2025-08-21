@@ -292,7 +292,7 @@ def generate_launch_description():
     launch_description.add_action(hazards_vector_publisher_node)
     launch_description.add_action(camera_point_cloud_process_node)
     launch_description.add_action(usb_cam_launch_file)
-    launch_description.add_action(laserscan_3d_to_2d)
+    # launch_description.add_action(laserscan_3d_to_2d)
 
     # launch_description.add_action(test_docking_node)
 
