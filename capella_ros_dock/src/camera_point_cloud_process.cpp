@@ -99,10 +99,10 @@ void CameraPointCloudProcess::point_cloud_sub_callback(sensor_msgs::msg::PointCl
 
 	if((int)(point_cloud_data.size()) != data_count)
 	{
-		RCLCPP_INFO(this->get_logger(), "received points cloud data error");
-		RCLCPP_INFO(this->get_logger(), "received point_cloud data_size: %zd", point_cloud_data.size());
-		RCLCPP_INFO(this->get_logger(), "data_count: %d", data_count);
-		RCLCPP_INFO(this->get_logger(), "************************************************");
+		RCLCPP_INFO_THROTTLE(this->get_logger(), *get_clock(), 2000, "received points cloud data error");
+		RCLCPP_INFO_THROTTLE(this->get_logger(), *get_clock(), 2000, "received point_cloud data_size: %zd", point_cloud_data.size());
+		RCLCPP_INFO_THROTTLE(this->get_logger(), *get_clock(), 2000, "data_count: %d", data_count);
+		RCLCPP_INFO_THROTTLE(this->get_logger(), *get_clock(), 2000, "************************************************");
 	}
 	for(int count_index = 0; count_index < data_count; count_index++)
 	{
