@@ -20,24 +20,20 @@ def generate_launch_description():
     dock_pkg_path = get_package_share_directory('capella_ros_dock')
     usb_cam_pkg_path = get_package_share_directory('usb_cam')
     laserscan_3d_to_2d_path = get_package_share_directory('pointcloud_to_laserscan') 
+    
     dock_param_file_name = 'config.yaml'
-    robot_version = 'real_robot_mk'
     try:
-        if 'ROBOT_VERSION' in os.environ:
-            robot_version = os.environ.get('ROBOT_VERSION')
-            print(f'get ROBOT_VERSION {robot_version} from docker-compose.yaml file')
+        if 'DOCK_PARAM_FILE' in os.environ:
+            dock_param_file_name = os.environ.get('DOCK_PARAM_FILE')
+            print(f'get DOCK_PARAM_FILE {dock_param_file_name} from docker-compose.yaml file')
         else:
-            robot_version = 'real_robot_mk.yaml'
-            print("Using default robot_version real_robot_mk.")
+            dock_param_file_name = 'config.yaml'
+            print("Using default dock_param_file_name config.yaml.")
     except Exception as e:
         print(f'exception: {str(e)}')
-        print("Please input ROBOT_VERSION in docker-compose.yaml")
-        robot_version = 'real_robot_mk.yaml'
-    
-    if robot_version == 'outdoor_cleaner_1':
-        dock_param_file_name = 'config_s1.yaml'
-    elif robot_version == 'real_robot_mk2' or robot_version == 'real_robot_mk3' or robot_version == 'real_robot':
+        print("Please input DOCK_PARAM_FILE in docker-compose.yaml")
         dock_param_file_name = 'config.yaml'
+    
 
     # create launch configuration variables
     params_file_path = LaunchConfiguration('params_files', default=os.path.join(dock_pkg_path, 'params', dock_param_file_name))
