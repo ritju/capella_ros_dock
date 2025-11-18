@@ -356,7 +356,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 				RCLCPP_DEBUG(logger_, "angular_z: %f", servo_vel->angular.z);
 
 				// before actually begin rotation, collision_check first
-				
+				// current_state: LOOKUP_ARUCO_MARKER
 				if (params_ptr->rotation_collision_check)
 				{
 					double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, true, 0.0, servo_vel->angular.z,
@@ -619,6 +619,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			RCLCPP_DEBUG(logger_, "angular.z: %f", angle_dist);
 
 			// before actually begin rotation, collision_check first
+			// current state: ANGLE_TO_BUFFER_POINT
 			if (params_ptr->rotation_collision_check)
 			{
 				double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, true, 0.0, servo_vel->angular.z,
@@ -716,7 +717,25 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			RCLCPP_DEBUG(logger_, "linear.x: : %f", translate_velocity);
 
 			// before actually begin moving, collision_check first
+			// current state: MOVE_TO_BUFFER_POINT
+			
+			bool need_check_collision = true; 
 			if (params_ptr->rotation_collision_check)
+			{
+				// 如果需要碰撞检查，只有当机器人和充电桩的距离< dock_valid_obstale_x,且朝向充电桩运动时不需要检查是否碰撞
+				// 因为马上就要对接上充电桩，机器人必然要和充电桩进行接触				
+				auto tf_charger_to_robot = charger_pose_map.inverse() * robot_pose_map;
+				auto translation_charger_to_robot = tf_charger_to_robot.getOrigin();
+				double x_c2r = std::abs(translation_charger_to_robot.getX());
+				auto orintation_charger_to_robot = tf_charger_to_robot.getRotation();
+				double yaw_c2r_abs = std::abs(tf2::getYaw(orintation_charger_to_robot));
+				if ((yaw_c2r_abs < M_PI * 0.5) && (x_c2r < params_ptr->dock_valid_obstacle_x))
+				{
+					need_check_collision = false;
+				}
+			}
+
+			if (params_ptr->rotation_collision_check && need_check_collision)
 			{
 				double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, false, servo_vel->linear.x, 0.0,
 					params_ptr->collision_predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
@@ -758,6 +777,9 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			else
 			{
 				RCLCPP_DEBUG(logger_, "rotation_collision_check: %s", params_ptr->rotation_collision_check ? "true":"false");
+				RCLCPP_DEBUG(logger_, "need_check_collision: %s", need_check_collision ? "true":"false");
+				RCLCPP_DEBUG(logger_, "yaw_c2r_abs: %f", yaw_c2r_abs);
+				RCLCPP_DEBUG(logger_, "x_c2r: %f, dock_valid_obstacle_x: %f", x_c2r, dock_valid_obstacle_x);
 			}
 
 			state = std::string("MOVE_TO_BUFFER_POINT");
@@ -818,7 +840,8 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			bound_rotation(dist_yaw_marker, params_ptr->min_rotation, params_ptr->max_rotation);
 			servo_vel->angular.z = dist_yaw_marker;
 
-			// before actually begin rotation, collision_check first			
+			// before actually begin rotation, collision_check first
+			// current state: ANGLE_TO_X_POSITIVE_ORIENTATION			
 			if (params_ptr->rotation_collision_check)
 			{
 				double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, true, 0.0, servo_vel->angular.z,
@@ -1080,6 +1103,70 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			}
 			RCLCPP_DEBUG(logger_, "linear_x: %f", servo_vel->linear.x);
 			RCLCPP_DEBUG(logger_, "angular.z: %f", servo_vel->angular.z);
+
+			bool need_check_collision = true; 
+			if (params_ptr->rotation_collision_check)
+			{
+				// 如果需要碰撞检查，只有当机器人和充电桩的距离< dock_valid_obstale_x,且朝向充电桩运动时不需要检查是否碰撞
+				// 因为马上就要对接上充电桩，机器人必然要和充电桩进行接触				
+				auto tf_charger_to_robot = charger_pose_map.inverse() * robot_pose_map;
+				auto translation_charger_to_robot = tf_charger_to_robot.getOrigin();
+				double x_c2r = std::abs(translation_charger_to_robot.getX());
+				auto orintation_charger_to_robot = tf_charger_to_robot.getRotation();
+				double yaw_c2r_abs = std::abs(tf2::getYaw(orintation_charger_to_robot));
+				if ((yaw_c2r_abs < M_PI * 0.5) && (x_c2r < params_ptr->dock_valid_obstacle_x))
+				{
+					need_check_collision = false;
+				}
+			}
+
+			if (params_ptr->rotation_collision_check && need_check_collision)
+			{
+				double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, false, servo_vel->linear.x, 0.0,
+					params_ptr->collision_predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
+				if (cost_value >= nav2_costmap_2d::LETHAL_OBSTACLE)
+				{
+
+					RCLCPP_DEBUG(logger_, "cost value: %f >= %f", cost_value,  static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));	
+					servo_vel->linear.x = 0.0;
+
+					clear_time_now = clock_->now().seconds();
+					clear_time_delta = clear_time_now - clear_time_last;
+
+					RCLCPP_DEBUG(logger_, "clear_time_now: %f", clear_time_now);
+					RCLCPP_DEBUG(logger_, "clear_time_last: %f", clear_time_last);
+					RCLCPP_DEBUG(logger_, "clear_time_delta: %f", clear_time_delta);
+
+					if (clear_time_delta > params_ptr->time_local_costmap_clear_min)
+					{
+						auto request = std::make_shared<nav2_msgs::srv::ClearEntireCostmap::Request>();						
+						
+						auto ret = client_clear_entire_local_costmap->wait_for_service(0.05s);
+						if (!ret)
+						{
+							RCLCPP_INFO(logger_, "/local_costmap/clear_entirely_local_costmap service not online.");
+						}
+						else
+						{
+							clear_time_last = clear_time_now;
+							RCLCPP_INFO(logger_, "call service for clear local_costmap.");
+							client_clear_entire_local_costmap->async_send_request(request);
+						}
+					}
+					else
+					{
+					}
+					return servo_vel;
+				}			
+			}
+			else
+			{
+				RCLCPP_DEBUG(logger_, "rotation_collision_check: %s", params_ptr->rotation_collision_check ? "true":"false");
+				RCLCPP_DEBUG(logger_, "need_check_collision: %s", need_check_collision ? "true":"false");
+				RCLCPP_DEBUG(logger_, "yaw_c2r_abs: %f", yaw_c2r_abs);
+				RCLCPP_DEBUG(logger_, "x_c2r: %f, dock_valid_obstacle_x: %f", x_c2r, dock_valid_obstacle_x);
+
+			}
 
 		}
 		break;
