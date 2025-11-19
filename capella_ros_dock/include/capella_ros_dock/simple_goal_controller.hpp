@@ -357,14 +357,18 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 
 				// before actually begin rotation, collision_check first
 				// current_state: LOOKUP_ARUCO_MARKER
+				double remaining_rotation_time = std::abs(dist_angle / servo_vel->angular.z);
+				double predict_time = std::min(double(params_ptr->collision_predict_time), remaining_rotation_time);
+				RCLCPP_DEBUG(logger_, "predict_time: %f", predict_time);
 				if (params_ptr->rotation_collision_check)
 				{
 					double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, true, 0.0, servo_vel->angular.z,
-						params_ptr->collision_predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
+						predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
 					if (cost_value >= nav2_costmap_2d::LETHAL_OBSTACLE)
 					{
 						RCLCPP_DEBUG(logger_, "cost value: %f == %f", cost_value,  static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));	
 						servo_vel->angular.z = 0.0;
+						RCLCPP_INFO(logger_, "stop for collision check, when LOOKUP_ARUCO_MARKER");
 
 						clear_time_now = clock_->now().seconds();
 						clear_time_delta = clear_time_now - clear_time_last;
@@ -620,14 +624,18 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 
 			// before actually begin rotation, collision_check first
 			// current state: ANGLE_TO_BUFFER_POINT
+			double remaining_rotation_time = std::abs(dist_buffer_point_yaw / servo_vel->angular.z);
+			double predict_time = std::min(double(params_ptr->collision_predict_time), remaining_rotation_time);
+			RCLCPP_DEBUG(logger_, "predict_time: %f", predict_time);
 			if (params_ptr->rotation_collision_check)
 			{
 				double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, true, 0.0, servo_vel->angular.z,
-					params_ptr->collision_predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
+					predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
 				if (cost_value >= nav2_costmap_2d::LETHAL_OBSTACLE)
 				{				
 					RCLCPP_DEBUG(logger_, "cost value: %f == %f", cost_value,  static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));	
 					servo_vel->angular.z = 0.0;
+					RCLCPP_INFO(logger_, "stop for collision check, when ANGLE_TO_BUFFER_POINT");
 
 					clear_time_now = clock_->now().seconds();
 					clear_time_delta = clear_time_now - clear_time_last;
@@ -717,8 +725,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			RCLCPP_DEBUG(logger_, "linear.x: : %f", translate_velocity);
 
 			// before actually begin moving, collision_check first
-			// current state: MOVE_TO_BUFFER_POINT
-			
+			// current state: MOVE_TO_BUFFER_POINT			
 			bool need_check_collision = true; 
 			if (params_ptr->rotation_collision_check)
 			{
@@ -735,15 +742,19 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 				}
 			}
 
+			double remaining_rotation_time = std::abs(dist_buffer_point / servo_vel->linear.x);
+			double predict_time = std::min(double(params_ptr->collision_predict_time), remaining_rotation_time);
+			RCLCPP_DEBUG(logger_, "predict_time: %f", predict_time);
 			if (params_ptr->rotation_collision_check && need_check_collision)
 			{
 				double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, false, servo_vel->linear.x, 0.0,
-					params_ptr->collision_predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
+					predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
 				if (cost_value >= nav2_costmap_2d::LETHAL_OBSTACLE)
 				{
 
 					RCLCPP_DEBUG(logger_, "cost value: %f >= %f", cost_value,  static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));	
 					servo_vel->linear.x = 0.0;
+					RCLCPP_INFO(logger_, "stop for collision check, when MOVE_TO_BUFFER_POINT");
 
 					clear_time_now = clock_->now().seconds();
 					clear_time_delta = clear_time_now - clear_time_last;
@@ -796,6 +807,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 
 		double robot_yaw_marker = tf2::getYaw(current_pose.getRotation());
 		double dist_yaw_marker = angles::shortest_angular_distance(robot_yaw_marker, 0);
+		double dist_yaw_marker_copy = dist_yaw_marker;
 
 		RCLCPP_DEBUG(logger_, "dist_yaw_marker: %f", dist_yaw_marker);
 		if(std::abs(dist_yaw_marker) < params_ptr->tolerance_angle )
@@ -841,15 +853,19 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			servo_vel->angular.z = dist_yaw_marker;
 
 			// before actually begin rotation, collision_check first
-			// current state: ANGLE_TO_X_POSITIVE_ORIENTATION			
+			// current state: ANGLE_TO_X_POSITIVE_ORIENTATION
+			double remaining_rotation_time = std::abs(dist_yaw_marker_copy / servo_vel->angular.z);
+			double predict_time = std::min(double(params_ptr->collision_predict_time), remaining_rotation_time);
+			RCLCPP_DEBUG(logger_, "predict_time: %f", predict_time);			
 			if (params_ptr->rotation_collision_check)
 			{
 				double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, true, 0.0, servo_vel->angular.z,
-				params_ptr->collision_predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
+				predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
 				if (cost_value >= nav2_costmap_2d::LETHAL_OBSTACLE)
 				{
 					RCLCPP_DEBUG(logger_, "cost value: %f >= %f", cost_value,  static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));	
 					servo_vel->angular.z = 0.0;
+					RCLCPP_INFO(logger_, "stop for collision check, when MOVE_TO_BUFFER_POINT");
 
 					clear_time_now = clock_->now().seconds();
 					clear_time_delta = clear_time_now - clear_time_last;
@@ -1104,7 +1120,9 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			RCLCPP_DEBUG(logger_, "linear_x: %f", servo_vel->linear.x);
 			RCLCPP_DEBUG(logger_, "angular.z: %f", servo_vel->angular.z);
 
+			// current state: GO_TO_GOAL_POSITION
 			bool need_check_collision = true; 
+			double remaining_rotation_time, predict_time;
 			if (params_ptr->rotation_collision_check)
 			{
 				// 如果需要碰撞检查，只有当机器人和充电桩的距离< dock_valid_obstale_x,且朝向充电桩运动时不需要检查是否碰撞
@@ -1118,17 +1136,24 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 				{
 					need_check_collision = false;
 				}
+				else
+				{
+					remaining_rotation_time = std::abs((x_c2r - params_ptr->dock_valid_obstacle_x) / servo_vel->linear.x);
+					predict_time = std::min(double(params_ptr->collision_predict_time), remaining_rotation_time);
+					RCLCPP_DEBUG(logger_, "predict_time: %f", predict_time);
+				}
 			}
-
+			
 			if (params_ptr->rotation_collision_check && need_check_collision)
 			{
 				double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, false, servo_vel->linear.x, 0.0,
-					params_ptr->collision_predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
+					predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
 				if (cost_value >= nav2_costmap_2d::LETHAL_OBSTACLE)
 				{
 
 					RCLCPP_DEBUG(logger_, "cost value: %f >= %f", cost_value,  static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));	
 					servo_vel->linear.x = 0.0;
+					RCLCPP_INFO(logger_, "stop for collision check, when GO_TO_GOAL_POSITION");
 
 					clear_time_now = clock_->now().seconds();
 					clear_time_delta = clear_time_now - clear_time_last;
