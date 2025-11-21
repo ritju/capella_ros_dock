@@ -594,14 +594,14 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			x = robot_pose_map.getOrigin().getX();
 			y = robot_pose_map.getOrigin().getY();
 			theta = tf2::getYaw(robot_pose_map.getRotation());
-			// double cost = collision_checker.footprintCostAtPose(x, y, theta, footprint_vec);
-			double cost = collision_checker.footprintCost(footprint_vec);
+			double cost = collision_checker.footprintCostAtPose(x, y, theta, footprint_vec);
+			// double cost = collision_checker.footprintCost(footprint_vec);
 			RCLCPP_DEBUG(logger_, "x: %f, y: %f, theta: %f", x, y, theta);
 			for (size_t index = 0; index < footprint_vec.size(); index++)
 			{
 				RCLCPP_DEBUG(logger_, "footprint Point(%f, %f)", footprint_vec[index].x, footprint_vec[index].y);
 			}
-			if ((cost >= static_cast<double>(251)) && params_ptr->rotation_collision_check)
+			if ((cost >= static_cast<double>(254)) && params_ptr->rotation_collision_check)
 			{
 				RCLCPP_DEBUG(logger_, "cost value: %f >= %f", cost, static_cast<double>(251));	
 				servo_vel->angular.z = 0.0;
@@ -726,16 +726,17 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 
 			// before actually begin moving, collision_check first
 			// current state: MOVE_TO_BUFFER_POINT			
-			bool need_check_collision = true; 
+			bool need_check_collision = true;
+			double x_c2r, yaw_c2r_abs;
 			if (params_ptr->rotation_collision_check)
 			{
 				// 如果需要碰撞检查，只有当机器人和充电桩的距离< dock_valid_obstale_x,且朝向充电桩运动时不需要检查是否碰撞
 				// 因为马上就要对接上充电桩，机器人必然要和充电桩进行接触				
 				auto tf_charger_to_robot = charger_pose_map.inverse() * robot_pose_map;
 				auto translation_charger_to_robot = tf_charger_to_robot.getOrigin();
-				double x_c2r = std::abs(translation_charger_to_robot.getX());
+				x_c2r = std::abs(translation_charger_to_robot.getX());
 				auto orintation_charger_to_robot = tf_charger_to_robot.getRotation();
-				double yaw_c2r_abs = std::abs(tf2::getYaw(orintation_charger_to_robot));
+				yaw_c2r_abs = std::abs(tf2::getYaw(orintation_charger_to_robot));
 				if ((yaw_c2r_abs < M_PI * 0.5) && (x_c2r < params_ptr->dock_valid_obstacle_x))
 				{
 					need_check_collision = false;
@@ -790,7 +791,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 				RCLCPP_DEBUG(logger_, "rotation_collision_check: %s", params_ptr->rotation_collision_check ? "true":"false");
 				RCLCPP_DEBUG(logger_, "need_check_collision: %s", need_check_collision ? "true":"false");
 				RCLCPP_DEBUG(logger_, "yaw_c2r_abs: %f", yaw_c2r_abs);
-				RCLCPP_DEBUG(logger_, "x_c2r: %f, dock_valid_obstacle_x: %f", x_c2r, dock_valid_obstacle_x);
+				RCLCPP_DEBUG(logger_, "x_c2r: %f, dock_valid_obstacle_x: %f", x_c2r, params_ptr->dock_valid_obstacle_x);
 			}
 
 			state = std::string("MOVE_TO_BUFFER_POINT");
@@ -1123,15 +1124,16 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			// current state: GO_TO_GOAL_POSITION
 			bool need_check_collision = true; 
 			double remaining_rotation_time, predict_time;
+			double x_c2r, yaw_c2r_abs;
 			if (params_ptr->rotation_collision_check)
 			{
 				// 如果需要碰撞检查，只有当机器人和充电桩的距离< dock_valid_obstale_x,且朝向充电桩运动时不需要检查是否碰撞
 				// 因为马上就要对接上充电桩，机器人必然要和充电桩进行接触				
 				auto tf_charger_to_robot = charger_pose_map.inverse() * robot_pose_map;
 				auto translation_charger_to_robot = tf_charger_to_robot.getOrigin();
-				double x_c2r = std::abs(translation_charger_to_robot.getX());
+				x_c2r = std::abs(translation_charger_to_robot.getX());
 				auto orintation_charger_to_robot = tf_charger_to_robot.getRotation();
-				double yaw_c2r_abs = std::abs(tf2::getYaw(orintation_charger_to_robot));
+				yaw_c2r_abs = std::abs(tf2::getYaw(orintation_charger_to_robot));
 				if ((yaw_c2r_abs < M_PI * 0.5) && (x_c2r < params_ptr->dock_valid_obstacle_x))
 				{
 					need_check_collision = false;
@@ -1189,7 +1191,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 				RCLCPP_DEBUG(logger_, "rotation_collision_check: %s", params_ptr->rotation_collision_check ? "true":"false");
 				RCLCPP_DEBUG(logger_, "need_check_collision: %s", need_check_collision ? "true":"false");
 				RCLCPP_DEBUG(logger_, "yaw_c2r_abs: %f", yaw_c2r_abs);
-				RCLCPP_DEBUG(logger_, "x_c2r: %f, dock_valid_obstacle_x: %f", x_c2r, dock_valid_obstacle_x);
+				RCLCPP_DEBUG(logger_, "x_c2r: %f, dock_valid_obstacle_x: %f", x_c2r, params_ptr->dock_valid_obstacle_x);
 
 			}
 
