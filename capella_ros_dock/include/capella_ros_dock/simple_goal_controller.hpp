@@ -185,7 +185,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 	const tf2::Transform & current_pose, const tf2::Transform & robot_pose_map, const tf2::Transform & charger_pose_map, bool sees_dock, bool is_docked, bool bluetooth_connected,
 	nav_msgs::msg::Odometry odom_msg, rclcpp::Clock::SharedPtr clock_, rclcpp::Logger logger_, motion_control_params* params_ptr, capella_ros_dock_msgs::msg::HazardDetectionVector hazards, std::string & state, std::string & infos,
 	nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*>  collision_checker, std::vector<geometry_msgs::msg::Point> footprint_vec, rclcpp::Client<nav2_msgs::srv::ClearEntireCostmap>::SharedPtr client_clear_entire_local_costmap)
-{	
+{		
 	// impl undock (go to undock state)
 	if (goal_points_.size() >0 && !(goal_points_.front().drive_backwards))
 	{
@@ -370,32 +370,11 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 						servo_vel->angular.z = 0.0;
 						RCLCPP_INFO(logger_, "stop for collision check, when LOOKUP_ARUCO_MARKER");
 
-						clear_time_now = clock_->now().seconds();
-						clear_time_delta = clear_time_now - clear_time_last;
-
-						RCLCPP_DEBUG(logger_, "clear_time_now: %f", clear_time_now);
-						RCLCPP_DEBUG(logger_, "clear_time_last: %f", clear_time_last);
-						RCLCPP_DEBUG(logger_, "clear_time_delta: %f", clear_time_delta);
-
-						if (clear_time_delta > params_ptr->time_local_costmap_clear_min)
+						if(params_ptr->enable_clear_local_costmap)
 						{
-							auto request = std::make_shared<nav2_msgs::srv::ClearEntireCostmap::Request>();						
-							
-							auto ret = client_clear_entire_local_costmap->wait_for_service(0.05s);
-							if (!ret)
-							{
-								RCLCPP_INFO(logger_, "/local_costmap/clear_entirely_local_costmap service not online.");
-							}
-							else
-							{
-								clear_time_last = clear_time_now;
-								RCLCPP_INFO(logger_, "call service for clear local_costmap.");
-								client_clear_entire_local_costmap->async_send_request(request);
-							}
+							clear_local_costmap(params_ptr, logger_, clock_, client_clear_entire_local_costmap);
 						}
-						else
-						{
-						}
+						
 						return servo_vel;
 					}			
 				}
@@ -637,32 +616,11 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 					servo_vel->angular.z = 0.0;
 					RCLCPP_INFO(logger_, "stop for collision check, when ANGLE_TO_BUFFER_POINT");
 
-					clear_time_now = clock_->now().seconds();
-					clear_time_delta = clear_time_now - clear_time_last;
-
-					RCLCPP_DEBUG(logger_, "clear_time_now: %f", clear_time_now);
-					RCLCPP_DEBUG(logger_, "clear_time_last: %f", clear_time_last);
-					RCLCPP_DEBUG(logger_, "clear_time_delta: %f", clear_time_delta);
-
-					if (clear_time_delta > params_ptr->time_local_costmap_clear_min)
+					if(params_ptr->enable_clear_local_costmap)
 					{
-						auto request = std::make_shared<nav2_msgs::srv::ClearEntireCostmap::Request>();						
-						
-						auto ret = client_clear_entire_local_costmap->wait_for_service(0.05s);
-						if (!ret)
-						{
-							RCLCPP_INFO(logger_, "/local_costmap/clear_entirely_local_costmap service not online.");
-						}
-						else
-						{
-							clear_time_last = clear_time_now;
-							RCLCPP_INFO(logger_, "call service for clear local_costmap.");
-							client_clear_entire_local_costmap->async_send_request(request);
-						}
+						clear_local_costmap(params_ptr, logger_, clock_, client_clear_entire_local_costmap);
 					}
-					else
-					{
-					}
+
 					return servo_vel;
 				}			
 			}
@@ -757,32 +715,11 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 					servo_vel->linear.x = 0.0;
 					RCLCPP_INFO(logger_, "stop for collision check, when MOVE_TO_BUFFER_POINT");
 
-					clear_time_now = clock_->now().seconds();
-					clear_time_delta = clear_time_now - clear_time_last;
-
-					RCLCPP_DEBUG(logger_, "clear_time_now: %f", clear_time_now);
-					RCLCPP_DEBUG(logger_, "clear_time_last: %f", clear_time_last);
-					RCLCPP_DEBUG(logger_, "clear_time_delta: %f", clear_time_delta);
-
-					if (clear_time_delta > params_ptr->time_local_costmap_clear_min)
+					if(params_ptr->enable_clear_local_costmap)
 					{
-						auto request = std::make_shared<nav2_msgs::srv::ClearEntireCostmap::Request>();						
-						
-						auto ret = client_clear_entire_local_costmap->wait_for_service(0.05s);
-						if (!ret)
-						{
-							RCLCPP_INFO(logger_, "/local_costmap/clear_entirely_local_costmap service not online.");
-						}
-						else
-						{
-							clear_time_last = clear_time_now;
-							RCLCPP_INFO(logger_, "call service for clear local_costmap.");
-							client_clear_entire_local_costmap->async_send_request(request);
-						}
+						clear_local_costmap(params_ptr, logger_, clock_, client_clear_entire_local_costmap);
 					}
-					else
-					{
-					}
+
 					return servo_vel;
 				}			
 			}
@@ -867,33 +804,12 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 					RCLCPP_DEBUG(logger_, "cost value: %f >= %f", cost_value,  static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));	
 					servo_vel->angular.z = 0.0;
 					RCLCPP_INFO(logger_, "stop for collision check, when MOVE_TO_BUFFER_POINT");
-
-					clear_time_now = clock_->now().seconds();
-					clear_time_delta = clear_time_now - clear_time_last;
-
-					RCLCPP_DEBUG(logger_, "clear_time_now: %f", clear_time_now);
-					RCLCPP_DEBUG(logger_, "clear_time_last: %f", clear_time_last);
-					RCLCPP_DEBUG(logger_, "clear_time_delta: %f", clear_time_delta);
-
-					if (clear_time_delta > params_ptr->time_local_costmap_clear_min)
+					
+					if(params_ptr->enable_clear_local_costmap)
 					{
-						auto request = std::make_shared<nav2_msgs::srv::ClearEntireCostmap::Request>();						
-						
-						auto ret = client_clear_entire_local_costmap->wait_for_service(0.05s);
-						if (!ret)
-						{
-							RCLCPP_INFO(logger_, "/local_costmap/clear_entirely_local_costmap service not online.");
-						}
-						else
-						{
-							clear_time_last = clear_time_now;
-							RCLCPP_INFO(logger_, "call service for clear local_costmap.");
-							client_clear_entire_local_costmap->async_send_request(request);
-						}
+						clear_local_costmap(params_ptr, logger_, clock_, client_clear_entire_local_costmap);
 					}
-					else
-					{
-					}
+
 					return servo_vel;
 				}			
 			}
@@ -1157,32 +1073,11 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 					servo_vel->linear.x = 0.0;
 					RCLCPP_INFO(logger_, "stop for collision check, when GO_TO_GOAL_POSITION");
 
-					clear_time_now = clock_->now().seconds();
-					clear_time_delta = clear_time_now - clear_time_last;
-
-					RCLCPP_DEBUG(logger_, "clear_time_now: %f", clear_time_now);
-					RCLCPP_DEBUG(logger_, "clear_time_last: %f", clear_time_last);
-					RCLCPP_DEBUG(logger_, "clear_time_delta: %f", clear_time_delta);
-
-					if (clear_time_delta > params_ptr->time_local_costmap_clear_min)
+					if(params_ptr->enable_clear_local_costmap)
 					{
-						auto request = std::make_shared<nav2_msgs::srv::ClearEntireCostmap::Request>();						
-						
-						auto ret = client_clear_entire_local_costmap->wait_for_service(0.05s);
-						if (!ret)
-						{
-							RCLCPP_INFO(logger_, "/local_costmap/clear_entirely_local_costmap service not online.");
-						}
-						else
-						{
-							clear_time_last = clear_time_now;
-							RCLCPP_INFO(logger_, "call service for clear local_costmap.");
-							client_clear_entire_local_costmap->async_send_request(request);
-						}
+						clear_local_costmap(params_ptr, logger_, clock_, client_clear_entire_local_costmap);
 					}
-					else
-					{
-					}
+					
 					return servo_vel;
 				}			
 			}
@@ -1488,6 +1383,39 @@ double diff_angle(const GoalPoint & goal_pt, const tf2::Vector3 & cur_position, 
 
 	return result;
 }
+
+bool clear_local_costmap(motion_control_params* params_ptr, rclcpp::Logger logger_,  rclcpp::Clock::SharedPtr clock_, rclcpp::Client<nav2_msgs::srv::ClearEntireCostmap>::SharedPtr client_clear_entire_local_costmap)
+{
+	bool ret = false;
+	clear_time_now = clock_->now().seconds();
+	clear_time_delta = clear_time_now - clear_time_last;
+
+	RCLCPP_DEBUG(logger_, "/local_costmap/clear_entirely_local_costmap time_now  : %.2f", clear_time_now);
+	RCLCPP_DEBUG(logger_, "/local_costmap/clear_entirely_local_costmap time_last : %.2f", clear_time_last);
+	RCLCPP_DEBUG(logger_, "/local_costmap/clear_entirely_local_costmap time_delta: %.2f", clear_time_delta);
+
+	if (clear_time_delta > params_ptr->timout_clear_local_costmap)
+	{
+		auto request = std::make_shared<nav2_msgs::srv::ClearEntireCostmap::Request>();						
+		
+		auto ret = client_clear_entire_local_costmap->wait_for_service(0.05s);
+		if (!ret)
+		{
+			RCLCPP_INFO(logger_, "/local_costmap/clear_entirely_local_costmap service not online.");
+		}
+		else
+		{
+			clear_time_last = clear_time_now;
+			RCLCPP_INFO(logger_, "call service: /local_costmap/clear_entirely_local_costmap. (delta_time: %.2f, timout: %.2f)", clear_time_delta, params_ptr->timout_clear_local_costmap);
+			client_clear_entire_local_costmap->async_send_request(request);
+			ret = true; // 这里为简化处理，只要发送了/local_costmap/clear_entirely_local_costmap的服务请求,就返回true
+		}
+	}
+	else
+	{
+	}
+	return ret;
+} 
 
 bool hazards_valid(const tf2::Transform & current_pose, capella_ros_dock_msgs::msg::HazardDetectionVector hazards)
 {

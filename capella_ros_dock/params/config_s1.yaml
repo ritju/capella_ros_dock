@@ -72,10 +72,10 @@ motion_control:
     last_goal_angle_to_x_positive_dis: 0.05
     last_goal_angle_to_x_positive_y: 0.01
     rotation_collision_check: true
-    footprint: "[ [-0.376, -0.376], [-0.376, 0.376], [0.376, 0.376], [0.376, -0.376] ]"
     collision_predict_time: 5.0
-    time_local_costmap_clear_min: 2.0
     odom_twist_scale: 0.8
+    enable_clear_local_costmap: false # 是否定时清除local_costmap,用于处理local_costmap长时间不更新的情况
+    timout_clear_local_costmap: 3.0 # 清除local_costmap时的超时时间
 
 
 camera_point_cloud_process:

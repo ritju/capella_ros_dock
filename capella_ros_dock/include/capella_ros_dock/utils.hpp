@@ -65,7 +65,8 @@ struct motion_control_params
 	bool rotation_collision_check;
 	std::string footprint;
 	float collision_predict_time;
-	float time_local_costmap_clear_min;
+	bool enable_clear_local_costmap;
+	float timout_clear_local_costmap;
 	float odom_twist_scale;
 };
 } // end namespace capella_ros_dock

@@ -132,7 +132,8 @@ void MotionControlNode::init_params()
 	this->declare_parameter<bool>("rotation_collision_check", false);
 	this->declare_parameter<std::string>("footprint", "[]");
 	this->declare_parameter<float>("collision_predict_time", 2.0);
-	this->declare_parameter<float>("time_local_costmap_clear_min", 4.5);
+	this->declare_parameter<bool>("enable_clear_local_costmap", false);
+	this->declare_parameter<float>("timout_clear_local_costmap", 4.5);
 	this->declare_parameter<float>("odom_twist_scale", 0.85);
 
 	params.max_dock_action_run_time = this->get_parameter_or<int>("max_dock_action_run_time", 180);
@@ -193,7 +194,8 @@ void MotionControlNode::init_params()
 	params.rotation_collision_check = this->get_parameter("rotation_collision_check").get_value<bool>();
 	params.footprint = this->get_parameter("footprint").get_value<std::string>();
 	params.collision_predict_time = this->get_parameter("collision_predict_time").get_value<float>();
-	params.time_local_costmap_clear_min = this->get_parameter("time_local_costmap_clear_min").get_value<float>();
+	params.enable_clear_local_costmap = this->get_parameter("enable_clear_local_costmap").get_value<bool>();
+	params.timout_clear_local_costmap = this->get_parameter("timout_clear_local_costmap").get_value<float>();
 	params.odom_twist_scale = this->get_parameter("odom_twist_scale").get_value<float>();
 	
 	RCLCPP_INFO_STREAM(this->get_logger(), "max_dock_action_run_time: " << params.max_dock_action_run_time 
