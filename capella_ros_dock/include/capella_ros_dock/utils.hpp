@@ -62,7 +62,7 @@ struct motion_control_params
 	float base_link_charge_dis;
 	float last_goal_angle_to_x_positive_dis;
 	float last_goal_angle_to_x_positive_y;
-	bool rotation_collision_check;
+	bool collision_check;
 	std::string footprint;
 	float collision_predict_time;
 	bool enable_clear_local_costmap;

@@ -129,7 +129,7 @@ void MotionControlNode::init_params()
 	this->declare_parameter<float>("base_link_charge_dis", 0.474);
 	this->declare_parameter<float>("last_goal_angle_to_x_positive_dis", 0.05);
 	this->declare_parameter<float>("last_goal_angle_to_x_positive_y", 0.01);
-	this->declare_parameter<bool>("rotation_collision_check", false);
+	this->declare_parameter<bool>("collision_check", false);
 	this->declare_parameter<std::string>("footprint", "[]");
 	this->declare_parameter<float>("collision_predict_time", 2.0);
 	this->declare_parameter<bool>("enable_clear_local_costmap", false);
@@ -191,7 +191,7 @@ void MotionControlNode::init_params()
 	params.base_link_charge_dis = this->get_parameter("base_link_charge_dis").get_value<float>();
 	params.last_goal_angle_to_x_positive_dis = this->get_parameter("last_goal_angle_to_x_positive_dis").get_value<float>();
 	params.last_goal_angle_to_x_positive_y = this->get_parameter("last_goal_angle_to_x_positive_y").get_value<float>();
-	params.rotation_collision_check = this->get_parameter("rotation_collision_check").get_value<bool>();
+	params.collision_check = this->get_parameter("collision_check").get_value<bool>();
 	params.footprint = this->get_parameter("footprint").get_value<std::string>();
 	params.collision_predict_time = this->get_parameter("collision_predict_time").get_value<float>();
 	params.enable_clear_local_costmap = this->get_parameter("enable_clear_local_costmap").get_value<bool>();

@@ -360,7 +360,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 				double remaining_rotation_time = std::abs(dist_angle / servo_vel->angular.z);
 				double predict_time = std::min(double(params_ptr->collision_predict_time), remaining_rotation_time);
 				RCLCPP_DEBUG(logger_, "predict_time: %f", predict_time);
-				if (params_ptr->rotation_collision_check)
+				if (params_ptr->collision_check)
 				{
 					double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, true, 0.0, servo_vel->angular.z,
 						predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
@@ -380,7 +380,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 				}
 				else
 				{
-					RCLCPP_DEBUG(logger_, "rotation_collision_check: %s", params_ptr->rotation_collision_check ? "true":"false");
+					RCLCPP_DEBUG(logger_, "collision_check: %s", params_ptr->collision_check ? "true":"false");
 				}
 
 
@@ -396,7 +396,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 				// {
 				// 	RCLCPP_DEBUG(logger_, "footprint Point(%f, %f)", footprint_vec[index].x, footprint_vec[index].y);
 				// }
-				// if ((cost >= static_cast<double>(251)) && params_ptr->rotation_collision_check)
+				// if ((cost >= static_cast<double>(251)) && params_ptr->collision_check)
 				// {
 				// 	RCLCPP_DEBUG(logger_, "cost value: %f >= %f", cost, static_cast<double>(251));	
 				// 	servo_vel->angular.z = 0.0;
@@ -405,7 +405,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 				// else
 				// {
 				// 	RCLCPP_DEBUG(logger_, "cost value: %f, go on ......", cost);
-				// 	RCLCPP_DEBUG(logger_, "rotation_collision_check: %s", params_ptr->rotation_collision_check ? "true":"false");
+				// 	RCLCPP_DEBUG(logger_, "collision_check: %s", params_ptr->collision_check ? "true":"false");
 				// }
 				
 				state = std::string("LOOKUP_ARUCO_MARKER");
@@ -580,7 +580,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			{
 				RCLCPP_DEBUG(logger_, "footprint Point(%f, %f)", footprint_vec[index].x, footprint_vec[index].y);
 			}
-			if ((cost >= static_cast<double>(254)) && params_ptr->rotation_collision_check)
+			if ((cost >= static_cast<double>(254)) && params_ptr->collision_check)
 			{
 				RCLCPP_DEBUG(logger_, "cost value: %f >= %f", cost, static_cast<double>(251));	
 				servo_vel->angular.z = 0.0;
@@ -589,7 +589,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			else
 			{
 				RCLCPP_DEBUG(logger_, "cost value: %f, go on ......", cost);
-				RCLCPP_DEBUG(logger_, "rotation_collision_check: %s", params_ptr->rotation_collision_check ? "true":"false");
+				RCLCPP_DEBUG(logger_, "collision_check: %s", params_ptr->collision_check ? "true":"false");
 			}	
 
 
@@ -606,7 +606,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			double remaining_rotation_time = std::abs(dist_buffer_point_yaw / servo_vel->angular.z);
 			double predict_time = std::min(double(params_ptr->collision_predict_time), remaining_rotation_time);
 			RCLCPP_DEBUG(logger_, "predict_time: %f", predict_time);
-			if (params_ptr->rotation_collision_check)
+			if (params_ptr->collision_check)
 			{
 				double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, true, 0.0, servo_vel->angular.z,
 					predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
@@ -626,7 +626,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			}
 			else
 			{
-				RCLCPP_DEBUG(logger_, "rotation_collision_check: %s", params_ptr->rotation_collision_check ? "true":"false");
+				RCLCPP_DEBUG(logger_, "collision_check: %s", params_ptr->collision_check ? "true":"false");
 			}
 
 			state = std::string("ANGLE_TO_BUFFER_POINT");
@@ -686,7 +686,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			// current state: MOVE_TO_BUFFER_POINT			
 			bool need_check_collision = true;
 			double x_c2r, yaw_c2r_abs;
-			if (params_ptr->rotation_collision_check)
+			if (params_ptr->collision_check)
 			{
 				// 如果需要碰撞检查，只有当机器人和充电桩的距离< dock_valid_obstale_x,且朝向充电桩运动时不需要检查是否碰撞
 				// 因为马上就要对接上充电桩，机器人必然要和充电桩进行接触				
@@ -704,7 +704,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			double remaining_rotation_time = std::abs(dist_buffer_point / servo_vel->linear.x);
 			double predict_time = std::min(double(params_ptr->collision_predict_time), remaining_rotation_time);
 			RCLCPP_DEBUG(logger_, "predict_time: %f", predict_time);
-			if (params_ptr->rotation_collision_check && need_check_collision)
+			if (params_ptr->collision_check && need_check_collision)
 			{
 				double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, false, servo_vel->linear.x, 0.0,
 					predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
@@ -725,7 +725,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			}
 			else
 			{
-				RCLCPP_DEBUG(logger_, "rotation_collision_check: %s", params_ptr->rotation_collision_check ? "true":"false");
+				RCLCPP_DEBUG(logger_, "collision_check: %s", params_ptr->collision_check ? "true":"false");
 				RCLCPP_DEBUG(logger_, "need_check_collision: %s", need_check_collision ? "true":"false");
 				RCLCPP_DEBUG(logger_, "yaw_c2r_abs: %f", yaw_c2r_abs);
 				RCLCPP_DEBUG(logger_, "x_c2r: %f, dock_valid_obstacle_x: %f", x_c2r, params_ptr->dock_valid_obstacle_x);
@@ -795,7 +795,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			double remaining_rotation_time = std::abs(dist_yaw_marker_copy / servo_vel->angular.z);
 			double predict_time = std::min(double(params_ptr->collision_predict_time), remaining_rotation_time);
 			RCLCPP_DEBUG(logger_, "predict_time: %f", predict_time);			
-			if (params_ptr->rotation_collision_check)
+			if (params_ptr->collision_check)
 			{
 				double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, true, 0.0, servo_vel->angular.z,
 				predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
@@ -815,7 +815,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			}
 			else
 			{
-				RCLCPP_DEBUG(logger_, "rotation_collision_check: %s", params_ptr->rotation_collision_check ? "true":"false");
+				RCLCPP_DEBUG(logger_, "collision_check: %s", params_ptr->collision_check ? "true":"false");
 			}
 
 			RCLCPP_DEBUG(logger_, "angular.z: %f", servo_vel->angular.z);
@@ -1041,7 +1041,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			bool need_check_collision = true; 
 			double remaining_rotation_time, predict_time;
 			double x_c2r, yaw_c2r_abs;
-			if (params_ptr->rotation_collision_check)
+			if (params_ptr->collision_check)
 			{
 				// 如果需要碰撞检查，只有当机器人和充电桩的距离< dock_valid_obstale_x,且朝向充电桩运动时不需要检查是否碰撞
 				// 因为马上就要对接上充电桩，机器人必然要和充电桩进行接触				
@@ -1062,7 +1062,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 				}
 			}
 			
-			if (params_ptr->rotation_collision_check && need_check_collision)
+			if (params_ptr->collision_check && need_check_collision)
 			{
 				double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, false, servo_vel->linear.x, 0.0,
 					predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
@@ -1083,7 +1083,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			}
 			else
 			{
-				RCLCPP_DEBUG(logger_, "rotation_collision_check: %s", params_ptr->rotation_collision_check ? "true":"false");
+				RCLCPP_DEBUG(logger_, "collision_check: %s", params_ptr->collision_check ? "true":"false");
 				RCLCPP_DEBUG(logger_, "need_check_collision: %s", need_check_collision ? "true":"false");
 				RCLCPP_DEBUG(logger_, "yaw_c2r_abs: %f", yaw_c2r_abs);
 				RCLCPP_DEBUG(logger_, "x_c2r: %f, dock_valid_obstacle_x: %f", x_c2r, params_ptr->dock_valid_obstacle_x);
@@ -1154,6 +1154,27 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		if (delta_time < undock_time)
 		{
 			servo_vel->linear.x = undock_speed;
+
+			double predict_time =  undock_time - delta_time;
+			if (params_ptr->collision_check)
+			{
+				double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, false, servo_vel->linear.x, 0.0,
+					predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
+				if (cost_value >= nav2_costmap_2d::LETHAL_OBSTACLE)
+				{
+
+					RCLCPP_DEBUG(logger_, "cost value: %f >= %f", cost_value,  static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));	
+					servo_vel->linear.x = 0.0;
+					RCLCPP_INFO(logger_, "stop for collision check, when UNDOCK");
+
+					if(params_ptr->enable_clear_local_costmap)
+					{
+						clear_local_costmap(params_ptr, logger_, clock_, client_clear_entire_local_costmap);
+					}
+
+					return servo_vel;
+				}			
+			}
 		}
 		else
 		{
@@ -1161,6 +1182,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			RCLCPP_INFO(logger_, "undock end.");
 			undocking = false;
 		}
+
 		break;
 	}
 	} // end of switch
