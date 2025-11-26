@@ -59,7 +59,7 @@ struct motion_control_params
 	float score_weight_similarity;
 	float robot_rotate_radius;
 	float base_link_y_thr;
-	float base_link_charge_dis;
+	float base_link_dummy_dis;
 	float last_goal_angle_to_x_positive_dis;
 	float last_goal_angle_to_x_positive_y;
 	bool collision_check;

@@ -126,7 +126,7 @@ void MotionControlNode::init_params()
 	this->declare_parameter<float>("score_weight_similarity", 0.5);
 	this->declare_parameter<float>("robot_rotate_radius", 1.25);
 	this->declare_parameter<float>("base_link_y_thr", 0.05);
-	this->declare_parameter<float>("base_link_charge_dis", 0.474);
+	this->declare_parameter<float>("base_link_dummy_dis", 0.474);
 	this->declare_parameter<float>("last_goal_angle_to_x_positive_dis", 0.05);
 	this->declare_parameter<float>("last_goal_angle_to_x_positive_y", 0.01);
 	this->declare_parameter<bool>("collision_check", false);
@@ -188,7 +188,7 @@ void MotionControlNode::init_params()
 	params.score_weight_similarity = this->get_parameter("score_weight_similarity").get_value<float>();
 	params.robot_rotate_radius = this->get_parameter("robot_rotate_radius").get_value<float>();
 	params.base_link_y_thr = this->get_parameter("base_link_y_thr").get_value<float>();
-	params.base_link_charge_dis = this->get_parameter("base_link_charge_dis").get_value<float>();
+	params.base_link_dummy_dis = this->get_parameter("base_link_dummy_dis").get_value<float>();
 	params.last_goal_angle_to_x_positive_dis = this->get_parameter("last_goal_angle_to_x_positive_dis").get_value<float>();
 	params.last_goal_angle_to_x_positive_y = this->get_parameter("last_goal_angle_to_x_positive_y").get_value<float>();
 	params.collision_check = this->get_parameter("collision_check").get_value<bool>();

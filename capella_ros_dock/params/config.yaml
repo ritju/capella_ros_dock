@@ -68,7 +68,7 @@ motion_control:
     go_to_goal_linear_acc: 0.05
     robot_rotate_radius: 1.25
     base_link_y_thr: 0.08
-    base_link_charge_dis: 0.46
+    base_link_dummy_dis: 0.46
     last_goal_angle_to_x_positive_dis: 0.05
     last_goal_angle_to_x_positive_y: 0.01
     collision_check: false
