@@ -111,7 +111,7 @@ void MotionControlNode::init_params()
 	this->declare_parameter<int>("max_action_runtime", 180);
 	this->declare_parameter<float>("contacted_keep_move_time", 0.1);
 	this->declare_parameter<float>("undock_speed", 0.15);
-	this->declare_parameter<float>("undock_time", 0.20);
+	this->declare_parameter<float>("undock_timeout", 0.20);
 	this->declare_parameter<float>("undock_obstacle_lr", 0.25);
 	this->declare_parameter<float>("undock_obstacle_front", 0.50);
 	this->declare_parameter<int>("charger_contact_condition_type", 0);
@@ -135,6 +135,13 @@ void MotionControlNode::init_params()
 	this->declare_parameter<bool>("enable_clear_local_costmap", false);
 	this->declare_parameter<float>("timout_clear_local_costmap", 4.5);
 	this->declare_parameter<float>("odom_twist_scale", 0.85);
+	this->declare_parameter<float>("timeout_lookup_marker", 30.0);
+	this->declare_parameter<float>("timeout_angle_to_buffer_point", 30.0);
+	this->declare_parameter<float>("timeout_move_to_buffer_point", 30.0);
+	this->declare_parameter<float>("timeout_angle_to_x_positive_orientation", 30.0);
+	this->declare_parameter<float>("timeout_angle_to_goal", 30.0);
+	this->declare_parameter<float>("timeout_go_to_goal_position", 30.0);
+	this->declare_parameter<float>("timeout_goal_angle", 30.0);
 
 	params.max_dock_action_run_time = this->get_parameter_or<int>("max_dock_action_run_time", 180);
 	params.min_rotation = this->get_parameter_or<float>("min_rotation", 0.15);
@@ -173,7 +180,7 @@ void MotionControlNode::init_params()
 	params.max_action_runtime = this->get_parameter("max_action_runtime").get_value<int>();
 	params.contacted_keep_move_time = this->get_parameter("contacted_keep_move_time").get_value<float>();
 	params.undock_speed = this->get_parameter("undock_speed").get_value<float>();
-	params.undock_time = this->get_parameter("undock_time").get_value<float>();
+	params.undock_timeout = this->get_parameter("undock_timeout").get_value<float>();
 	params.undock_obstacle_lr = this->get_parameter("undock_obstacle_lr").get_value<float>();
 	params.undock_obstacle_front = this->get_parameter("undock_obstacle_front").get_value<float>();
 	params.charger_contact_condition_type = this->get_parameter("charger_contact_condition_type").get_value<int>();
@@ -197,6 +204,13 @@ void MotionControlNode::init_params()
 	params.enable_clear_local_costmap = this->get_parameter("enable_clear_local_costmap").get_value<bool>();
 	params.timout_clear_local_costmap = this->get_parameter("timout_clear_local_costmap").get_value<float>();
 	params.odom_twist_scale = this->get_parameter("odom_twist_scale").get_value<float>();
+	params.timeout_lookup_marker = this->get_parameter("timeout_lookup_marker").get_value<float>();
+	params.timeout_angle_to_buffer_point = this->get_parameter("timeout_angle_to_buffer_point").get_value<float>();
+	params.timeout_move_to_buffer_point = this->get_parameter("timeout_move_to_buffer_point").get_value<float>();
+	params.timeout_angle_to_x_positive_orientation = this->get_parameter("timeout_angle_to_x_positive_orientation").get_value<float>();
+	params.timeout_angle_to_goal = this->get_parameter("timeout_angle_to_goal").get_value<float>();
+	params.timeout_go_to_goal_position = this->get_parameter("timeout_go_to_goal_position").get_value<float>();
+	params.timeout_goal_angle = this->get_parameter("timeout_goal_angle").get_value<float>();
 	
 	RCLCPP_INFO_STREAM(this->get_logger(), "max_dock_action_run_time: " << params.max_dock_action_run_time 
 		<< ", last_docked_distanace_offset: " << params.last_docked_distance_offset_

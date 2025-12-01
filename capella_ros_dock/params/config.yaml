@@ -61,7 +61,7 @@ motion_control:
     max_action_runtime: 1800
     contacted_keep_move_time: 0.10
     undock_speed: 0.15
-    undock_time: 5.0
+    undock_timeout: 5.0
     undock_obstacle_lr: 0.5 # lr, left_right
     undock_obstacle_front: 1.0
     goal_y_correction: 0.0

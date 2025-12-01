@@ -33,6 +33,7 @@ find_package(std_msgs REQUIRED)
 find_package(nav2_costmap_2d REQUIRED)
 find_package(ament_cmake REQUIRED)
 find_package(nav2_common REQUIRED)
+find_package(magic_enum CONFIG REQUIRED)
 
 set(dependencies
   angles
@@ -97,6 +98,7 @@ target_sources(
 target_include_directories(motion_control_lib PUBLIC include)
 ament_target_dependencies(motion_control_lib
   ${dependencies})
+target_link_libraries(motion_control_lib magic_enum::magic_enum)
 rclcpp_components_register_node(motion_control_lib
   PLUGIN "capella_ros_dock::MotionControlNode"
   EXECUTABLE motion_control)

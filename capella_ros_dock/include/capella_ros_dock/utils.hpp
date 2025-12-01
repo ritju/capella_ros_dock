@@ -44,7 +44,7 @@ struct motion_control_params
 	int max_action_runtime;
 	float contacted_keep_move_time;
 	float undock_speed;
-	float undock_time;
+	float undock_timeout;
 	float undock_obstacle_lr;
 	float undock_obstacle_front;
 	int charger_contact_condition_type;
@@ -68,6 +68,13 @@ struct motion_control_params
 	bool enable_clear_local_costmap;
 	float timout_clear_local_costmap;
 	float odom_twist_scale;
+	float timeout_lookup_marker;
+	float timeout_angle_to_buffer_point;
+	float timeout_move_to_buffer_point;
+	float timeout_angle_to_x_positive_orientation;
+	float timeout_angle_to_goal;
+	float timeout_go_to_goal_position;
+	float timeout_goal_angle;
 };
 } // end namespace capella_ros_dock
 

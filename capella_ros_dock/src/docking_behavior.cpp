@@ -27,7 +27,7 @@ DockingBehavior::DockingBehavior(
 	behavior_scheduler_ = behavior_scheduler;
 	last_feedback_time_ = clock_->now();
 	this->params_ptr = params_ptr;
-	goal_controller_ = std::make_shared<SimpleGoalController>(params_ptr);
+	goal_controller_ = std::make_shared<SimpleGoalController>(node_base_interface, node_clock_interface, node_logging_interface, params_ptr);
 	// RCLCPP_INFO_STREAM(logger_, "max_dock_action_run_time: " << params_ptr->max_dock_action_run_time << " seconds.");
 
 	undock_state_pub_ = rclcpp::create_publisher<std_msgs::msg::Bool>(
@@ -402,7 +402,7 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_dock_servo(
 	}
 	auto hazards = current_state.hazards;
 	servo_cmd = goal_controller_->get_velocity_for_position(robot_pose, current_state.pose, current_state.charger_pose, sees_dock_, is_docked_,
-	 bluetooth_connected,  odom_msg, clock_, logger_, params_ptr, hazards, state, infos, footprint_collision_checker_, footprint_base_, client_clear_entire_local_costmap_);
+	 bluetooth_connected,  odom_msg, hazards, state, infos, b_timeout_current_state, footprint_collision_checker_, footprint_base_, client_clear_entire_local_costmap_);
 	if(this->is_docked_)
 	{
 		RCLCPP_DEBUG(logger_, "zero cmd time => sec: %f", this->clock_.get()->now().seconds());
@@ -425,6 +425,14 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_dock_servo(
 	// 	running_dock_action_ = false;
 	// 	return servo_cmd;
 	// }
+
+	if (b_timeout_current_state)
+	{
+		RCLCPP_INFO(logger_, "Dock Goal timout at state %s, infos: %s", state.c_str(), infos.c_str());
+		auto result = std::make_shared<capella_ros_dock_msgs::action::Dock::Result>();
+		result->is_docked = is_docked_;
+		goal_handle->abort(result);
+	}
 
 	if (!servo_cmd || exceeded_runtime) {
 		auto result = std::make_shared<capella_ros_dock_msgs::action::Dock::Result>();
@@ -593,17 +601,25 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_undock(
 	}
 	auto hazards = current_state.hazards;
 	servo_cmd = goal_controller_->get_velocity_for_position(robot_pose, current_state.pose, current_state.charger_pose, sees_dock_,
-	                                                        is_docked_, bluetooth_connected, odom_msg, clock_, logger_, params_ptr,
-								 hazards, state, infos, footprint_collision_checker_, footprint_base_, client_clear_entire_local_costmap_);
+	                                                        is_docked_, bluetooth_connected, odom_msg, hazards, 
+															state, infos, b_timeout_current_state, footprint_collision_checker_, footprint_base_, client_clear_entire_local_costmap_);
 
 	
 	auto msg = std_msgs::msg::Bool();
 	msg.data = true;
 	undock_state_pub_->publish(msg);
 	bool exceeded_runtime = false;
-	if ((clock_->now() - action_start_time_) > rclcpp::Duration(std::chrono::seconds((int)(params_ptr->undock_time) + 2))) {
+	if ((clock_->now() - action_start_time_) > rclcpp::Duration(std::chrono::seconds((int)(params_ptr->undock_timeout) + 2))) {
 		RCLCPP_INFO(logger_, "Undock Goal Exceeded Runtime");
 		exceeded_runtime = true;
+	}
+
+	if (b_timeout_current_state)
+	{
+		RCLCPP_INFO(logger_, "Undock Goal timout");
+		auto result = std::make_shared<capella_ros_service_interfaces::action::Undock::Result>();
+		result->success = false;
+		goal_handle->abort(result);
 	}
 
 	if (!servo_cmd || exceeded_runtime) {

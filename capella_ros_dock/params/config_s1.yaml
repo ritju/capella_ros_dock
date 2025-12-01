@@ -23,7 +23,7 @@ test_dock:
 motion_control:
   ros__parameters:
     max_dock_action_run_time: 160
-    min_rotation: 0.15
+    min_rotation: 0.10
     max_rotation: 0.20
     go_to_goal_rotation_min: 0.05
     go_to_goal_rotation_max: 0.05
@@ -61,7 +61,7 @@ motion_control:
     max_action_runtime: 1800
     contacted_keep_move_time: 0.3
     undock_speed: 0.15
-    undock_time: 5.0
+    undock_timeout: 5.0
     undock_obstacle_lr: 0.5 # lr, left_right
     undock_obstacle_front: 1.0
     goal_y_correction: 0.0
@@ -73,9 +73,18 @@ motion_control:
     last_goal_angle_to_x_positive_y: 0.01
     collision_check: true
     collision_predict_time: 5.0
-    odom_twist_scale: 0.8
+    odom_twist_scale: 0.99
     enable_clear_local_costmap: false # 是否定时清除local_costmap,用于处理local_costmap长时间不更新的情况
     timout_clear_local_costmap: 3.0 # 清除local_costmap时的超时时间
+    
+    # 定义超时参数 用于处理对接的子过程超时的情况
+    timeout_lookup_marker: 30.0
+    timeout_angle_to_buffer_point: 30.0
+    timeout_move_to_buffer_point: 30.0
+    timeout_angle_to_x_positive_orientation: 30.0
+    timeout_angle_to_goal: 30.0
+    timeout_go_to_goal_position: 30.0
+    timeout_goal_angle: 30.0
 
 
 camera_point_cloud_process:
