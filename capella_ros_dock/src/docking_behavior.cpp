@@ -39,7 +39,7 @@ DockingBehavior::DockingBehavior(
 	dock_visible_sub_ = rclcpp::create_subscription<capella_ros_service_interfaces::msg::ChargeMarkerVisible>(
 		node_topics_interface,
 		"/marker_visible",
-		5,
+		rclcpp::QoS(1).transient_local().reliable(),
 		std::bind(&DockingBehavior::dock_visible_callback, this, _1)
 		);
 

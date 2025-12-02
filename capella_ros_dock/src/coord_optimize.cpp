@@ -52,7 +52,7 @@ namespace capella_ros_dock
                 //subs
                 marker_pose_sub_    = this->create_subscription<MarkerPose>("/pose_with_id", 20, std::bind(&CoordOptimize::marker_pose_sub_callback, this, _1));
                 odom_sub_           = this->create_subscription<Odom>("/odom", 50, std::bind(&CoordOptimize::odom_sub_callback, this, _1));
-                marker_visible_sub_ = this->create_subscription<MarkerVisible>("/marker_visible", 15, std::bind(&CoordOptimize::marker_visible_callback, this, _1));
+                marker_visible_sub_ = this->create_subscription<MarkerVisible>("/marker_visible", rclcpp::QoS(1).transient_local().reliable(), std::bind(&CoordOptimize::marker_visible_callback, this, _1));
                 cmd_vel_sub_        = this->create_subscription<CmdVel>("cmd_vel", 10, std::bind(&CoordOptimize::cmd_vel_sub_callback, this, _1));
 
                 //pubs

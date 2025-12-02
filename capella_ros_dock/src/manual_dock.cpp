@@ -83,7 +83,7 @@ namespace capella_ros_dock
 
                 charger_visible_sub_ = this->create_subscription<capella_ros_service_interfaces::msg::ChargeMarkerVisible>(
                         "marker_visible",
-                        30,
+                        rclcpp::QoS(1).transient_local().reliable(),
                         std::bind(&ManualDock::charger_visible_sub_callback, this, std::placeholders::_1),
                         sub_ops4
                 );
