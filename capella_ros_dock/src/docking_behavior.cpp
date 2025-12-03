@@ -144,7 +144,7 @@ DockingBehavior::DockingBehavior(
 	dock_rotation.setRPY(0, 0, 0);
 	last_dock_pose_.setRotation(dock_rotation);
 	// Set number from observation, but will repopulate on undock with calibrated value
-	last_docked_distance_offset_ = 0.32;
+	last_docked_distance_offset = 0.32;
 	action_start_time_ = clock_->now();
 
 	this->footprint_collision_checker_ =  nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*>();
@@ -284,57 +284,31 @@ void DockingBehavior::handle_dock_servo_accepted(
 		}
 	}
 
-	// Generate point offset from dock facing dock then point at dock
-	SimpleGoalController::CmdPath dock_path;
-	tf2::Transform robot_pose(tf2::Transform::getIdentity());
-	{
-		const std::lock_guard<std::mutex> lock(robot_pose_mutex_);
-		robot_pose = last_robot_pose_;
-		auto position = robot_pose.getOrigin();
-		auto yaw = tf2::getYaw(robot_pose.getRotation());
-		RCLCPP_INFO(logger_, "robot_pose => x: %f, y: %f, angular: %f", position.getX(), position.getY(), yaw);
-	}
+	// Generate point 
+	SimpleGoalController::CmdPath dock_path;	
 	tf2::Transform dock_pose(tf2::Transform::getIdentity());
 	{
 		const std::lock_guard<std::mutex> lock(dock_pose_mutex_);
 		dock_pose = last_dock_pose_;
 		auto position = dock_pose.getOrigin();
 		auto yaw = tf2::getYaw(dock_pose.getRotation());
-		RCLCPP_INFO(logger_, "dock_pose  => x: %f, y: %f, angular: %f", position.getX(), position.getY(), yaw);
+		RCLCPP_INFO(logger_, "dock_pose  => x: %f, y: %f, yaw: %f", position.getX(), position.getY(), yaw);
 	}
-	// If robot is farther than 0.5 from dock, put offset point 0.5 in front of dock,
-	// otherwise put in line with robot's current distance away from the dock
-	// const tf2::Vector3 & robot_position = robot_pose.getOrigin();
-	// const tf2::Vector3 & dock_position = dock_pose.getOrigin();
-	// double dist_offset = std::hypot(
-	// 	dock_position.getX() - robot_position.getX(),
-	// 	dock_position.getY() - robot_position.getY());
-	// RCLCPP_INFO(logger_, "dist_offset: %f", dist_offset);
+	
 	MAX_DOCK_INTERMEDIATE_GOAL_OFFSET = params_ptr->distance_low_speed + params_ptr->second_goal_distance;
-	last_docked_distance_offset_ = params_ptr->last_docked_distance_offset_;
-	const double max_goal_offset = MAX_DOCK_INTERMEDIATE_GOAL_OFFSET + last_docked_distance_offset_ + params_ptr->first_goal_distance;
-	// if (dist_offset > max_goal_offset) {
-	double dist_offset = max_goal_offset;
-	// }
-	RCLCPP_DEBUG(logger_, "dist_offset: %f", dist_offset);
+	last_docked_distance_offset = params_ptr->last_docked_distance_offset;
+	const double max_goal_offset = MAX_DOCK_INTERMEDIATE_GOAL_OFFSET + last_docked_distance_offset;
+	
+	double dist_offset = max_goal_offset;	
 	tf2::Transform dock_offset(tf2::Transform::getIdentity());
 	tf2::Quaternion dock_rotation;
 
-
-	// dock_rotation.setRPY(0, 0, 0);
-	// dock_offset.setOrigin(tf2::Vector3(-dist_offset , params_ptr->goal_y_correction, 0));
-	// dock_offset.setRotation(dock_rotation);
-	// dock_path.emplace_back(dock_pose * dock_offset, 0.10, true); // third goal
-
-	// dock_rotation.setRPY(0, 0, 0);
-	// dock_offset.setOrigin(tf2::Vector3(-(params_ptr->last_docked_distance_offset_ + 0.10), params_ptr->goal_y_correction, 0));
-	// dock_offset.setRotation(dock_rotation);
-	// dock_path.emplace_back(dock_pose * dock_offset, 0.01, true); // second goal
-
 	float dx = 0.05;
 	float start_point_x = -(dist_offset + params_ptr->buffer_goal_distance);
-	float end_point_x = -params_ptr->last_docked_distance_offset_;
-	int size = std::floor(std::abs(end_point_x - start_point_x) / dx);
+	float end_point_x = -params_ptr->last_docked_distance_offset;
+	RCLCPP_INFO(logger_, "start_point_x: %f", start_point_x);
+	RCLCPP_INFO(logger_, "end_point_x: %f", end_point_x);
+	int size = std::ceil(std::abs(end_point_x - start_point_x) / dx);
 	for (int i = 1; i <= size; i++)
 	{
 		float x_coord = start_point_x + dx * i;
@@ -344,11 +318,6 @@ void DockingBehavior::handle_dock_servo_accepted(
 		dock_offset.setRotation(dock_rotation);
 		dock_path.emplace_back(dock_pose * dock_offset, 0.01, true); 
 	}
-
-	// dock_rotation.setRPY(0, 0, 0);
-	// dock_offset.setOrigin(tf2::Vector3(-params_ptr->first_goal_distance, params_ptr->goal_y_correction, 0));
-	// dock_offset.setRotation(dock_rotation);
-	// dock_path.emplace_back(dock_pose * dock_offset, 0.01, true); // first goal
 
 	goal_controller_->initialize_goal(dock_path);
 	// Setup behavior to override other commanded motion
@@ -413,7 +382,7 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_dock_servo(
 	// x = this->last_robot_pose_.getOrigin().getX();
 	// y = this->last_robot_pose_.getOrigin().getY();
 	// r = std::hypot(x,y);
-	// if (r < (this->params_ptr->last_docked_distance_offset_ + this->params_ptr->distance_low_speed))
+	// if (r < (this->params_ptr->last_docked_distance_offset + this->params_ptr->distance_low_speed))
 	// {
 	// 	RCLCPP_INFO(logger_, "distance: %f,  return success for testing.", r);
 	// 	auto result = std::make_shared<capella_ros_dock_msgs::action::Dock::Result>();
@@ -481,10 +450,10 @@ rclcpp_action::GoalResponse DockingBehavior::handle_undock_goal(
 		auto current_pose = last_robot_pose_.getOrigin();
 		double x;
 		x = current_pose.getX();
-		if (std::abs(x) > (std::abs(params_ptr->last_docked_distance_offset_) + 0.6))
+		if (std::abs(x) > (std::abs(params_ptr->last_docked_distance_offset) + 0.6))
 		{
-			RCLCPP_INFO(logger_, "abs(x): %f, std::abs(params_ptr->last_docked_distance_offset_) + 0.6: %f", 
-				std::abs(x), std::abs(params_ptr->last_docked_distance_offset_) + 0.6);
+			RCLCPP_INFO(logger_, "abs(x): %f, std::abs(params_ptr->last_docked_distance_offset) + 0.6: %f", 
+				std::abs(x), std::abs(params_ptr->last_docked_distance_offset) + 0.6);
 			RCLCPP_WARN(logger_, "Robot had undocked, reject");
 			return rclcpp_action::GoalResponse::REJECT;
 		}
@@ -695,9 +664,9 @@ void DockingBehavior::calibrate_docked_distance_offset(
 	const tf2::Transform & dock_pose)
 {
 	tf2::Vector3 pos_diff = docked_robot_pose.getOrigin() - dock_pose.getOrigin();
-	last_docked_distance_offset_ = std::hypot(pos_diff.getX(), pos_diff.getY());
+	last_docked_distance_offset = std::hypot(pos_diff.getX(), pos_diff.getY());
 	calibrated_offset_ = true;
-	RCLCPP_DEBUG(logger_, "Setting robot dock offset to %f", last_docked_distance_offset_);
+	RCLCPP_DEBUG(logger_, "Setting robot dock offset to %f", last_docked_distance_offset);
 }
 
 void DockingBehavior::laserScan_sub_callback(sensor_msgs::msg::LaserScan msg)

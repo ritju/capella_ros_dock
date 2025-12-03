@@ -84,11 +84,11 @@ void MotionControlNode::init_params()
 	this->declare_parameter<float>("go_to_goal_apply_rotation_angle", 0.10);
 	this->declare_parameter<float>("goal_angle_converged", 0.15);
 	this->declare_parameter<float>("dist_goal_converged", 0.10);
-	this->declare_parameter<float>("last_docked_distance_offset_", 0.32);
+	this->declare_parameter<float>("last_docked_distance_offset", 0.32);
 	this->declare_parameter<float>("distance_low_speed", 0.10);
 	this->declare_parameter<float>("translate_low_speed", 0.02);
 	this->declare_parameter<float>("rotation_low_speed", 0.05);
-	this->declare_parameter<float>("first_goal_distance", 0.0);
+	this->declare_parameter<float>("", 0.0);
 	this->declare_parameter<float>("second_goal_distance", 0.5);
 	this->declare_parameter<float>("buffer_goal_distance", 1.0);
 	this->declare_parameter<float>("camera_horizontal_view", 64.0);
@@ -111,12 +111,12 @@ void MotionControlNode::init_params()
 	this->declare_parameter<int>("max_action_runtime", 180);
 	this->declare_parameter<float>("contacted_keep_move_time", 0.1);
 	this->declare_parameter<float>("undock_speed", 0.15);
-	this->declare_parameter<float>("undock_timeout", 0.20);
+	this->declare_parameter<float>("undock_timeout", 5.0);
+	this->declare_parameter<float>("undock_dis", 0.5);
 	this->declare_parameter<float>("undock_obstacle_lr", 0.25);
 	this->declare_parameter<float>("undock_obstacle_front", 0.50);
 	this->declare_parameter<int>("charger_contact_condition_type", 0);
 	this->declare_parameter<float>("contact_state_change_time_delta", 0.5);
-	this->declare_parameter<float>("charging_radius", 1.0);
 	this->declare_parameter<float>("similarity_threshold", 0.95);
 	this->declare_parameter<float>("camera_baselink_dis", 0.30);
 	this->declare_parameter<float>("goal_y_correction", 0.01);
@@ -153,11 +153,10 @@ void MotionControlNode::init_params()
 	params.go_to_goal_apply_rotation_angle = this->get_parameter_or<float>("go_to_goal_apply_rotation_angle", 0.10);
 	params.goal_angle_converged = this->get_parameter_or<float>("goal_angle_converged", 0.15);
 	params.dist_goal_converged = this->get_parameter_or<float>("dist_goal_converged", 0.10);
-	params.last_docked_distance_offset_ = this->get_parameter_or<float>("last_docked_distance_offset_", 0.32);
+	params.last_docked_distance_offset = this->get_parameter_or<float>("last_docked_distance_offset", 0.32);
 	params.distance_low_speed = this->get_parameter_or<float>("distance_low_speed", 0.10);
 	params.translate_low_speed = this->get_parameter_or<float>("translate_low_speed", 0.02);
 	params.rotation_low_speed = this->get_parameter_or<float>("rotation_low_speed", 0.05);
-	params.first_goal_distance = this->get_parameter_or<float>("first_goal_distance", 0.0);
 	params.second_goal_distance = this->get_parameter_or<float>("second_goal_distance", 0.50);
 	params.buffer_goal_distance = this->get_parameter_or<float>("buffer_goal_distance", 1.0);
 	params.camera_horizontal_view = this->get_parameter_or<float>("camera_horizontal_view", 64.0);
@@ -181,11 +180,11 @@ void MotionControlNode::init_params()
 	params.contacted_keep_move_time = this->get_parameter("contacted_keep_move_time").get_value<float>();
 	params.undock_speed = this->get_parameter("undock_speed").get_value<float>();
 	params.undock_timeout = this->get_parameter("undock_timeout").get_value<float>();
+	params.undock_dis = this->get_parameter("undock_dis").get_value<float>();
 	params.undock_obstacle_lr = this->get_parameter("undock_obstacle_lr").get_value<float>();
 	params.undock_obstacle_front = this->get_parameter("undock_obstacle_front").get_value<float>();
 	params.charger_contact_condition_type = this->get_parameter("charger_contact_condition_type").get_value<int>();
 	params.contact_state_change_time_delta = this->get_parameter("contact_state_change_time_delta").get_value<float>();
-	params.charging_radius = this->get_parameter("charging_radius").get_value<float>();
 	params.similarity_threshold = this->get_parameter("similarity_threshold").get_value<float>();
 	params.camera_baselink_dis = this->get_parameter("camera_baselink_dis").get_value<float>();
 	params.goal_y_correction = this->get_parameter("goal_y_correction").get_value<float>();
@@ -213,8 +212,7 @@ void MotionControlNode::init_params()
 	params.timeout_goal_angle = this->get_parameter("timeout_goal_angle").get_value<float>();
 	
 	RCLCPP_INFO_STREAM(this->get_logger(), "max_dock_action_run_time: " << params.max_dock_action_run_time 
-		<< ", last_docked_distanace_offset: " << params.last_docked_distance_offset_
-		<< ", charging_radius: " << params.charging_radius);
+		<< ", last_docked_distanace_offset: " << params.last_docked_distance_offset);
 }
 
 void MotionControlNode::cb_hazard_detection(capella_ros_dock_msgs::msg::HazardDetectionVector::SharedPtr msg)

@@ -5,9 +5,32 @@ from launch.actions import DeclareLaunchArgument
 from launch.actions import IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch.substitutions import TextSubstitution
 from nav2_common.launch import RewrittenYaml
+
+"""
+用于获取环境变量值
+参数
+env: 环境变量名称
+default: 环境变量为赋值时使用的默认值
+返回值
+返回最终采用的值
+"""
+def get_environment_value(env, default):
+    try:
+        if env in os.environ:
+            value = os.environ.get(env, default)
+            print(f'get {env} value: {value} from environment')
+            return value
+        else:
+            print(f"Using default {env} value: {default}.")
+            return default
+    except Exception as e:
+        print(f'exception: {str(e)}')
+        print(f"Please input {env} in environment")
+        return default
+
 
 def generate_launch_description():
     
@@ -21,97 +44,50 @@ def generate_launch_description():
     usb_cam_pkg_path = get_package_share_directory('usb_cam')
     laserscan_3d_to_2d_path = get_package_share_directory('pointcloud_to_laserscan') 
     
-    dock_param_file_name = 'config.yaml'
-    try:
-        if 'DOCK_PARAM_FILE' in os.environ:
-            dock_param_file_name = os.environ.get('DOCK_PARAM_FILE')
-            print(f'get DOCK_PARAM_FILE {dock_param_file_name} from docker-compose.yaml file')
-        else:
-            dock_param_file_name = 'config.yaml'
-            print("Using default dock_param_file_name config.yaml.")
-    except Exception as e:
-        print(f'exception: {str(e)}')
-        print("Please input DOCK_PARAM_FILE in docker-compose.yaml")
-        dock_param_file_name = 'config.yaml'
+    # 获取环境变量值
+    dock_param_file_name = get_environment_value("DOCK_PARAM_FILE", "config.yaml")
+    charger_contact_type = get_environment_value("CHARGER_CONTACT_CONDITION_TYPE", "BLUETOOTH_ONLY")
+    last_docked_offset = get_environment_value("LAST_DOCKED_DISTANCE_OFFSET", "0.30")
+    camera_baselink_distance = get_environment_value("CAMERA_BASELINK_DIS", "0.3")
+    apriltag_double_log_level = get_environment_value("APRILTAG_DOUBLE_LOG_LEVEL", "info")
+    motion_control_log_level = get_environment_value("MOTION_CONTROL_LOG_LEVEL", "info")
     
-
-    # create launch configuration variables
-    params_file_path = LaunchConfiguration('params_files', default=os.path.join(dock_pkg_path, 'params', dock_param_file_name))
-    motion_control_log_level = LaunchConfiguration('motion_control_log_level')
-    test_count = LaunchConfiguration('test_count', default = 1)
-    
-    charger_contact_condition_type = 0
-    type_list = {
+    # 类型映射
+    type_mapping = {
         'BLUETOOTH_ONLY': 0,
         'CAMERA_ONLY': 1,
-        'BLUETOOTH_ADN_CAMERA': 2
+        'BLUETOOTH_AND_CAMERA': 2
     }
     
-    try:
-        if 'CHARGER_CONTACT_CONDITION_TYPE' in os.environ:
-            charger_contact_condition_type_name = os.environ.get('CHARGER_CONTACT_CONDITION_TYPE')
-            print(f'get charger_contact_condition_type {charger_contact_condition_type_name} from docker-compose.yaml file')
-            charger_contact_condition_type = type_list[charger_contact_condition_type_name]
-        else:
-            charger_contact_condition_type = 0
-            print("Using default charger_contact_condition_type 0.")
-    except Exception as e:
-        print(f'exception: {str(e)}')
-        print("Please input CHARGER_CONTACT_CONDITION_TYPE in docker-compose.yaml")
-        charger_contact_condition_type = 0
-
-    last_docked_distance_offset_ = 0.60
-    try:
-        if 'LAST_DOCKED_DISTANCE_OFFSET' in os.environ:
-            last_docked_distance_offset_ = float(os.environ.get('LAST_DOCKED_DISTANCE_OFFSET'))
-            print(f'get last_docked_distance_offset_ from docker-compose.yaml file')
-        else:
-            last_docked_distance_offset_ = 0.60
-            print("Using default last_docked_distance_offset_ 0.60")
-    except Exception as e:
-        print(f'exception: {str(e)}')
-        print("Please input LAST_DOCKED_DISTANCE_OFFSET in docker-compose.yaml")
-        last_docked_distance_offset_ = 0.60
-
-    charging_radius = 0.8
-    try:
-        if 'CHARGING_RADIUS' in os.environ:
-            charging_radius = float(os.environ.get('CHARGING_RADIUS'))
-            print(f'get charging radius {charging_radius} from docker-compose.yml')
-        else:
-            charging_radius = 0.8
-    except Exception as e:
-        print(f'exception: {str(e)}')
-        print("Please modify CHARGING_RADIUS's value in docker-compose.yml")
-        charging_radius = 0.8
-
-    camera_baselink_dis_ = 0.3
-    try:
-        if 'CAMERA_BASELINK_DIS' in os.environ:
-            camera_baselink_dis_ = float(os.environ.get('CAMERA_BASELINK_DIS'))
-            print(f'get camera_baselink_dis_ {camera_baselink_dis_} from docker-compose.yml')
-        else:
-            camera_baselink_dis_ = 0.3
-    except Exception as e:
-        print(f'exception: {str(e)}')
-        print("Please modify CAMERA_BASELINK_DIS's value in docker-compose.yml")
-        camera_baselink_dis_ = 0.3
-
+    # 构建参数文件路径
+    params_file_path = PathJoinSubstitution([
+        dock_pkg_path, 'params', dock_param_file_name
+    ])
     
-    # declare launch arguments   
-    # test_count_launch_arg = DeclareLaunchArgument('test_count', default_value=TextSubstitution(text="1"))
-    log_level_arg = DeclareLaunchArgument('log_level', default_value='info', description='define motion_control node log level')
-    params_file_arg = DeclareLaunchArgument('params_files', default_value=params_file_path)
-    
-    # configured params file
+    # 参数替换配置 - 确保值为字符串类型
     param_substitutions = {
-        "test_count": test_count,
-    }
-
+        "charger_contact_condition_type": str(type_mapping[charger_contact_type]),
+        "last_docked_distance_offset": str(last_docked_offset),
+        "camera_baselink_dis": str(camera_baselink_distance)
+    }    
+    
+    # 配置参数文件
     configured_params = RewrittenYaml(
         source_file=params_file_path,
         param_rewrites=param_substitutions,
         convert_types=True
+    )
+
+    # 声明launch参数
+    motion_control_log_level_arg = DeclareLaunchArgument(
+        'motion_control_log_level', 
+        default_value=motion_control_log_level, 
+        description='define motion_control node log level'
+    )
+    apriltag_double_log_level_arg = DeclareLaunchArgument(
+        'apriltag_double_log_level', 
+        default_value=apriltag_double_log_level, 
+        description='define motion_control node log level'
     )
 
     # serial Node
@@ -177,7 +153,10 @@ def generate_launch_description():
 
     # apriltag double launch file
     apriltag_double_launch_file = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(os.path.join(apriltag_pkg_path, 'launch', 'apriltag_ros_double.launch.py'))
+        PythonLaunchDescriptionSource(os.path.join(apriltag_pkg_path, 'launch', 'apriltag_ros_double.launch.py')),
+        launch_arguments={
+            "log_level": LaunchConfiguration("apriltag_double_log_level")
+        }.items()
     )
 
     # 使用usb_cam包启动rgb相机
@@ -190,15 +169,15 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(os.path.join(laserscan_3d_to_2d_path, 'launch', 'sample_pointcloud_to_laserscan_launch.py'))
     )
 
-    # motion_control Node
+    # 对接充电桩主程序
     motion_control_node = Node(
         executable='motion_control',
         package='capella_ros_dock',
         name='motion_control',
         namespace='',
         output='screen',
-        parameters=[configured_params, {'charger_contact_condition_type': charger_contact_condition_type, 'charging_radius': charging_radius, 'last_docked_distance_offset_': last_docked_distance_offset_, 'camera_baselink_dis': camera_baselink_dis_}],
-        arguments=['--ros-args', '--log-level', ['motion_control:=', LaunchConfiguration('log_level')]]
+        parameters=[configured_params],
+        arguments=['--ros-args', '--log-level', ['motion_control:='], LaunchConfiguration("motion_control_log_level")]        
     )
 
     # hazards_vector_publisher Node
@@ -255,8 +234,8 @@ def generate_launch_description():
     )
 
     # launch_description.add_action(test_count_launch_arg)
-    launch_description.add_action(log_level_arg)
-    launch_description.add_action(params_file_arg)
+    launch_description.add_action(motion_control_log_level_arg)
+    launch_description.add_action(apriltag_double_log_level_arg)
     # launch_description.add_action(serial_node)
 
     # launch_description.add_action(wifi_node)

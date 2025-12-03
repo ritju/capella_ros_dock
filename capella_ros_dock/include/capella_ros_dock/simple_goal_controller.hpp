@@ -63,7 +63,7 @@ SimpleGoalController(rclcpp::node_interfaces::NodeBaseInterface::SharedPtr node_
 void init(motion_control_params* params_ptr)
 {
 	robot_info_ = RobotInfo();
-	buffer_goal_point_x = -(params_ptr->last_docked_distance_offset_
+	buffer_goal_point_x = -(params_ptr->last_docked_distance_offset
 	                        + params_ptr->distance_low_speed
 	                        + params_ptr->second_goal_distance
 	                        + params_ptr->buffer_goal_distance);
@@ -72,9 +72,9 @@ void init(motion_control_params* params_ptr)
 	float camera_horizontal_view, marker_size, camera_baselink_dis, goal_dis_x;
 	camera_horizontal_view = degree_to_radian(params_ptr->camera_horizontal_view);
 	marker_size = params_ptr->marker_size;
-	camera_baselink_dis = params_ptr->camera_baselink_dis;         //0.4 -0.1(gp.r)
-	goal_dis_x = params_ptr->last_docked_distance_offset_ + params_ptr->distance_low_speed + params_ptr->second_goal_distance;
-	RCLCPP_INFO(rclcpp::get_logger("simple_goal_controller"), "camera_horizontal_view: %f, marker_size: %f, camera_baselink_dis: %f, goal_dis_x: %f",
+	camera_baselink_dis = params_ptr->camera_baselink_dis;
+	goal_dis_x = params_ptr->last_docked_distance_offset + params_ptr->distance_low_speed + params_ptr->second_goal_distance;
+	RCLCPP_INFO(rclcpp::get_logger("simple_goal_controller"), "camera_horizontal_view: %.2f, marker_size: %.2f, camera_baselink_dis: %.2f, goal_dis_x: %.2f",
 	            camera_horizontal_view, marker_size, camera_baselink_dis, goal_dis_x);
 
 	float d1, d2, d3, alpha;
@@ -83,16 +83,17 @@ void init(motion_control_params* params_ptr)
 	d3 = marker_size * 0.5;
 	alpha = camera_horizontal_view * 0.5;
 	float tan_alpha = std::tan(alpha);
-	RCLCPP_INFO(rclcpp::get_logger("simple_goal_controller"), "d1: %f, d2: %f, d3: %f, alpha: %f", d1, d2, d3, alpha);
+	RCLCPP_INFO(rclcpp::get_logger("simple_goal_controller"), "d1: %.2f, d2: %.2f, d3: %.2f, alpha: %.2f", d1, d2, d3, alpha);
 	float r = std::hypot(d1 * tan_alpha - d3, d1 + d3 * tan_alpha);
 	float x1 = d2 * tan_alpha;
 	float x2 = d1 * tan_alpha - d3;
 	float beta_plus_theta = std::acos(x1 / r);
 	float beta = std::acos(x2 / r);
 	thre_angle_diff = beta_plus_theta - beta;
-	RCLCPP_INFO(rclcpp::get_logger("simple_goal_controller"), "r: %f, x1: %f, x2: %f, beta_plus_theta: %f, beta: %f", r, x1, x2, beta_plus_theta, beta);
-	RCLCPP_INFO(rclcpp::get_logger("simple_goal_controller"), "thre_angle_diff: %F", thre_angle_diff);
+	RCLCPP_INFO(rclcpp::get_logger("simple_goal_controller"), "r: %.2f, x1: %.2f, x2: %.2f, beta_plus_theta: %.2f, beta: %.2f", r, x1, x2, beta_plus_theta, beta);
+	RCLCPP_INFO(rclcpp::get_logger("simple_goal_controller"), "thre_angle_diff: %.2f", thre_angle_diff);
 
+	// 计算 marker是否在相机的视野范围内，不再使用该方法，已经计算了机器人朝向目标点的方向的最大允许角度thre_angle_diff
 	// 	if (sees_dock)
 	// 	{
 	// 		auto robot_pose = current_pose.getOrigin();
@@ -107,8 +108,8 @@ void init(motion_control_params* params_ptr)
 	// 		if (camera_horizontal_view * 0.5 < std::abs(theta_to_goal))
 	// 		{
 	// 			RCLCPP_INFO(logger_, "************failed************");
-	// 			RCLCPP_INFO(logger_, "x: %f, y: %f, theta: %f, theta_to_goal: %f", x, y, theta, theta_to_goal);
-	// 			RCLCPP_INFO(logger_, "camera_horizontal_view/2: %f< theta_to_goal: %f",
+	// 			RCLCPP_INFO(logger_, "x: %.2f, y: %.2f, theta: %.2f, theta_to_goal: %.2f", x, y, theta, theta_to_goal);
+	// 			RCLCPP_INFO(logger_, "camera_horizontal_view/2: %.2f< theta_to_goal: %.2f",
 	// 				camera_horizontal_view * 0.5, std::abs(theta_to_goal));
 	// 		}
 	// 		else
@@ -117,14 +118,14 @@ void init(motion_control_params* params_ptr)
 	// 			if (y_coord > marker_size * 0.5)
 	// 			{
 	// 				RCLCPP_INFO(logger_, "============success============");
-	// 				RCLCPP_INFO(logger_, "x: %f, y: %f, theta: %f, theta_to_goal: %f", x, y, theta, theta_to_goal);
-	// 				RCLCPP_INFO(logger_, "y_coord: %f", y_coord);
+	// 				RCLCPP_INFO(logger_, "x: %.2f, y: %.2f, theta: %.2f, theta_to_goal: %.2f", x, y, theta, theta_to_goal);
+	// 				RCLCPP_INFO(logger_, "y_coord: %.2f", y_coord);
 	// 			}
 	// 			else
 	// 			{
 	// 				RCLCPP_INFO(logger_, "************failed************");
-	// 				RCLCPP_INFO(logger_, "x: %f, y: %f, theta: %f, theta_to_goal: %f", x, y, theta, theta_to_goal);
-	// 				RCLCPP_INFO(logger_, "y_coord: %f", y_coord);
+	// 				RCLCPP_INFO(logger_, "x: %.2f, y: %.2f, theta: %.2f, theta_to_goal: %.2f", x, y, theta, theta_to_goal);
+	// 				RCLCPP_INFO(logger_, "y_coord: %.2f", y_coord);
 	// 			}
 	// 		}
 
@@ -167,7 +168,6 @@ void initialize_goal(const CmdPath & cmd_path)
 		gp.radius = cmd_path[i].radius;
 		gp.drive_backwards = cmd_path[i].drive_backwards;
 	}
-	RCLCPP_INFO(logger_, "初始化current_state为 LOOKUP_MARKER");
 	current_state_ = NavigateStates::INIT;
 }
 
@@ -186,13 +186,15 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 	nav_msgs::msg::Odometry odom_msg, capella_ros_dock_msgs::msg::HazardDetectionVector hazards, std::string & state, std::string & infos, bool& b_timeout_current_state,
 	nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*>  collision_checker, std::vector<geometry_msgs::msg::Point> footprint_vec, rclcpp::Client<nav2_msgs::srv::ClearEntireCostmap>::SharedPtr client_clear_entire_local_costmap)
 {
+	save_all_poses_infos(robot_pose_map, current_pose, charger_pose_map, sees_dock);
+
 	// impl undock (go to undock state)
 	if (goal_points_.size() >0 && !(goal_points_.front().drive_backwards))
 	{
-		RCLCPP_INFO(logger_, "***************** start undock *****************");
 		if (current_state_ != NavigateStates::UNDOCK)
 		{
 			change_state(current_state_, NavigateStates::UNDOCK, clock_->now().seconds(), params_ptr->undock_timeout);
+			undock_dis_moved_ = 0.0;
 		}
 		sleep(0.5); // wait for /charger/stop to execute.
 		undocking = true;
@@ -200,7 +202,6 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 	else
 	{
 		undocking = false;
-		start_undock = true;
 	}
 
 	// RCLCPP_INFO_STREAM(logger_, "simple_goal_controller => max_dock_action_run_time: " << params_ptr->max_dock_action_run_time << " seconds.");
@@ -213,12 +214,12 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		{
 			first_contacted = false;
 			first_contacted_time = clock_->now().seconds();
-			RCLCPP_DEBUG(logger_, "keep moving until %f expired.", params_ptr->contacted_keep_move_time);
+			RCLCPP_DEBUG(logger_, "keep moving until %.2f expired.", params_ptr->contacted_keep_move_time);
 		}
 		else
 		{
-			auto now_time = clock_->now().seconds();
-			if ((now_time - first_contacted_time) > params_ptr->contacted_keep_move_time)
+			now_time_ = clock_->now().seconds();
+			if ((now_time_ - first_contacted_time) > params_ptr->contacted_keep_move_time)
 			{
 				RCLCPP_INFO(logger_, "*************** robot is docked *************");
 				goal_points_.clear();
@@ -248,8 +249,8 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		last_time_cannot_see_dock = clock_->now();
 		RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "stop for hazards.");
 		auto distance = std::abs(current_pose.getOrigin().getX());
-		RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "distance: %f", distance);
-		RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "throttle: %f", params_ptr->dock_valid_obstacle_x);
+		RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "distance: %.2f", distance);
+		RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "throttle: %.2f", params_ptr->dock_valid_obstacle_x);
 		servo_vel = geometry_msgs::msg::Twist();
 		state = std::string(" > ANGLE_TO_X_POSITIVE_ORIENTATION");
 		infos = std::string("Reason: have valid hazards and navigate_state > ANGLE_TO_X_POSITIVE_ORIENTATION  ==> stop ...");
@@ -326,219 +327,217 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 	switch (current_state_) {
 	case NavigateStates::INIT:
 	{
-		RCLCPP_DEBUG(logger_, "------------- INIT -------------");
+		print_current_state_debug(current_state_);
 		servo_vel = geometry_msgs::msg::Twist();
 		change_state(current_state_, NavigateStates::LOOKUP_MARKER, clock_->now().seconds(), 1.0); // INIT 状态只执行一次，不涉及超时问题，为保持一致，timout参数设置为1.0
 		break;
 	}
 	case NavigateStates::LOOKUP_MARKER:
 	{
-		RCLCPP_DEBUG(logger_, "------------- LOOKUP_MARKER -------------");
-
+		print_current_state_debug(current_state_);
 		servo_vel = geometry_msgs::msg::Twist();
 
 		b_timeout_current_state = check_current_state_timeout();
 		if (b_timeout_current_state)
 		{
 			return servo_vel;		
-		}		
+		}
+		
+		auto angle_robot = tf2::getYaw(robot_pose_map.getRotation());
+		double x_charger, y_charger, x_robot, y_robot;
+		x_robot = robot_pose_map.getOrigin()[0];
+		y_robot = robot_pose_map.getOrigin()[1];
+		x_charger = charger_pose_map.getOrigin()[0];
+		y_charger = charger_pose_map.getOrigin()[1];
+		auto angle_charger_to_robot = std::atan2(y_robot - y_charger, x_robot - x_charger);
+		auto dist_angle = angles::shortest_angular_distance(angle_robot, angle_charger_to_robot);
 
-		if (using_localization)
+		if (!sees_dock)
 		{
-			auto angle_robot = tf2::getYaw(robot_pose_map.getRotation());
-			double x_charger, y_charger, x_robot, y_robot;
-			x_robot = robot_pose_map.getOrigin()[0];
-			y_robot = robot_pose_map.getOrigin()[1];
-			x_charger = charger_pose_map.getOrigin()[0];
-			y_charger = charger_pose_map.getOrigin()[1];
-			auto angle_charger_to_robot = std::atan2(y_robot - y_charger, x_robot - x_charger);
-			auto dist_angle = angles::shortest_angular_distance(angle_robot, angle_charger_to_robot);
-			RCLCPP_DEBUG(logger_, "using localization: %s", using_localization?"true":"false");
+			RCLCPP_DEBUG(logger_, "x_robot_map: %.2f, y_robot_map: %.2f", x_robot, y_robot);
+			RCLCPP_DEBUG(logger_, "x_charger_map: %.2f, y_charger_map: %.2f", x_charger, y_charger);
 
-			if (!sees_dock)
+			RCLCPP_DEBUG(logger_, "angle_robot: %.2f", angle_robot);
+			RCLCPP_DEBUG(logger_, "angle_charger_to_robot: %.2f", angle_charger_to_robot);
+			RCLCPP_DEBUG(logger_, "dist_angle: %.2f", dist_angle);
+
+			start_time_recorded = false;
+			RCLCPP_DEBUG(logger_, "Need rotate robot for it can see the marker.");
+			
+			if (std::abs(dist_angle) > params_ptr->tolerance_angle)
 			{
-				RCLCPP_DEBUG(logger_, "x_robot_map: %f, y_robot_map: %f", x_robot, y_robot);
-				RCLCPP_DEBUG(logger_, "x_charger_map: %f, y_charger_map: %f", x_charger, y_charger);
-
-				RCLCPP_DEBUG(logger_, "angle_robot: %f", angle_robot);
-				RCLCPP_DEBUG(logger_, "angle_charger_to_robot: %f", angle_charger_to_robot);
-				RCLCPP_DEBUG(logger_, "dist_angle: %f", dist_angle);
-
-				start_time_recorded = false;
-				RCLCPP_DEBUG(logger_, "Need rotate robot for it can see the marker.");
-				
-				if (std::abs(dist_angle) > params_ptr->tolerance_angle)
-				{
-					double dist_angle_copy = dist_angle;
-					bound_rotation(dist_angle_copy, params_ptr->min_rotation, params_ptr->max_rotation);
-					servo_vel->angular.z = dist_angle_copy;
-					RCLCPP_DEBUG(logger_, "angular_z: %f", servo_vel->angular.z);
-				}
-				else
-				{
-					servo_vel->angular.z = 0.0;
-					state = std::string("LOOKUP_MARKER");
-					infos = std::string("Reason: The robot has rotated towards the charging station direction, but it can not see the marker!"); 
-					RCLCPP_WARN_THROTTLE(logger_, *clock_, 3000, "%s", infos.c_str());
-				}
-
-				// before actually begin rotation, collision_check first
-				// current_state: LOOKUP_MARKER
-				double remaining_rotation_time = std::abs(dist_angle / servo_vel->angular.z);
-				double predict_time = std::min(double(params_ptr->collision_predict_time), remaining_rotation_time);
-				RCLCPP_DEBUG(logger_, "predict_time: %f", predict_time);
-				if (params_ptr->collision_check)
-				{
-					double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, true, 0.0, servo_vel->angular.z,
-					                                   predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
-					if (cost_value >= nav2_costmap_2d::LETHAL_OBSTACLE)
-					{
-						RCLCPP_DEBUG(logger_, "cost value: %f >= %f", cost_value,  static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));
-						servo_vel->angular.z = 0.0;
-						RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "stop for collision check, when LOOKUP_MARKER");
-
-						if(params_ptr->enable_clear_local_costmap)
-						{
-							clear_local_costmap(params_ptr, logger_, clock_, client_clear_entire_local_costmap);
-						}
-
-						return servo_vel;
-					}
-				}
-				else
-				{
-					RCLCPP_DEBUG(logger_, "collision_check: %s", params_ptr->collision_check ? "true":"false");
-				}
-
-				state = std::string("LOOKUP_MARKER");
-				infos = std::string("Reason: camera's orientation not towards charger's marker ==> rotate robot");
+				double dist_angle_copy = dist_angle;
+				bound_rotation(dist_angle_copy, params_ptr->min_rotation, params_ptr->max_rotation);
+				servo_vel->angular.z = dist_angle_copy;
+				RCLCPP_DEBUG(logger_, "angular_z: %.2f", servo_vel->angular.z);
 			}
 			else
 			{
-				RCLCPP_DEBUG(logger_, "waiting for find the best coordinate for robot in marker frame");
-				double x_,y_, theta_;
-				x_ = current_pose.getOrigin()[0];
-				y_ = current_pose.getOrigin()[1];
-				theta_ = tf2::getYaw(current_pose.getRotation());
-				RCLCPP_DEBUG(logger_, "robot_x: %f", x_);
-				RCLCPP_DEBUG(logger_, "robot_y: %f", y_);
-				RCLCPP_DEBUG(logger_, "robot_theta: %f", theta_);
+				servo_vel->angular.z = 0.0;
+				state = std::string("LOOKUP_MARKER");
+				infos = std::string("Reason: The robot has rotated towards the charging station direction, but it can not see the marker!"); 
+				RCLCPP_WARN_THROTTLE(logger_, *clock_, 3000, "%s", infos.c_str());
+			}
 
-				if(!start_time_recorded)
+			// before actually begin rotation, collision_check first
+			// current_state: LOOKUP_MARKER
+			double remaining_rotation_time = std::abs(dist_angle / servo_vel->angular.z);
+			double predict_time = std::min(double(params_ptr->collision_predict_time), remaining_rotation_time);
+			RCLCPP_DEBUG(logger_, "predict_time: %.2f", predict_time);
+			if (params_ptr->collision_check)
+			{
+				double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, true, 0.0, servo_vel->angular.z,
+													predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
+				if (cost_value >= nav2_costmap_2d::LETHAL_OBSTACLE)
 				{
-					start_time_recorded = true;
-					waiting_for_best_coord_start_time = clock_->now().seconds();
-					RCLCPP_DEBUG(logger_, "waiting_for_best_coord_start_time : %f", waiting_for_best_coord_start_time);
+					RCLCPP_DEBUG(logger_, "cost value: %.2f >= %.2f", cost_value,  static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));
+					servo_vel->angular.z = 0.0;
+					RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "stop for collision check, when %s", magic_enum::enum_name(current_state_).data());
+
+					if(params_ptr->enable_clear_local_costmap)
+					{
+						clear_local_costmap(client_clear_entire_local_costmap);
+					}
+
+					return servo_vel;
+				}
+			}
+			else
+			{
+				RCLCPP_DEBUG(logger_, "collision_check: %s", params_ptr->collision_check ? "true":"false");
+			}
+
+			state = std::string("LOOKUP_MARKER");
+			infos = std::string("Reason: camera's orientation not towards charger's marker ==> rotate robot");
+		}
+		else
+		{
+			RCLCPP_DEBUG(logger_, "waiting for find the best coordinate for robot in marker frame");
+			double x_,y_, theta_;
+			x_ = current_pose.getOrigin()[0];
+			y_ = current_pose.getOrigin()[1];
+			theta_ = tf2::getYaw(current_pose.getRotation());
+			RCLCPP_DEBUG(logger_, "robot_x: %.2f", x_);
+			RCLCPP_DEBUG(logger_, "robot_y: %.2f", y_);
+			RCLCPP_DEBUG(logger_, "robot_theta: %.2f", theta_);
+
+			if(!start_time_recorded)
+			{
+				start_time_recorded = true;
+				waiting_for_best_coord_start_time = clock_->now().seconds();
+				RCLCPP_DEBUG(logger_, "waiting_for_best_coord_start_time : %.2f", waiting_for_best_coord_start_time);
+				state = std::string("LOOKUP_MARKER");
+				infos = std::string("Reason: camera's orientation first towards charger's marker ==> record the start time.");
+			}
+			else
+			{
+				now_time_ = clock_->now().seconds();
+				double time_wating = now_time_ - waiting_for_best_coord_start_time;
+
+				if (time_wating < params_ptr->localization_converged_time)
+				{
+					RCLCPP_DEBUG(logger_, "coords not converged, wait %.2f seconds.", time_wating);
 					state = std::string("LOOKUP_MARKER");
-					infos = std::string("Reason: camera's orientation first towards charger's marker ==> record the start time.");
+					infos = std::string("Reason: coords not converged ==> just wait.");
 				}
 				else
 				{
-					auto now_time = clock_->now().seconds();
-					double time_wating = now_time - waiting_for_best_coord_start_time;
+					RCLCPP_DEBUG(logger_, "coords converged, change state.");
+					start_time_recorded = false;
 
-					if (time_wating < params_ptr->localization_converged_time)
+					float distance_tmp = params_ptr->last_docked_distance_offset
+											+ params_ptr->distance_low_speed
+											+ params_ptr->second_goal_distance;
+					double theta = std::atan2(std::abs(robot_y_charger_), std::abs(robot_x_charger_) - distance_tmp);
+					RCLCPP_DEBUG(logger_, "robot_x_charger: %.2f", robot_x_charger_);
+					RCLCPP_DEBUG(logger_, "robot_y_charger: %.2f", robot_y_charger_);
+					RCLCPP_DEBUG(logger_, "robot_yaw_charger: %.2f", robot_yaw_charger_);					
+
+					double base_link_y, base_link_x;
+					base_link_y = robot_y_charger_ - params_ptr->base_link_dummy_dis * std::sin(robot_yaw_charger_);
+					base_link_x = robot_x_charger_ - params_ptr->base_link_dummy_dis * std::cos(robot_yaw_charger_);
+
+					RCLCPP_DEBUG(logger_, "base_link_x: %.2f", base_link_x);
+					RCLCPP_DEBUG(logger_, "base_link_y: %.2f", base_link_y);
+
+					// 三个判断条件
+					RCLCPP_DEBUG(logger_, "theta: %.2f", theta);
+					RCLCPP_DEBUG(logger_, "thre_angle_diff: %.2f", thre_angle_diff);
+
+					RCLCPP_DEBUG(logger_, "std::abs(robot_x_charger_): %.2f", std::abs(robot_x_charger_));
+					RCLCPP_DEBUG(logger_, "distance_tmp + params_ptr->deviate_second_goal_x: %.2f", distance_tmp + params_ptr->deviate_second_goal_x);
+
+					RCLCPP_DEBUG(logger_, "std::abs(base_link_y): %.2f", std::abs(base_link_y));
+					RCLCPP_DEBUG(logger_, " params_ptr->base_link_y_thr: %.2f",  params_ptr->base_link_y_thr);
+
+					if (theta < thre_angle_diff 
+						&& std::abs(robot_x_charger_) > (distance_tmp + params_ptr->deviate_second_goal_x) 
+						&& std::abs(base_link_y) < params_ptr->base_link_y_thr)                                                                                                                                                                                      // 0.7 <= 0.5 + 0.2(x_error)
 					{
-						RCLCPP_DEBUG(logger_, "coords not converged, wait %.2f seconds.", time_wating);
+						RCLCPP_DEBUG(logger_, "robot change state to angle_to_goal");
+						change_state(current_state_, NavigateStates::ANGLE_TO_GOAL, clock_->now().seconds(), params_ptr->timeout_angle_to_goal);
 						state = std::string("LOOKUP_MARKER");
-						infos = std::string("Reason: coords not converged ==> just wait.");
+						infos = std::string("Reason: robot's position converged ==> directly change state to ANGLE_TO_GOAL");
 					}
 					else
 					{
-						RCLCPP_DEBUG(logger_, "coords converged, change state.");
-						start_time_recorded = false;
+						RCLCPP_DEBUG(logger_, "robot change state to angle_to_buffer_point");
+						RCLCPP_DEBUG(logger_, "buffer_goal_point_x: %.2f, buffer_goal_point_y: %.2f", buffer_goal_point_x, buffer_goal_point_y);
 
-						double robot_x = current_pose.getOrigin().getX();
-						double robot_y = current_pose.getOrigin().getY();
-						double robot_theta = tf2::getYaw(current_pose.getRotation());
-						float distance_tmp = params_ptr->last_docked_distance_offset_
-						                     + params_ptr->distance_low_speed
-						                     + params_ptr->second_goal_distance;
-						double theta = std::atan2(std::abs(robot_y), std::abs(robot_x) - distance_tmp);
-						RCLCPP_DEBUG(logger_, "robot_x: %f", robot_x);
-						RCLCPP_DEBUG(logger_, "robot_y: %f", robot_y);
-						RCLCPP_DEBUG(logger_, "robot_theta: %f", robot_theta);
-						RCLCPP_DEBUG(logger_, "theta_to_buffer_point: %f", theta);
-						RCLCPP_DEBUG(logger_, "thre_angle_diff: %f", thre_angle_diff);
+						tf_before_angle_to_buffer_point = robot_pose_map;
 
-						double base_link_y, base_link_x;
-						base_link_y = robot_y - params_ptr->base_link_dummy_dis * std::sin(robot_theta);
-						base_link_x = robot_x - params_ptr->base_link_dummy_dis * std::cos(robot_theta);
+						double buffer_goal_point_x_base_link = buffer_goal_point_x - params_ptr->base_link_dummy_dis;
+						double buffer_goal_point_y_base_link = buffer_goal_point_y;
+						RCLCPP_DEBUG(logger_, "buffer_goal_point_x_base_link: %.2f, buffer_goal_point_y_base_link: %.2f",
+							buffer_goal_point_x_base_link, buffer_goal_point_y_base_link);
 
-						RCLCPP_DEBUG(logger_, "base_link_x: %f", base_link_x);
-						RCLCPP_DEBUG(logger_, "base_link_y: %f", base_link_y);
+						dist_buffer_point = std::hypot(base_link_x - buffer_goal_point_x_base_link,
+														base_link_y - buffer_goal_point_y_base_link);
 
-						if (theta < thre_angle_diff && std::abs(robot_x) > (distance_tmp + params_ptr->deviate_second_goal_x) && std::abs(base_link_y) < params_ptr->base_link_y_thr)                                                                                                                                                                                      // 0.7 <= 0.5 + 0.2(x_error)
+						dist_move_to_buffer_point = dist_buffer_point;
+
+						robot_angle_to_buffer_point_yaw = std::atan2(buffer_goal_point_y_base_link - base_link_y,
+																		buffer_goal_point_x_base_link - base_link_x);
+
+						// decide drive back or not
+						robot_current_yaw = robot_yaw_charger_;
+						theta_positive = angles::shortest_angular_distance(
+							angles::normalize_angle(robot_current_yaw + M_PI),
+							robot_angle_to_buffer_point_yaw);
+						theta_negative = angles::shortest_angular_distance(robot_current_yaw,
+																			robot_angle_to_buffer_point_yaw);
+						if (std::abs(theta_positive) < std::abs(theta_negative))
 						{
-							RCLCPP_DEBUG(logger_, "robot change state to angle_to_goal");
-							change_state(current_state_, NavigateStates::ANGLE_TO_GOAL, clock_->now().seconds(), params_ptr->timeout_angle_to_goal);
-							state = std::string("LOOKUP_MARKER");
-							infos = std::string("Reason: robot's position converged ==> directly change state to ANGLE_TO_GOAL");
+							drive_back = false;
+							dist_buffer_point_yaw = theta_positive;
 						}
 						else
 						{
-							RCLCPP_DEBUG(logger_, "robot change state to angle_to_buffer_point");
-							RCLCPP_DEBUG(logger_, "buffer_goal_point_x: %f, buffer_goal_point_y: %f", buffer_goal_point_x, buffer_goal_point_y);
-
-							tf_before_angle_to_buffer_point = robot_pose_map;
-
-							double buffer_goal_point_x_base_link = buffer_goal_point_x - params_ptr->base_link_dummy_dis;
-							double buffer_goal_point_y_base_link = buffer_goal_point_y;
-
-							dist_buffer_point = std::hypot(base_link_x - buffer_goal_point_x_base_link,
-							                               base_link_y - buffer_goal_point_y_base_link);
-
-							dist_move_to_buffer_point = dist_buffer_point;
-
-							robot_angle_to_buffer_point_yaw = std::atan2(buffer_goal_point_y_base_link - base_link_y,
-							                                             buffer_goal_point_x_base_link - base_link_x);
-
-							// decide drive back or not
-							robot_current_yaw = robot_theta;
-							theta_positive = angles::shortest_angular_distance(
-								angles::normalize_angle(robot_current_yaw + M_PI),
-								robot_angle_to_buffer_point_yaw);
-							theta_negative = angles::shortest_angular_distance(robot_current_yaw,
-							                                                   robot_angle_to_buffer_point_yaw);
-							if (std::abs(theta_positive) < std::abs(theta_negative))
-							{
-								drive_back = false;
-								dist_buffer_point_yaw = theta_positive;
-							}
-							else
-							{
-								drive_back = true;
-								dist_buffer_point_yaw = theta_negative;
-							}
-
-							theta_angle_to_buffer_point = dist_buffer_point_yaw;
-
-							RCLCPP_DEBUG(logger_, "robot_current_yaw: %f", robot_current_yaw);
-							RCLCPP_DEBUG(logger_, "robot_angle_to_buffer_point_yaw: %f", robot_angle_to_buffer_point_yaw);
-							RCLCPP_DEBUG(logger_, "theta_negative: %f", theta_negative);
-							RCLCPP_DEBUG(logger_, "theta_positive: %f", theta_positive);
-							RCLCPP_DEBUG(logger_, "dist_buffer_point: %f", dist_buffer_point);
-							RCLCPP_DEBUG(logger_, "dist_buffer_point_yaw: %f", dist_buffer_point_yaw);
-							pre_time = clock_->now().seconds();
-							change_state(current_state_, NavigateStates::ANGLE_TO_BUFFER_POINT, clock_->now().seconds(), params_ptr->timeout_angle_to_buffer_point);
-							state = std::string("LOOKUP_MARKER");
-							infos = std::string("Reason: robot's position not converged ==> directly change state to ANGLE_TO_BUFFER_POINT");
+							drive_back = true;
+							dist_buffer_point_yaw = theta_negative;
 						}
-					}
 
+						theta_angle_to_buffer_point = dist_buffer_point_yaw;
+
+						RCLCPP_DEBUG(logger_, "robot_current_yaw: %.2f", robot_current_yaw);
+						RCLCPP_DEBUG(logger_, "robot_angle_to_buffer_point_yaw: %.2f", robot_angle_to_buffer_point_yaw);
+						RCLCPP_DEBUG(logger_, "theta_negative: %.2f", theta_negative);
+						RCLCPP_DEBUG(logger_, "theta_positive: %.2f", theta_positive);
+						RCLCPP_DEBUG(logger_, "dist_buffer_point: %.2f", dist_buffer_point);
+						RCLCPP_DEBUG(logger_, "dist_buffer_point_yaw: %.2f", dist_buffer_point_yaw);
+						update_time_smart();
+						change_state(current_state_, NavigateStates::ANGLE_TO_BUFFER_POINT, clock_->now().seconds(), params_ptr->timeout_angle_to_buffer_point);
+						state = std::string("LOOKUP_MARKER");
+						infos = std::string("Reason: robot's position not converged ==> directly change state to ANGLE_TO_BUFFER_POINT");
+					}
 				}
 			}
 		}
-		else                 // process for the case that don't use robot localization
-		{
-
-		}
-
 		break;
 	}
 	case NavigateStates::ANGLE_TO_BUFFER_POINT:
 	{
-		RCLCPP_DEBUG(logger_, "------------- ANGLE_TO_BUFFER_POINT -------------");
+		print_current_state_debug(current_state_);
 		servo_vel = geometry_msgs::msg::Twist();
 
 		b_timeout_current_state = check_current_state_timeout();
@@ -547,31 +546,24 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			return servo_vel;		
 		}
 
-		now_time = clock_->now().seconds();
-		double dt = now_time - pre_time;
-		if (abs(dt) > 1.5 / params_ptr->cmd_vel_hz)
-		{
-			RCLCPP_WARN(logger_, "error occurs, dt: %f", dt);
-			dt = 1.0 / params_ptr->cmd_vel_hz;
-		}
+		update_time_smart();
 
-		RCLCPP_DEBUG(logger_, "dt: %f", dt);
-		RCLCPP_DEBUG(logger_, "angular.z: %f", odom_msg.twist.twist.angular.z);
-		RCLCPP_DEBUG(logger_, "delta_angular: %f", odom_msg.twist.twist.angular.z * dt);
-		RCLCPP_DEBUG(logger_, "dist_buffer_point_yaw pre: %f", dist_buffer_point_yaw);
-		dist_buffer_point_yaw -= odom_msg.twist.twist.angular.z * dt;
-		robot_current_yaw += odom_msg.twist.twist.angular.z * dt;
-		RCLCPP_DEBUG(logger_, "dist_buffer_point_yaw now: %f", dist_buffer_point_yaw);
+		RCLCPP_DEBUG(logger_, "delta_time: %.2f", delta_time_);
+		RCLCPP_DEBUG(logger_, "angular.z: %.2f", odom_msg.twist.twist.angular.z);
+		RCLCPP_DEBUG(logger_, "delta_angular: %.2f", odom_msg.twist.twist.angular.z * delta_time_);
+		RCLCPP_DEBUG(logger_, "dist_buffer_point_yaw pre: %.2f", dist_buffer_point_yaw);
+		dist_buffer_point_yaw -= odom_msg.twist.twist.angular.z * delta_time_;
+		robot_current_yaw += odom_msg.twist.twist.angular.z * delta_time_;
+		RCLCPP_DEBUG(logger_, "dist_buffer_point_yaw now: %.2f", dist_buffer_point_yaw);
 		double angle_dist = dist_buffer_point_yaw;
-		RCLCPP_DEBUG(logger_, "angle_dist: %f", angle_dist);
-		RCLCPP_DEBUG(logger_, "robot_map_yaw: %f", tf2::getYaw(robot_pose_map.getRotation()));
-		pre_time = now_time;
+		RCLCPP_DEBUG(logger_, "angle_dist: %.2f", angle_dist);
+		RCLCPP_DEBUG(logger_, "robot_map_yaw: %.2f", tf2::getYaw(robot_pose_map.getRotation()));
 		if(std::abs(angle_dist) < params_ptr->tolerance_angle)
 		{
 			RCLCPP_DEBUG(logger_, "change state to move_to_buffer_point.");
 			tf_after_angle_to_buffer_point = robot_pose_map;
 			double theta_delta_map = tf2::getYaw((tf_before_angle_to_buffer_point.inverse() * tf_after_angle_to_buffer_point).getRotation());
-			RCLCPP_DEBUG(logger_, "dist_angle_to_buffer_point: %f, theta_delta: %f", theta_angle_to_buffer_point, theta_delta_map);
+			RCLCPP_DEBUG(logger_, "dist_angle_to_buffer_point: %.2f, theta_delta: %.2f", theta_angle_to_buffer_point, theta_delta_map);
 			change_state(current_state_, NavigateStates::MOVE_TO_BUFFER_POINT, clock_->now().seconds(), params_ptr->timeout_move_to_buffer_point);
 			state = std::string("ANGLE_TO_BUFFER_POINT");
 			infos = std::string("Reason: ANGLE_TO_BUFFER_POINT converged ==> change state to MOVE_TO_BUFFER_POINT");
@@ -585,20 +577,20 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			theta = tf2::getYaw(robot_pose_map.getRotation());
 			double cost = collision_checker.footprintCostAtPose(x, y, theta, footprint_vec);
 			// double cost = collision_checker.footprintCost(footprint_vec);
-			RCLCPP_DEBUG(logger_, "x: %f, y: %f, theta: %f", x, y, theta);
+			RCLCPP_DEBUG(logger_, "x: %.2f, y: %.2f, theta: %.2f", x, y, theta);
 			for (size_t index = 0; index < footprint_vec.size(); index++)
 			{
-				RCLCPP_DEBUG(logger_, "footprint Point(%f, %f)", footprint_vec[index].x, footprint_vec[index].y);
+				RCLCPP_DEBUG(logger_, "footprint Point(%.2f, %.2f)", footprint_vec[index].x, footprint_vec[index].y);
 			}
 			if ((cost >= static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE)) && params_ptr->collision_check)
 			{
-				RCLCPP_DEBUG(logger_, "cost value: %f >= %f", cost, static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));
+				RCLCPP_DEBUG(logger_, "cost value: %.2f >= %.2f", cost, static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));
 				servo_vel->angular.z = 0.0;
 				return servo_vel;
 			}
 			else
 			{
-				RCLCPP_DEBUG(logger_, "cost value: %f, go on ......", cost);
+				RCLCPP_DEBUG(logger_, "cost value: %.2f, go on ......", cost);
 				RCLCPP_DEBUG(logger_, "collision_check: %s", params_ptr->collision_check ? "true":"false");
 			}
 
@@ -622,13 +614,13 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 				                                   predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
 				if (cost_value >= nav2_costmap_2d::LETHAL_OBSTACLE)
 				{
-					RCLCPP_DEBUG(logger_, "cost value: %f >= %f", cost_value,  static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));
+					RCLCPP_DEBUG(logger_, "cost value: %.2f >= %.2f", cost_value,  static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));
 					servo_vel->angular.z = 0.0;
-					RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "stop for collision check, when ANGLE_TO_BUFFER_POINT");
+					RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "stop for collision check, when  %s", magic_enum::enum_name(current_state_).data());
 
 					if(params_ptr->enable_clear_local_costmap)
 					{
-						clear_local_costmap(params_ptr, logger_, clock_, client_clear_entire_local_costmap);
+						clear_local_costmap(client_clear_entire_local_costmap);
 					}
 
 					return servo_vel;
@@ -646,7 +638,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 	}
 	case NavigateStates::MOVE_TO_BUFFER_POINT:
 	{
-		RCLCPP_DEBUG(logger_, "------------- MOVE_TO_BUFFER_POINT -------------");
+		print_current_state_debug(current_state_);
 		servo_vel = geometry_msgs::msg::Twist();
 
 		b_timeout_current_state = check_current_state_timeout();
@@ -655,28 +647,22 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			return servo_vel;		
 		}
 
-		now_time = clock_->now().seconds();
-		double dt = now_time - pre_time;
-		if (abs(dt) > 1.5 / params_ptr->cmd_vel_hz)
-		{
-			RCLCPP_WARN(logger_, "error occurs, dt: %f", dt);
-			dt = 1.0 / params_ptr->cmd_vel_hz;
-		}
-		dist_buffer_point -= dt * std::abs(odom_msg.twist.twist.linear.x);
-		pre_time = now_time;
+		update_time_smart();
+
+		dist_buffer_point -= delta_time_ * std::abs(odom_msg.twist.twist.linear.x);
 		double dist_y = dist_buffer_point;
-		RCLCPP_DEBUG(logger_, "odom_msg.linear_x: %f", odom_msg.twist.twist.linear.x);
-		RCLCPP_DEBUG(logger_, "dt: %f", dt);
-		RCLCPP_DEBUG(logger_, "dist_buffer_point now: %f", dist_buffer_point);
-		RCLCPP_DEBUG(logger_, "dist_y: %f", dist_y);
-		RCLCPP_DEBUG(logger_, "robot_map_x: %f, robot_map_y: %f", robot_pose_map.getOrigin().getX(), robot_pose_map.getOrigin().getY());
+		RCLCPP_DEBUG(logger_, "odom_msg.linear_x: %.2f", odom_msg.twist.twist.linear.x);
+		RCLCPP_DEBUG(logger_, "delta_time: %.2f", delta_time_);
+		RCLCPP_DEBUG(logger_, "dist_buffer_point now: %.2f", dist_buffer_point);
+		RCLCPP_DEBUG(logger_, "dist_y: %.2f", dist_y);
+		RCLCPP_DEBUG(logger_, "robot_map_x: %.2f, robot_map_y: %.2f", robot_pose_map.getOrigin().getX(), robot_pose_map.getOrigin().getY());
 		if (std::abs(dist_y) < params_ptr->tolerance_r)
 		{
 			RCLCPP_DEBUG(logger_, "change state to angle_to_x_positive_orientation");
 			tf_after_move_to_buffer_point = robot_pose_map;
 			tf2::Transform tf_ = tf_after_angle_to_buffer_point.inverse() * tf_after_move_to_buffer_point;
 			double dist_move_to_buffer_point_delta = std::hypot(tf_.getOrigin().getX(), tf_.getOrigin().getY());
-			RCLCPP_DEBUG(logger_, "dist_move_to_buffer_point: %f, dist_delta: %f", dist_move_to_buffer_point, dist_move_to_buffer_point_delta);
+			RCLCPP_DEBUG(logger_, "dist_move_to_buffer_point: %.2f, dist_delta: %.2f", dist_move_to_buffer_point, dist_move_to_buffer_point_delta);
 
 			change_state(current_state_, NavigateStates::ANGLE_TO_X_POSITIVE_ORIENTATION, clock_->now().seconds(), params_ptr->timeout_angle_to_x_positive_orientation );
 			state = std::string("MOVE_TO_BUFFER_POINT");
@@ -696,7 +682,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 				translate_velocity = std::copysign(params_ptr->min_translation, translate_velocity);
 			}
 			servo_vel->linear.x = translate_velocity;
-			RCLCPP_DEBUG(logger_, "linear.x: : %f", translate_velocity);
+			RCLCPP_DEBUG(logger_, "linear.x: : %.2f", translate_velocity);
 
 			// before actually begin moving, collision_check first
 			// current state: MOVE_TO_BUFFER_POINT
@@ -722,7 +708,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 
 			double remaining_rotation_time = std::abs(dist_buffer_point / servo_vel->linear.x);
 			double predict_time = std::min(double(params_ptr->collision_predict_time), remaining_rotation_time);
-			RCLCPP_DEBUG(logger_, "predict_time: %f", predict_time);
+			RCLCPP_DEBUG(logger_, "predict_time: %.2f", predict_time);
 			if (params_ptr->collision_check && need_check_collision)
 			{
 				double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, false, servo_vel->linear.x, 0.0,
@@ -730,13 +716,13 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 				if (cost_value >= nav2_costmap_2d::LETHAL_OBSTACLE)
 				{
 
-					RCLCPP_DEBUG(logger_, "cost value: %f >= %f", cost_value,  static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));
+					RCLCPP_DEBUG(logger_, "cost value: %.2f >= %.2f", cost_value,  static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));
 					servo_vel->linear.x = 0.0;
-					RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "stop for collision check, when MOVE_TO_BUFFER_POINT");
+					RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "stop for collision check, when %s", magic_enum::enum_name(current_state_).data());
 
 					if(params_ptr->enable_clear_local_costmap)
 					{
-						clear_local_costmap(params_ptr, logger_, clock_, client_clear_entire_local_costmap);
+						clear_local_costmap(client_clear_entire_local_costmap);
 					}
 
 					return servo_vel;
@@ -746,8 +732,8 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			{
 				RCLCPP_DEBUG(logger_, "collision_check: %s", params_ptr->collision_check ? "true":"false");
 				RCLCPP_DEBUG(logger_, "need_check_collision: %s", need_check_collision ? "true":"false");
-				RCLCPP_DEBUG(logger_, "yaw_c2r_abs: %f", yaw_c2r_abs);
-				RCLCPP_DEBUG(logger_, "x_c2r: %f, dock_valid_obstacle_x: %f", x_c2r, params_ptr->dock_valid_obstacle_x);
+				RCLCPP_DEBUG(logger_, "yaw_c2r_abs: %.2f", yaw_c2r_abs);
+				RCLCPP_DEBUG(logger_, "x_c2r: %.2f, dock_valid_obstacle_x: %.2f", x_c2r, params_ptr->dock_valid_obstacle_x);
 			}
 
 			state = std::string("MOVE_TO_BUFFER_POINT");
@@ -757,7 +743,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 	}
 	case NavigateStates::ANGLE_TO_X_POSITIVE_ORIENTATION:
 	{
-		RCLCPP_DEBUG(logger_, "------------- ANGLE_TO_X_POSITIVE_ORIENTATION -------------");
+		print_current_state_debug(current_state_);
 		servo_vel = geometry_msgs::msg::Twist();
 
 		b_timeout_current_state = check_current_state_timeout();
@@ -766,97 +752,105 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			return servo_vel;		
 		}
 
-		now_time = clock_->now().seconds();
-		double dt = now_time - pre_time;
+		update_time_smart();
 
-		double robot_yaw_marker = tf2::getYaw(current_pose.getRotation());
-		double dist_yaw_marker = angles::shortest_angular_distance(robot_yaw_marker, 0);
-		double dist_yaw_marker_copy = dist_yaw_marker;
+		double theta_charger_to_robot = std::atan2(robot_y_map_ - charger_y_map_, robot_x_map_ - charger_x_map_);
+		double dist_yaw_map = angles::shortest_angular_distance(robot_yaw_map_, theta_charger_to_robot);
 
 		RCLCPP_DEBUG(logger_, "marker_visible: %s", sees_dock?"true":"false");
-		RCLCPP_DEBUG(logger_, "dist_yaw_marker: %f", dist_yaw_marker);
-		RCLCPP_DEBUG(logger_, "dt: %.2f", dt);
+		RCLCPP_DEBUG(logger_, "dist_yaw_map: %.2f", dist_yaw_map);
+		RCLCPP_DEBUG(logger_, "delta_time: %.2f", delta_time_);
 
-		if(std::abs(dist_yaw_marker) < params_ptr->tolerance_angle )
+		if(std::abs(dist_yaw_map) < params_ptr->tolerance_angle) 
 		{
-			double robot_x = current_pose.getOrigin().getX();
-			double robot_y = current_pose.getOrigin().getY();
-			double robot_theta = tf2::getYaw(current_pose.getRotation());
-			float distance_tmp = params_ptr->last_docked_distance_offset_
-			                     + params_ptr->distance_low_speed
-			                     + params_ptr->second_goal_distance;
-			double theta = std::atan2(std::abs(robot_y), std::abs(robot_x) - distance_tmp);
-			RCLCPP_DEBUG(logger_, "robot_x: %.2f", robot_x);
-			RCLCPP_DEBUG(logger_, "robot_y: %.2f", robot_y);
-			RCLCPP_DEBUG(logger_, "robot_y: %.2f", robot_theta);
-			RCLCPP_DEBUG(logger_, "theta_to_second_goal: %f", theta);
-			RCLCPP_DEBUG(logger_, "thre_angle_diff: %f", thre_angle_diff);
-			RCLCPP_DEBUG(logger_, "robot_theta: %f", robot_theta);
-
-			double base_link_y;
-			base_link_y = robot_y - params_ptr->base_link_dummy_dis * std::sin(robot_theta);
-
-			RCLCPP_DEBUG(logger_, "base_link_y: %f", base_link_y);
-
-			if (theta < thre_angle_diff && std::abs(robot_x) > (distance_tmp + params_ptr->deviate_second_goal_x) && std::abs(base_link_y) < params_ptr->base_link_y_thr)                                                                                                                                                                                      // 0.7 <= 0.5 + 0.2(x_error)
+			if (marker_visible_) // marker_visible: true
 			{
-				RCLCPP_INFO(logger_, "converged ==>Change state to ANGLE_TO_GOAL");
-				change_state(current_state_, NavigateStates::ANGLE_TO_GOAL, clock_->now().seconds(), params_ptr->timeout_angle_to_goal );
-				state = std::string("ANGLE_TO_X_POSITIVE_ORIENTATION");
-				infos = std::string("Reason: ANGLE_TO_X_POSITIVE_ORIENTATION converged ==> change state to ANGLE_TO_GOAL");
+				float distance_tmp = params_ptr->last_docked_distance_offset
+									+ params_ptr->distance_low_speed
+									+ params_ptr->second_goal_distance;
+				double theta = std::atan2(std::abs(robot_y_charger_), std::abs(robot_x_charger_) - distance_tmp);
+				RCLCPP_DEBUG(logger_, "robot_x_charger: %.2f", robot_x_charger_);
+				RCLCPP_DEBUG(logger_, "robot_y_charger: %.2f", robot_y_charger_);
+				RCLCPP_DEBUG(logger_, "robot_yaw_charger_: %.2f", robot_yaw_charger_);
+				
+				RCLCPP_DEBUG(logger_, "robot_theta: %.2f", robot_yaw_charger_);
+
+				double base_link_y;
+				base_link_y = robot_y_charger_ - params_ptr->base_link_dummy_dis * std::sin(robot_yaw_charger_);
+				RCLCPP_DEBUG(logger_, "base_link_y: %.2f", base_link_y);
+
+				// 三个判断条件
+				RCLCPP_DEBUG(logger_, "theta: %.2f", theta);
+				RCLCPP_DEBUG(logger_, "thre_angle_diff: %.2f", thre_angle_diff);
+
+				RCLCPP_DEBUG(logger_, "std::abs(base_link_y): %.2f", std::abs(base_link_y));
+				RCLCPP_DEBUG(logger_, " params_ptr->base_link_y_thr: %.2f",  params_ptr->base_link_y_thr);
+
+				RCLCPP_DEBUG(logger_, "std::abs(robot_x_charger_): %.2f", std::abs(robot_x_charger_));
+				RCLCPP_DEBUG(logger_, "distance_tmp + params_ptr->deviate_second_goal_x: %.2f", distance_tmp + params_ptr->deviate_second_goal_x);
+
+				if (theta < thre_angle_diff  // 角度小于阀值
+					&& std::abs(base_link_y) < params_ptr->base_link_y_thr // y坐标(左右)小于阀值
+					&& std::abs(robot_x_charger_) > (distance_tmp + params_ptr->deviate_second_goal_x)) // x坐标(前后) > （second_goal + 阀值）                                                                                                                                                                                     // 0.7 <= 0.5 + 0.2(x_error)
+				{
+					RCLCPP_INFO(logger_, "converged ==>Change state to ANGLE_TO_GOAL");
+					change_state(current_state_, NavigateStates::ANGLE_TO_GOAL, clock_->now().seconds(), params_ptr->timeout_angle_to_goal );
+					state = std::string("ANGLE_TO_X_POSITIVE_ORIENTATION => ANGLE_TO_GOAL");
+					infos = std::string("Reason: ANGLE_TO_X_POSITIVE_ORIENTATION converged ==> change state to ANGLE_TO_GOAL");
+				}
+				else
+				{
+					RCLCPP_INFO(logger_, "To re-execute ANGLE_TO_BUFFER_POINT, change state to LOOKUP_MARKER");
+					change_state(current_state_, NavigateStates::LOOKUP_MARKER, clock_->now().seconds(), params_ptr->timeout_lookup_marker );
+					state = std::string("ANGLE_TO_X_POSITIVE_ORIENTATION => LOOKUP_MARKER");
+					infos = std::string("Reason: ANGLE_TO_X_POSITIVE_ORIENTATION not converged ==> change state to LOOKUP_MARKER");
+				}
 			}
-			else
+			else // marker_visible: false
 			{
-				RCLCPP_INFO(logger_, "To re-execute ANGLE_TO_BUFFER_POINT, change state to LOOKUP_MARKER");
-				change_state(current_state_, NavigateStates::LOOKUP_MARKER, clock_->now().seconds(), params_ptr->timeout_lookup_marker );
-				state = std::string("ANGLE_TO_X_POSITIVE_ORIENTATION");
-				infos = std::string("Reason: ANGLE_TO_X_POSITIVE_ORIENTATION not converged ==> change state to LOOKUP_MARKER");
+				RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "current_ state: %s, can not see the marker, just waiting ...", magic_enum::enum_name(current_state_).data());
+				return servo_vel;
 			}
 		}
-		else
+		else // std::abs(dist_yaw_map) >= params_ptr->tolerance_angle
 		{
-			RCLCPP_DEBUG(logger_, "dist_yaw_marker: %f", dist_yaw_marker);
-			bound_rotation(dist_yaw_marker, params_ptr->min_rotation, params_ptr->max_rotation);
-			servo_vel->angular.z = dist_yaw_marker;
-			RCLCPP_DEBUG(logger_, "angular.z: %.2f", servo_vel->angular.z);
+			bound_rotation(dist_yaw_map, params_ptr->min_rotation, params_ptr->max_rotation);
+			servo_vel->angular.z = dist_yaw_map;
 
 			// before actually begin rotation, collision_check first
 			// current state: ANGLE_TO_X_POSITIVE_ORIENTATION
-			double remaining_rotation_time = std::abs(dist_yaw_marker_copy / servo_vel->angular.z);
+			double remaining_rotation_time = std::abs(dist_yaw_map / servo_vel->angular.z);
 			double predict_time = std::min(double(params_ptr->collision_predict_time), remaining_rotation_time);
-			RCLCPP_DEBUG(logger_, "predict_time: %f", predict_time);
+			RCLCPP_DEBUG(logger_, "predict_time: %.2f", predict_time);
 			if (params_ptr->collision_check)
 			{
 				double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, true, 0.0, servo_vel->angular.z,
 				                                   predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
 				if (cost_value >= nav2_costmap_2d::LETHAL_OBSTACLE)
 				{
-					RCLCPP_DEBUG(logger_, "cost value: %f >= %f", cost_value,  static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));
+					RCLCPP_DEBUG(logger_, "cost value: %.2f >= %.2f", cost_value,  static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));
 					servo_vel->angular.z = 0.0;
-					RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "stop for collision check, when MOVE_TO_BUFFER_POINT");
+					RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "stop for collision check, when  %s", magic_enum::enum_name(current_state_).data());
 
 					if(params_ptr->enable_clear_local_costmap)
 					{
-						clear_local_costmap(params_ptr, logger_, clock_, client_clear_entire_local_costmap);
+						clear_local_costmap(client_clear_entire_local_costmap);
 					}
 
 					return servo_vel;
 				}
 			}
-			else
+			else // 不需要碰撞检查
 			{
 				RCLCPP_DEBUG(logger_, "collision_check: %s", params_ptr->collision_check ? "true":"false");
 			}
-
-			RCLCPP_DEBUG(logger_, "angular.z: %f", servo_vel->angular.z);
+			RCLCPP_DEBUG(logger_, "angular.z: %.2f", servo_vel->angular.z);
 		}
-
 		break;
 	}
 	case NavigateStates::ANGLE_TO_GOAL:
 	{
-		RCLCPP_DEBUG(logger_, "------------- ANGLE_TO_GOAL -------------");
-
+		print_current_state_debug(current_state_);
 		servo_vel = geometry_msgs::msg::Twist();
 
 		b_timeout_current_state = check_current_state_timeout();
@@ -867,9 +861,9 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 
 		const GoalPoint & gp = goal_points_.front();
 
-		RCLCPP_DEBUG(logger_, "goal =>  x: %f, y: %f, yaw: %f",
+		RCLCPP_DEBUG(logger_, "goal =>  x: %.2f, y: %.2f, yaw: %.2f",
 		             gp.x, gp.y, gp.theta);
-		RCLCPP_DEBUG(logger_, "robot =>  x: %f, y: %f, yaw: %f",
+		RCLCPP_DEBUG(logger_, "robot =>  x: %.2f, y: %.2f, yaw: %.2f",
 		             current_position.getX(), current_position.getY(),
 		             current_angle);
 
@@ -889,10 +883,9 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		{
 			double ang = diff_angle(gp, current_position, current_angle, logger_);
 			double ang_save = ang;
-			RCLCPP_DEBUG(logger_, "diff angle: %f", ang);
+			RCLCPP_DEBUG(logger_, "diff angle: %.2f", ang);
 			bound_rotation(ang, 0.05, 0.10);
-			RCLCPP_DEBUG(logger_, "bound angle: %f", ang);
-			RCLCPP_DEBUG(logger_, "--------------------------------");
+			RCLCPP_DEBUG(logger_, "bound angle: %.2f", ang);
 			servo_vel = geometry_msgs::msg::Twist();
 			// fix bug when robot had angle to marker but y coord error or odom data error,  10 degree(0.174533)
 			if (std::abs(ang_save) < params_ptr->angle_to_goal_angle_converged || (sees_dock && std::abs(std::abs(current_angle) - M_PI) <  0.174533)) {
@@ -911,8 +904,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 	}
 	case NavigateStates::GO_TO_GOAL_POSITION:
 	{
-		RCLCPP_DEBUG(logger_, "------------- GO_TO_GOAL_POSITION -------------");
-		
+		print_current_state_debug(current_state_);		
 		servo_vel = geometry_msgs::msg::Twist();
 
 		b_timeout_current_state = check_current_state_timeout();
@@ -929,19 +921,19 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		else
 		{
 			RCLCPP_DEBUG(logger_, "the first goal.");
-			gp.x = -(params_ptr->last_docked_distance_offset_ - 0.02);
+			gp.x = -(params_ptr->last_docked_distance_offset - 0.02);
 		}
 
 		if (!pose_x_init_recoreded_)
 		{
 			pose_x_init_ = current_pose.getOrigin().getX();
 			pose_x_init_recoreded_ = true;
-			RCLCPP_DEBUG(logger_, "recored the pose_x: %f", pose_x_init_);
+			RCLCPP_DEBUG(logger_, "recored the pose_x: %.2f", pose_x_init_);
 		}
 
-		RCLCPP_DEBUG(logger_, "goal =>  x: %f, y: %f, yaw: %f",
+		RCLCPP_DEBUG(logger_, "goal =>  x: %.2f, y: %.2f, yaw: %.2f",
 		             gp.x, gp.y, gp.theta);
-		RCLCPP_DEBUG(logger_, "robot =>  x: %f, y: %f, yaw: %f degree.",
+		RCLCPP_DEBUG(logger_, "robot =>  x: %.2f, y: %.2f, yaw: %.2f degree.",
 		             current_pose.getOrigin().getX(), current_pose.getOrigin().getY(),
 		             current_angle / 3.1415926 * 180.0);
 		double delta_y, delta_x;
@@ -955,7 +947,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		double translate_velocity = params_ptr->go_to_goal_translation_max;
 
 		auto robot_abs_x = std::abs(current_position.getX());
-		auto dist_low_speed = params_ptr->last_docked_distance_offset_ + params_ptr->distance_low_speed;
+		auto dist_low_speed = params_ptr->last_docked_distance_offset + params_ptr->distance_low_speed;
 		auto dist_speed_down_length = (params_ptr->go_to_goal_translation_max + params_ptr->go_to_goal_translation_min) / 2.0 *
 		                              ((params_ptr->go_to_goal_translation_max - params_ptr->go_to_goal_translation_min) / params_ptr->go_to_goal_linear_acc);
 		auto dist_speed_down_range = params_ptr->go_to_goal_translation_max - params_ptr->go_to_goal_translation_min;
@@ -989,7 +981,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			change_state(current_state_, NavigateStates::GOAL_ANGLE, clock_->now().seconds(), params_ptr->timeout_goal_angle );
 			RCLCPP_DEBUG(logger_, " ******** change to state GOAL_ANGLE ******** ");
 			servo_vel->linear.x = gp.drive_backwards ? -translate_velocity : translate_velocity;
-			RCLCPP_DEBUG(logger_, "linear_x: %f", servo_vel->linear.x);
+			RCLCPP_DEBUG(logger_, "linear_x: %.2f", servo_vel->linear.x);
 			state = std::string("GO_TO_GOAL_POSITION");
 			infos = std::string("GO_TO_GOAL_POSITION converged ==> change state to GOAL_ANGLE");
 			// If robot angle has deviated too much from path, reset
@@ -1008,7 +1000,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			}
 
 			// double angle_dist = angles::shortest_angular_distance(current_angle, 0);
-			if(std::abs(current_position.getX()) < (params_ptr->last_docked_distance_offset_ + params_ptr->distance_low_speed))
+			if(std::abs(current_position.getX()) < (params_ptr->last_docked_distance_offset + params_ptr->distance_low_speed))
 			{
 				RCLCPP_DEBUG(logger_, "low speed mode ");
 				if (!bluetooth_connected)
@@ -1022,18 +1014,18 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 
 				servo_vel->linear.x = translate_velocity;
 
-				if (std::abs(current_position.getX()) < (params_ptr->last_docked_distance_offset_ + params_ptr->last_goal_angle_to_x_positive_dis) )
+				if (std::abs(current_position.getX()) < (params_ptr->last_docked_distance_offset + params_ptr->last_goal_angle_to_x_positive_dis) )
 				{
 					double ang2 = angles::shortest_angular_distance(current_angle, 0);
 					if (ang2 < 0 && std::abs(ang2) > params_ptr->go_to_goal_apply_rotation_angle && current_position.getY() > -params_ptr->last_goal_angle_to_x_positive_y)
 					{
-						RCLCPP_DEBUG(logger_, "ang2: %f, y: %f, angle_to_x_positive direction", ang2, current_position.getY());
+						RCLCPP_DEBUG(logger_, "ang2: %.2f, y: %.2f, angle_to_x_positive direction", ang2, current_position.getY());
 						servo_vel->linear.x = -0.05;
 						ang = ang2;
 					}
 					else if (ang2 > 0 && std::abs(ang2) > params_ptr->go_to_goal_apply_rotation_angle && current_position.getY() < params_ptr->last_goal_angle_to_x_positive_y)
 					{
-						RCLCPP_DEBUG(logger_, "ang2: %f, y: %f, angle_to_x_positive direction", ang2, current_position.getY());
+						RCLCPP_DEBUG(logger_, "ang2: %.2f, y: %.2f, angle_to_x_positive direction", ang2, current_position.getY());
 						servo_vel->linear.x = -0.05;
 						ang = ang2;
 					}
@@ -1060,9 +1052,9 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			else
 			{
 				RCLCPP_DEBUG(logger_, "normal speed mode ");
-				RCLCPP_DEBUG(logger_, "diff angle_to_goal: %f", ang);
-				RCLCPP_DEBUG(logger_, "abs_angle: %f", abs_ang);
-				RCLCPP_DEBUG(logger_, "thre: %f", params_ptr->go_to_goal_apply_rotation_angle);
+				RCLCPP_DEBUG(logger_, "diff angle_to_goal: %.2f", ang);
+				RCLCPP_DEBUG(logger_, "abs_angle: %.2f", abs_ang);
+				RCLCPP_DEBUG(logger_, "thre: %.2f", params_ptr->go_to_goal_apply_rotation_angle);
 				if (abs_ang > params_ptr->go_to_goal_apply_rotation_angle) {
 					RCLCPP_DEBUG(logger_, "Need adjust direction.");
 					bound_rotation(ang, params_ptr->go_to_goal_rotation_min, params_ptr->go_to_goal_rotation_max);
@@ -1079,8 +1071,8 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 				}
 				servo_vel->linear.x = translate_velocity;
 			}
-			RCLCPP_DEBUG(logger_, "linear_x: %f", servo_vel->linear.x);
-			RCLCPP_DEBUG(logger_, "angular.z: %f", servo_vel->angular.z);
+			RCLCPP_DEBUG(logger_, "linear_x: %.2f", servo_vel->linear.x);
+			RCLCPP_DEBUG(logger_, "angular.z: %.2f", servo_vel->angular.z);
 
 			// current state: GO_TO_GOAL_POSITION
 			bool need_check_collision = true;
@@ -1105,7 +1097,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 				{
 					remaining_rotation_time = std::abs((x_c2r - params_ptr->dock_valid_obstacle_x) / servo_vel->linear.x);
 					predict_time = std::min(double(params_ptr->collision_predict_time), remaining_rotation_time);
-					RCLCPP_DEBUG(logger_, "predict_time: %f", predict_time);
+					RCLCPP_DEBUG(logger_, "predict_time: %.2f", predict_time);
 				}
 				RCLCPP_DEBUG(logger_, "need_check_collision: %s", need_check_collision?"true":"false");
 			}
@@ -1117,13 +1109,13 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 				if (cost_value >= nav2_costmap_2d::LETHAL_OBSTACLE)
 				{
 
-					RCLCPP_DEBUG(logger_, "cost value: %f >= %f", cost_value,  static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));
+					RCLCPP_DEBUG(logger_, "cost value: %.2f >= %.2f", cost_value,  static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));
 					servo_vel->linear.x = 0.0;
-					RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "stop for collision check, when GO_TO_GOAL_POSITION");
+					RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "stop for collision check, when  %s", magic_enum::enum_name(current_state_).data());
 
 					if(params_ptr->enable_clear_local_costmap)
 					{
-						clear_local_costmap(params_ptr, logger_, clock_, client_clear_entire_local_costmap);
+						clear_local_costmap(client_clear_entire_local_costmap);
 					}
 
 					return servo_vel;
@@ -1133,8 +1125,8 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			{
 				RCLCPP_DEBUG(logger_, "collision_check: %s", params_ptr->collision_check ? "true":"false");
 				RCLCPP_DEBUG(logger_, "need_check_collision: %s", need_check_collision ? "true":"false");
-				RCLCPP_DEBUG(logger_, "yaw_c2r_abs: %f", yaw_c2r_abs);
-				RCLCPP_DEBUG(logger_, "x_c2r: %f, dock_valid_obstacle_x: %f", x_c2r, params_ptr->dock_valid_obstacle_x);
+				RCLCPP_DEBUG(logger_, "yaw_c2r_abs: %.2f", yaw_c2r_abs);
+				RCLCPP_DEBUG(logger_, "x_c2r: %.2f, dock_valid_obstacle_x: %.2f", x_c2r, params_ptr->dock_valid_obstacle_x);
 
 			}
 
@@ -1145,7 +1137,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 	{
 		RCLCPP_DEBUG(logger_, "***********************************");
 		RCLCPP_DEBUG(logger_, "***********************************");
-		RCLCPP_DEBUG(logger_, "------------- GOAL_ANGLE -------------");
+		print_current_state_debug(current_state_);
 		
 		servo_vel = geometry_msgs::msg::Twist();
 
@@ -1156,14 +1148,14 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		}
 
 		const GoalPoint & gp = goal_points_.front();
-		RCLCPP_DEBUG(logger_, "goal =>  x: %f, y: %f, yaw: %f",
+		RCLCPP_DEBUG(logger_, "goal =>  x: %.2f, y: %.2f, yaw: %.2f",
 		             gp.x, gp.y, gp.theta);
-		RCLCPP_DEBUG(logger_, "robot =>  x: %f, y: %f, yaw: %f",
+		RCLCPP_DEBUG(logger_, "robot =>  x: %.2f, y: %.2f, yaw: %.2f",
 		             current_pose.getOrigin().getX(), current_pose.getOrigin().getY(),
 		             current_angle);
 		double ang = angles::shortest_angular_distance(current_angle, gp.theta);
 		bound_rotation(ang, params_ptr->go_to_goal_rotation_min, params_ptr->go_to_goal_rotation_max);
-		RCLCPP_DEBUG(logger_, "diff angle: %f", ang);
+		RCLCPP_DEBUG(logger_, "diff angle: %.2f", ang);
 		
 
 		double translate_velocity = params_ptr->go_to_goal_translation_max;
@@ -1184,56 +1176,45 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			change_state(current_state_, NavigateStates::GO_TO_GOAL_POSITION, clock_->now().seconds(), params_ptr->timeout_go_to_goal_position );
 			RCLCPP_DEBUG(logger_, "******** change to state GO_TO_GOAL_POSITION ******** ");
 		}
-		RCLCPP_DEBUG(logger_, " linear_x: %f", servo_vel->linear.x);
-		RCLCPP_DEBUG(logger_, "angular.z: %f", servo_vel->angular.z);
+		RCLCPP_DEBUG(logger_, " linear_x: %.2f", servo_vel->linear.x);
+		RCLCPP_DEBUG(logger_, "angular.z: %.2f", servo_vel->angular.z);
 		state = std::string("GOAL_ANGLE");
 		infos = std::string("GOAL_ANGLE  ==> keep on rotating");
 		break;
 	}
 	case NavigateStates::UNDOCK:
 	{
-		RCLCPP_DEBUG(logger_, "------------- UNDOCK -------------");
-
+		print_current_state_debug(current_state_);
 		servo_vel = geometry_msgs::msg::Twist();
 
 		b_timeout_current_state = check_current_state_timeout();
 		if (b_timeout_current_state)
 		{
+			undocking = false;
 			return servo_vel;		
 		}
 
-		if(start_undock)
+		update_time_smart();
+		undock_dis_moved_ += odom_msg.twist.twist.linear.x * delta_time_;
+		RCLCPP_INFO_THROTTLE(logger_, *clock_, 500, "undock cost time: %.2f, dis_moved: %.2f", delta_time_, undock_dis_moved_);
+		if (undock_dis_moved_ < params_ptr->undock_dis)
 		{
-			undock_start_time = clock_->now().seconds();
-			start_undock = false;
-			RCLCPP_DEBUG(logger_, "undock_start_time: %f", undock_start_time);
-			undock_timeout = params_ptr->undock_timeout;
-			undock_speed = params_ptr->undock_speed;
-			RCLCPP_DEBUG(logger_, "undock_speed: %f", undock_speed);
-			RCLCPP_DEBUG(logger_, "undock_timeout: %f", undock_timeout);
-		}
-		double now_time = clock_->now().seconds();
-		double delta_time = now_time - undock_start_time;
-		RCLCPP_DEBUG(logger_, "delta_time: %f", delta_time);
-		if (delta_time < undock_timeout)
-		{
-			servo_vel->linear.x = undock_speed;
+			servo_vel->linear.x = params_ptr->undock_speed;
 
-			double predict_time =  undock_timeout - delta_time;
+			double predict_time = std::min((current_state_timeout_ - delta_time_), double(params_ptr->collision_predict_time));
 			if (params_ptr->collision_check)
 			{
 				double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, false, servo_vel->linear.x, 0.0,
 				                                   predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
 				if (cost_value >= nav2_costmap_2d::LETHAL_OBSTACLE)
 				{
-
-					RCLCPP_DEBUG(logger_, "cost value: %f >= %f", cost_value,  static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));
+					RCLCPP_DEBUG(logger_, "cost value: %.2f >= %.2f", cost_value,  static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));
 					servo_vel->linear.x = 0.0;
-					RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "stop for collision check, when UNDOCK");
+					RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "stop for collision check, when %s", magic_enum::enum_name(current_state_).data());
 
 					if(params_ptr->enable_clear_local_costmap)
 					{
-						clear_local_costmap(params_ptr, logger_, clock_, client_clear_entire_local_costmap);
+						clear_local_costmap(client_clear_entire_local_costmap);
 					}
 
 					return servo_vel;
@@ -1243,7 +1224,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		else
 		{
 			goal_points_.clear();
-			RCLCPP_INFO(logger_, "undock end.");
+			RCLCPP_INFO(logger_, "undock succeed.");
 			undocking = false;
 		}
 
@@ -1287,7 +1268,7 @@ bool check_current_state_timeout()
 {
 	bool ret = false;
 	now_time_ = clock_->now().seconds();
-	if (now_time - current_state_start_time_ > current_state_timeout_)
+	if (now_time_ - current_state_start_time_ > current_state_timeout_)
 	{
 		ret = true;
 	}
@@ -1366,14 +1347,14 @@ double get_cost_value(rclcpp::Logger logger_, nav2_costmap_2d::FootprintCollisio
 			x = tf_new.getOrigin().getX();
 			y = tf_new.getOrigin().getY();
 			theta = tf2::getYaw(tf_new.getRotation());
-			// RCLCPP_DEBUG(logger_, "x: %f, y: %f, theta: %f", x, y, theta);
+			// RCLCPP_DEBUG(logger_, "x: %.2f, y: %.2f, theta: %.2f", x, y, theta);
 			// RCLCPP_DEBUG(logger_,"base footprint");
-			// RCLCPP_DEBUG(logger_, "Point(%f, %f)", footprint[0].x, footprint[0].y);
-			// RCLCPP_DEBUG(logger_, "Point(%f, %f)", footprint[1].x, footprint[1].y);
-			// RCLCPP_DEBUG(logger_, "Point(%f, %f)", footprint[2].x, footprint[2].y);
-			// RCLCPP_DEBUG(logger_, "Point(%f, %f)", footprint[3].x, footprint[3].y);
+			// RCLCPP_DEBUG(logger_, "Point(%.2f, %.2f)", footprint[0].x, footprint[0].y);
+			// RCLCPP_DEBUG(logger_, "Point(%.2f, %.2f)", footprint[1].x, footprint[1].y);
+			// RCLCPP_DEBUG(logger_, "Point(%.2f, %.2f)", footprint[2].x, footprint[2].y);
+			// RCLCPP_DEBUG(logger_, "Point(%.2f, %.2f)", footprint[3].x, footprint[3].y);
 			double cost_value_tmp = collision_checker.footprintCostAtPose(x, y, theta, footprint);
-			// RCLCPP_DEBUG(logger_, "predict number %d cost_value: %f", i, cost_value_tmp);
+			// RCLCPP_DEBUG(logger_, "predict number %d cost_value: %.2f", i, cost_value_tmp);
 			cost_value = std::max(cost_value, cost_value_tmp);
 			if (cost_value >= static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE))
 			{
@@ -1392,14 +1373,14 @@ double get_cost_value(rclcpp::Logger logger_, nav2_costmap_2d::FootprintCollisio
 			x = tf_new.getOrigin().getX();
 			y = tf_new.getOrigin().getY();
 			theta = tf2::getYaw(tf_new.getRotation());
-			// RCLCPP_DEBUG(logger_, "x: %f, y: %f, theta: %f", x, y, theta);
+			// RCLCPP_DEBUG(logger_, "x: %.2f, y: %.2f, theta: %.2f", x, y, theta);
 			// RCLCPP_DEBUG(logger_,"base footprint");
-			// RCLCPP_DEBUG(logger_, "Point(%f, %f)", footprint[0].x, footprint[0].y);
-			// RCLCPP_DEBUG(logger_, "Point(%f, %f)", footprint[1].x, footprint[1].y);
-			// RCLCPP_DEBUG(logger_, "Point(%f, %f)", footprint[2].x, footprint[2].y);
-			// RCLCPP_DEBUG(logger_, "Point(%f, %f)", footprint[3].x, footprint[3].y);
+			// RCLCPP_DEBUG(logger_, "Point(%.2f, %.2f)", footprint[0].x, footprint[0].y);
+			// RCLCPP_DEBUG(logger_, "Point(%.2f, %.2f)", footprint[1].x, footprint[1].y);
+			// RCLCPP_DEBUG(logger_, "Point(%.2f, %.2f)", footprint[2].x, footprint[2].y);
+			// RCLCPP_DEBUG(logger_, "Point(%.2f, %.2f)", footprint[3].x, footprint[3].y);
 			double cost_value_tmp = collision_checker.footprintCostAtPose(x, y, theta, footprint);
-			// RCLCPP_DEBUG(logger_, "predict number %d cost_value: %f", i, cost_value_tmp);
+			// RCLCPP_DEBUG(logger_, "predict number %d cost_value: %.2f", i, cost_value_tmp);
 			cost_value = std::max(cost_value, cost_value_tmp);
 			if (cost_value >= static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE))
 			{
@@ -1485,12 +1466,12 @@ float generate_smooth_rotation_speed(const float & last_rotation, double & last_
 		{
 			new_rotation_speed = cur_rotation;
 		}
-		RCLCPP_DEBUG(logger_, "last_rotation          : %f", last_rotation);
-		RCLCPP_DEBUG(logger_, "cur_rotation           : %f", cur_rotation);
-		RCLCPP_DEBUG(logger_, "delta_time             : %f", delta_time);
-		RCLCPP_DEBUG(logger_, "rotation_max_change_abs: %f", rotation_max_change_abs);
-		RCLCPP_DEBUG(logger_, "rotation_cur_change_abs: %f", rotation_cur_change_abs);
-		RCLCPP_DEBUG(logger_, "new_rotation_speed     : %f", new_rotation_speed);
+		RCLCPP_DEBUG(logger_, "last_rotation          : %.2f", last_rotation);
+		RCLCPP_DEBUG(logger_, "cur_rotation           : %.2f", cur_rotation);
+		RCLCPP_DEBUG(logger_, "delta_time             : %.2f", delta_time);
+		RCLCPP_DEBUG(logger_, "rotation_max_change_abs: %.2f", rotation_max_change_abs);
+		RCLCPP_DEBUG(logger_, "rotation_cur_change_abs: %.2f", rotation_cur_change_abs);
+		RCLCPP_DEBUG(logger_, "new_rotation_speed     : %.2f", new_rotation_speed);
 	}
 
 	// last_rotation = new_rotation_speed;
@@ -1509,18 +1490,18 @@ double diff_angle(const GoalPoint & goal_pt, const tf2::Vector3 & cur_position, 
 	double result = angles::shortest_angular_distance(cur_angle, atan2_value);
 
 	// RCLCPP_DEBUG(logger_, "------caculate diff-------");
-	// RCLCPP_DEBUG(logger_, "gp.x: %f, gp.y: %f, cur.x: %f, cur.y: %f",
+	// RCLCPP_DEBUG(logger_, "gp.x: %.2f, gp.y: %.2f, cur.x: %.2f, cur.y: %.2f",
 	//              goal_pt.x, goal_pt.y, cur_position.getX(), cur_position.getY());
-	// RCLCPP_DEBUG(logger_, "y       => %f", y);
-	// RCLCPP_DEBUG(logger_, "x       => %f", x);
-	// RCLCPP_DEBUG(logger_, "atan2   => %f", atan2_value);
-	// RCLCPP_DEBUG(logger_, "cur_ang => %f", cur_angle);
-	RCLCPP_DEBUG(logger_, "dist    => %f", result);
+	// RCLCPP_DEBUG(logger_, "y       => %.2f", y);
+	// RCLCPP_DEBUG(logger_, "x       => %.2f", x);
+	// RCLCPP_DEBUG(logger_, "atan2   => %.2f", atan2_value);
+	// RCLCPP_DEBUG(logger_, "cur_ang => %.2f", cur_angle);
+	RCLCPP_DEBUG(logger_, "dist    => %.2f", result);
 
 	return result;
 }
 
-bool clear_local_costmap(motion_control_params* params_ptr, rclcpp::Logger logger_,  rclcpp::Clock::SharedPtr clock_, rclcpp::Client<nav2_msgs::srv::ClearEntireCostmap>::SharedPtr client_clear_entire_local_costmap)
+bool clear_local_costmap(rclcpp::Client<nav2_msgs::srv::ClearEntireCostmap>::SharedPtr client_clear_entire_local_costmap)
 {
 	bool ret = false;
 	clear_time_now = clock_->now().seconds();
@@ -1551,6 +1532,46 @@ bool clear_local_costmap(motion_control_params* params_ptr, rclcpp::Logger logge
 	{
 	}
 	return ret;
+}
+
+// 用于处理未知意外导致的两帧时间间隔与帧率严重不符的情况
+// 更新now_time_, pre_time_, delta_time_
+void update_time_smart()
+{
+	now_time_ = clock_->now().seconds();
+	delta_time_ = now_time_ - pre_time_;
+	pre_time_ = now_time_;
+	if (abs(delta_time_) > 1.5 / params_ptr->cmd_vel_hz)
+	{
+		RCLCPP_WARN(logger_, "error occurs, real delta_time: %.2f, hz is %d", delta_time_, params_ptr->cmd_vel_hz);
+		delta_time_ = 1.0 / params_ptr->cmd_vel_hz;
+	}
+}
+
+void print_current_state_debug(const NavigateStates& state)
+{
+	RCLCPP_DEBUG(logger_, "--------------- %s ---------------", magic_enum::enum_name(state).data());
+}
+
+// 保存充电桩在map下的位姿信息和机器人在map和充电桩下的位姿信息
+void save_all_poses_infos(tf2::Transform tf_robot_map, tf2::Transform tf_robot_charger, tf2::Transform tf_charger_map, bool sees_dock)
+{
+	marker_visible_ = sees_dock;
+	tf_robot_map_ = tf_robot_map;
+	tf_robot_charger_ = tf_robot_charger;
+	tf_charger_map_ = tf_charger_map;
+
+	robot_x_map_ = tf_robot_map_.getOrigin().getX();
+	robot_y_map_ = tf_robot_map_.getOrigin().getY();
+	robot_yaw_map_ = tf2::getYaw(tf_robot_map_.getRotation());
+
+	robot_x_charger_ = tf_robot_charger_.getOrigin().getX();
+	robot_y_charger_ = tf_robot_charger_.getOrigin().getY();
+	robot_yaw_charger_ = tf2::getYaw(tf_robot_charger_.getRotation());
+
+	charger_x_map_ = tf_charger_map_.getOrigin().getX();
+	charger_y_map_ = tf_charger_map_.getOrigin().getY();
+	charger_yaw_map_ = tf2::getYaw(tf_charger_map_.getRotation());
 }
 
 bool hazards_valid(const tf2::Transform & current_pose, capella_ros_dock_msgs::msg::HazardDetectionVector hazards)
@@ -1597,8 +1618,7 @@ int64_t time_cost;
 
 double dist_buffer_point;
 double dist_buffer_point_yaw;
-double pre_time;
-double now_time;
+
 double waiting_for_best_coord_start_time;
 bool start_time_recorded = false;
 double thre_angle_diff = 0.30; // 0.4461565280195475968735605160853 <= tan(32-arctan2(0.12/(0.32+0.1+0.5))
@@ -1628,18 +1648,13 @@ double first_contacted_time;
 bool first_cannot_see_dock = true;
 
 // impl for undock
-bool start_undock = true;
 bool undocking = false;
-double undock_start_time;
-double undock_timeout;
-double undock_speed;
-
-bool using_localization{true};
+double undock_dis_moved_ = 0.0;
 
 bool pose_x_init_recoreded_{false};
 double pose_x_init_;
 
-// test for angle_to_buffer_point and move_to_buffer_point
+// angle_to_buffer_point and move_to_buffer_point 参数
 double theta_angle_to_buffer_point;
 double dist_move_to_buffer_point;
 tf2::Transform tf_before_angle_to_buffer_point;
@@ -1652,16 +1667,32 @@ double clear_time_now, clear_time_delta;
 double goal_dist_move_;
 double goal_dist_rotate_;
 
-
-// 处理各个子过程超时的情况
+// 时间参数
 double now_time_;
+double pre_time_;
+double delta_time_;
 double current_state_start_time_;
 double current_state_timeout_;
 
 // 保存机器人的信息
 RobotInfo robot_info_;
- 
-
+// map下的机器人位姿
+tf2::Transform tf_robot_map_;
+double robot_x_map_;
+double robot_y_map_;
+double robot_yaw_map_;
+// 充电桩码坐标系下的机器人位姿
+tf2::Transform tf_robot_charger_;
+double robot_x_charger_;
+double robot_y_charger_;
+double robot_yaw_charger_;
+// map下充电桩的位姿
+tf2::Transform tf_charger_map_;
+double charger_x_map_;
+double charger_y_map_;
+double charger_yaw_map_;
+// 是否可以识别出充电桩码坐标
+bool marker_visible_{false};
 };
 
 }  // namespace capella_ros_dock

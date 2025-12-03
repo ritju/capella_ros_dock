@@ -36,11 +36,10 @@ motion_control:
     go_to_goal_apply_rotation_angle: 0.01 # when angle_dist > this value,apply rotation
     goal_angle_converged: 0.15
     dist_goal_converged: 0.3
-    # last_docked_distance_offset_: 0.60
+    # last_docked_distance_offset: 0.60
     distance_low_speed: 0.30
     translate_low_speed: 0.05
     rotation_low_speed: 0.10
-    first_goal_distance: 0.0
     second_goal_distance: 0.05
     buffer_goal_distance: 0.20
     camera_horizontal_view: 58.0

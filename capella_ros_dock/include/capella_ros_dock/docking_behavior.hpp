@@ -152,7 +152,7 @@ std::mutex dock_pose_mutex_;
 tf2::Transform last_dock_pose_;
 rclcpp::Time action_start_time_;
 const rclcpp::Duration max_action_runtime_;
-double last_docked_distance_offset_ {0.32};
+double last_docked_distance_offset {0.32};
 bool calibrated_offset_ {false};
 double MAX_DOCK_INTERMEDIATE_GOAL_OFFSET {0.6};   // 0.5 + 0.1
 double UNDOCK_GOAL_OFFSET {0.5};
@@ -204,7 +204,6 @@ bool contact_state_changed_recorded = false;
 // bool contact_state_last = false;
 bool contact_state_pubbed_init = false;
 float contact_state_change_time_delta = 0.5;
-float charging_radius;
 rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr charger_contact_via_camera_pub_;
 
 // test for double marker

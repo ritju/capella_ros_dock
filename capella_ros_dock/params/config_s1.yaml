@@ -36,18 +36,16 @@ motion_control:
     go_to_goal_apply_rotation_angle: 0.01 # when angle_dist > this value,apply rotation
     goal_angle_converged: 0.15
     dist_goal_converged: 0.3
-    # last_docked_distance_offset_: 0.60
     distance_low_speed: 0.30
     translate_low_speed: 0.05
     rotation_low_speed: 0.10
-    first_goal_distance: 0.0
-    second_goal_distance: 0.05
-    buffer_goal_distance: 0.20
-    camera_horizontal_view: 100.0
+    second_goal_distance: 0.05 
+    buffer_goal_distance: 0.20 # last_docked_distance_offset + distance_low_speed + second_goal_distance +buffer_goal_distance
+    deviate_second_goal_x: 0.1
+    camera_horizontal_view: 60.0
     localization_converged_time: 3.0 # wait (n) seconds for coordinates to be converged
     tolerance_angle: 0.02
     tolerance_r: 0.02
-    deviate_second_goal_x: 0.1
     dist_error_y_1: 0.05
     dist_error_x_and_y: 0.3
     motion_control_log_level: 'info'
@@ -61,9 +59,10 @@ motion_control:
     max_action_runtime: 1800
     contacted_keep_move_time: 0.3
     undock_speed: 0.15
-    undock_timeout: 5.0
+    undock_timeout: 30.0
     undock_obstacle_lr: 0.5 # lr, left_right
     undock_obstacle_front: 1.0
+    undock_dis: 0.5 # undock要驶离充电桩的距离
     goal_y_correction: 0.0
     go_to_goal_linear_acc: 0.05
     robot_rotate_radius: 1.25
@@ -85,6 +84,10 @@ motion_control:
     timeout_angle_to_goal: 30.0
     timeout_go_to_goal_position: 30.0
     timeout_goal_angle: 30.0
+
+    charger_contact_condition_type: 0  # 0: BLUETOOTH_ONLY, 1: CAMERA_ONLY, 2: BLUETOOTH_AND_CAMERA; 目前只支持 0,BLUETOOTH_ONLY
+    last_docked_distance_offset: 0.30
+    camera_baselink_dis: 0.0  # 相机在baselink_dummy_optimize坐标系上x轴上的值，有正负之分
 
 
 camera_point_cloud_process:

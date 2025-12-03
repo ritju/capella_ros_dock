@@ -17,11 +17,10 @@ struct motion_control_params
 	float go_to_goal_apply_rotation_angle;
 	float goal_angle_converged;
 	float dist_goal_converged;
-	float last_docked_distance_offset_;
+	float last_docked_distance_offset;
 	float distance_low_speed;
 	float translate_low_speed;
 	float rotation_low_speed;
-	float first_goal_distance;
 	float second_goal_distance;
 	float buffer_goal_distance;
 	float camera_horizontal_view;
@@ -45,11 +44,11 @@ struct motion_control_params
 	float contacted_keep_move_time;
 	float undock_speed;
 	float undock_timeout;
+	float undock_dis;
 	float undock_obstacle_lr;
 	float undock_obstacle_front;
 	int charger_contact_condition_type;
 	float contact_state_change_time_delta;
-	float charging_radius;
 	float similarity_threshold;
 	float camera_baselink_dis;
 	float goal_y_correction;
