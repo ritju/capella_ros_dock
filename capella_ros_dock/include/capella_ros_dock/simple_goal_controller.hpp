@@ -313,6 +313,10 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		print_current_state_debug(current_state_);
 		servo_vel = geometry_msgs::msg::Twist();
 		change_state(current_state_, NavigateStates::LOOKUP_MARKER, clock_->now().seconds(), params_ptr->timeout_lookup_marker); 
+		
+		pre_time_ = clock_->now().seconds(); // 第一次进入switch,初始化pre_time_为当前时间
+		update_time_smart();
+
 		break;
 	}
 	case NavigateStates::LOOKUP_MARKER:
@@ -325,6 +329,8 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		{
 			return servo_vel;		
 		}
+
+		update_time_smart();
 		
 		auto angle_robot = tf2::getYaw(robot_pose_map.getRotation());
 		double x_charger, y_charger, x_robot, y_robot;
@@ -508,7 +514,6 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 						RCLCPP_DEBUG(logger_, "theta_positive: %.2f", theta_positive);
 						RCLCPP_DEBUG(logger_, "dist_buffer_point: %.2f", dist_buffer_point);
 						RCLCPP_DEBUG(logger_, "dist_buffer_point_yaw: %.2f", dist_buffer_point_yaw);
-						update_time_smart();
 						change_state(current_state_, NavigateStates::ANGLE_TO_BUFFER_POINT, clock_->now().seconds(), params_ptr->timeout_angle_to_buffer_point);
 						state = std::string("LOOKUP_MARKER");
 						infos = std::string("Reason: robot's position not converged ==> directly change state to ANGLE_TO_BUFFER_POINT");
@@ -844,6 +849,8 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			return servo_vel;		
 		}
 
+		update_time_smart();
+
 		const GoalPoint & gp = goal_points_.front();
 
 		RCLCPP_DEBUG(logger_, "goal =>  x: %.2f, y: %.2f, yaw: %.2f",
@@ -897,6 +904,8 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		{
 			return servo_vel;		
 		}
+
+		update_time_smart();
 
 		GoalPoint gp = goal_points_.front();;
 		if (goal_points_.size() > 1)
@@ -1129,6 +1138,8 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			return servo_vel;		
 		}
 
+		update_time_smart();
+
 		const GoalPoint & gp = goal_points_.front();
 		RCLCPP_DEBUG(logger_, "goal =>  x: %.2f, y: %.2f, yaw: %.2f",
 		             gp.x, gp.y, gp.theta);
@@ -1244,6 +1255,7 @@ void change_state(NavigateStates& current_state, NavigateStates target_state, co
 	current_state = target_state;
 	current_state_start_time_ = current_state_start_time;
 	current_state_timeout_ = current_state_timeout;
+	pre_time_ = clock_->now().seconds();
 }
 
 bool check_current_state_timeout()
