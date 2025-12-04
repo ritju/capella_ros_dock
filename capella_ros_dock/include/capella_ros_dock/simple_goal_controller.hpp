@@ -183,7 +183,7 @@ void reset()
 // \return empty optional if no goal or velocity command to get to next goal point
 BehaviorsScheduler::optional_output_t get_velocity_for_position(
 	const tf2::Transform & current_pose, const tf2::Transform & robot_pose_map, const tf2::Transform & charger_pose_map, bool sees_dock, bool is_docked, bool bluetooth_connected,
-	nav_msgs::msg::Odometry odom_msg, capella_ros_dock_msgs::msg::HazardDetectionVector hazards, std::string & state, std::string & infos, bool& b_timeout_current_state,
+	nav_msgs::msg::Odometry odom_msg, std::string & state, std::string & infos, bool& b_timeout_current_state,
 	nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*>  collision_checker, std::vector<geometry_msgs::msg::Point> footprint_vec, rclcpp::Client<nav2_msgs::srv::ClearEntireCostmap>::SharedPtr client_clear_entire_local_costmap)
 {
 	save_all_poses_infos(robot_pose_map, current_pose, charger_pose_map, sees_dock);
@@ -236,25 +236,9 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 
 	double current_angle;
 	tf2::Vector3 current_position;
-	// if (current_state_ >= NavigateStates::ANGLE_TO_GOAL)
-	// {
 	current_angle = tf2::getYaw(current_pose.getRotation());
 	current_position = current_pose.getOrigin();
-	// }
 
-	// stop when has valid hazards
-	if(hazards_valid(current_pose, hazards) && current_state_ > NavigateStates::ANGLE_TO_X_POSITIVE_ORIENTATION)
-	{
-		last_time_cannot_see_dock = clock_->now();
-		RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "stop for hazards.");
-		auto distance = std::abs(current_pose.getOrigin().getX());
-		RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "distance: %.2f", distance);
-		RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "throttle: %.2f", params_ptr->dock_valid_obstacle_x);
-		servo_vel = geometry_msgs::msg::Twist();
-		state = std::string(" > ANGLE_TO_X_POSITIVE_ORIENTATION");
-		infos = std::string("Reason: have valid hazards and navigate_state > ANGLE_TO_X_POSITIVE_ORIENTATION  ==> stop ...");
-		return servo_vel;
-	}
 	if (sees_dock)
 	{
 		first_cannot_see_dock = true;
@@ -1568,33 +1552,6 @@ void save_all_poses_infos(tf2::Transform tf_robot_map, tf2::Transform tf_robot_c
 	charger_x_map_ = tf_charger_map_.getOrigin().getX();
 	charger_y_map_ = tf_charger_map_.getOrigin().getY();
 	charger_yaw_map_ = tf2::getYaw(tf_charger_map_.getRotation());
-}
-
-bool hazards_valid(const tf2::Transform & current_pose, capella_ros_dock_msgs::msg::HazardDetectionVector hazards)
-{
-	bool ret = false;
-	auto distance = std::abs(current_pose.getOrigin().getX());
-	auto detections = hazards.detections;
-	for (int i = 0; i < (int)(detections.size()); i++)
-	{
-		auto hazard = detections[i];
-		using HazardDetection = capella_ros_dock_msgs::msg::HazardDetection;
-		switch(hazard.type)
-		{
-		case HazardDetection::BACKUP_LIMIT:
-		case HazardDetection::BUMP:
-		case HazardDetection::CLIFF:
-		case HazardDetection::STALL:
-		case HazardDetection::WHEEL_DROP:
-		case HazardDetection::OBJECT_PROXIMITY:
-		{
-			ret = true;
-			break;
-		}
-		}
-	}
-	ret = ret && distance > params_ptr->dock_valid_obstacle_x;
-	return ret;
 }
 
 // SimpleGoalController成员变量

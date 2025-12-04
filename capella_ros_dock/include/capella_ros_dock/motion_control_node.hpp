@@ -10,7 +10,7 @@
 
 #include "capella_ros_dock/docking_behavior.hpp"
 #include "rclcpp/rclcpp.hpp"
-#include "capella_ros_dock_msgs/msg/hazard_detection_vector.hpp"
+// #include "capella_ros_dock_msgs/msg/hazard_detection_vector.hpp"
 
 #include "tf2_ros/transform_broadcaster.h"
 #include "tf2_ros/buffer.h"
@@ -37,16 +37,16 @@ void start_control_timer_callback();
 void init_params();
 
 /// @brief callback for hazard_detection topic
-void cb_hazard_detection(capella_ros_dock_msgs::msg::HazardDetectionVector::SharedPtr msg);
+// void cb_hazard_detection(capella_ros_dock_msgs::msg::HazardDetectionVector::SharedPtr msg);
 
 /// @brief callback for /charger/pose topic
 void cb_charger_pose(geometry_msgs::msg::PoseWithCovarianceStamped msg);
 
 
 /// @brief subscription to hazards
-rclcpp::Subscription<capella_ros_dock_msgs::msg::HazardDetectionVector>::SharedPtr sub_hazards_;
+// rclcpp::Subscription<capella_ros_dock_msgs::msg::HazardDetectionVector>::SharedPtr sub_hazards_;
 rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr sub_charger_pose_;
-rclcpp::CallbackGroup::SharedPtr cb_group_hazards_;
+// rclcpp::CallbackGroup::SharedPtr cb_group_hazards_;
 rclcpp::CallbackGroup::SharedPtr cb_group_charger_pose_;
 
 rclcpp::TimerBase::SharedPtr control_timer_ {nullptr};

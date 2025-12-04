@@ -33,11 +33,11 @@ MotionControlNode::MotionControlNode(const rclcpp::NodeOptions & options)
 	init_params();
 
 	// create subscription to hazards
-	auto options_hazard_detection = rclcpp::SubscriptionOptions();
-	cb_group_hazards_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-	options_hazard_detection.callback_group = cb_group_hazards_;
-	sub_hazards_ = this->create_subscription<capella_ros_dock_msgs::msg::HazardDetectionVector>
-	                       ("hazard_detection", rclcpp::SensorDataQoS(), std::bind(&MotionControlNode::cb_hazard_detection, this, _1), options_hazard_detection);
+	// auto options_hazard_detection = rclcpp::SubscriptionOptions();
+	// cb_group_hazards_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+	// options_hazard_detection.callback_group = cb_group_hazards_;
+	// sub_hazards_ = this->create_subscription<capella_ros_dock_msgs::msg::HazardDetectionVector>
+	//                        ("hazard_detection", rclcpp::SensorDataQoS(), std::bind(&MotionControlNode::cb_hazard_detection, this, _1), options_hazard_detection);
 
 	// create subscription to /charger/pose
 	auto options_charger_pose = rclcpp::SubscriptionOptions();
@@ -201,12 +201,12 @@ void MotionControlNode::init_params()
 		<< ", last_docked_distanace_offset: " << params.offset_last_docked_distance);
 }
 
-void MotionControlNode::cb_hazard_detection(capella_ros_dock_msgs::msg::HazardDetectionVector::SharedPtr msg)
-{
-	std::lock_guard<std::mutex> lock(current_state_mutex_);
-	current_state_.hazards = *msg;
+// void MotionControlNode::cb_hazard_detection(capella_ros_dock_msgs::msg::HazardDetectionVector::SharedPtr msg)
+// {
+// 	std::lock_guard<std::mutex> lock(current_state_mutex_);
+// 	current_state_.hazards = *msg;
 
-}
+// }
 
 void MotionControlNode::cb_charger_pose(geometry_msgs::msg::PoseWithCovarianceStamped msg)
 {
