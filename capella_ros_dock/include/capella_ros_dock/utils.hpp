@@ -7,40 +7,33 @@ namespace capella_ros_dock{
 
 struct motion_control_params
 {
-	int max_dock_action_run_time;
+	int timeout_dock_action;
 	float min_rotation;
 	float max_rotation;
 	float min_translation;
 	float max_translation;
 	float angle_to_goal_angle_converged;
-	float go_to_goal_angle_too_far;
 	float go_to_goal_apply_rotation_angle;
 	float goal_angle_converged;
-	float dist_goal_converged;
-	float last_docked_distance_offset;
-	float distance_low_speed;
-	float translate_low_speed;
-	float rotation_low_speed;
-	float second_goal_distance;
-	float buffer_goal_distance;
+	float offset_last_docked_distance;
+	float offset_low_speed;
+	float offset_seconde_goal;
+	float offset_buffer_goal;
 	float camera_horizontal_view;
 	float localization_converged_time;
 	float tolerance_angle;
 	float tolerance_r;
 	float deviate_second_goal_x;
 	float dist_error_y_1;
-	float dist_error_x_and_y;
 	std::string motion_control_log_level;
 	int cmd_vel_hz;
-	float angle_delta;
 	float marker_size;
 	float dock_valid_obstacle_x;
 	float time_sleep;
 	float go_to_goal_rotation_min;
 	float go_to_goal_rotation_max;
 	float speed_rotation_acceleration;
-	float speed_rotation_init_abs;
-	int max_action_runtime;
+	float speed_rotation_init_abs;	
 	float contacted_keep_move_time;
 	float undock_speed;
 	float undock_timeout;

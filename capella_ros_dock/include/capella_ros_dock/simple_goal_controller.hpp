@@ -63,17 +63,17 @@ SimpleGoalController(rclcpp::node_interfaces::NodeBaseInterface::SharedPtr node_
 void init(motion_control_params* params_ptr)
 {
 	robot_info_ = RobotInfo();
-	buffer_goal_point_x = -(params_ptr->last_docked_distance_offset
-	                        + params_ptr->distance_low_speed
-	                        + params_ptr->second_goal_distance
-	                        + params_ptr->buffer_goal_distance);
+	buffer_goal_point_x = -(params_ptr->offset_last_docked_distance
+	                        + params_ptr->offset_low_speed
+	                        + params_ptr->offset_seconde_goal
+	                        + params_ptr->offset_buffer_goal);
 	buffer_goal_point_y = 0.0 + params_ptr->goal_y_correction;
 
 	float camera_horizontal_view, marker_size, camera_baselink_dis, goal_dis_x;
 	camera_horizontal_view = degree_to_radian(params_ptr->camera_horizontal_view);
 	marker_size = params_ptr->marker_size;
 	camera_baselink_dis = params_ptr->camera_baselink_dis;
-	goal_dis_x = params_ptr->last_docked_distance_offset + params_ptr->distance_low_speed + params_ptr->second_goal_distance;
+	goal_dis_x = params_ptr->offset_last_docked_distance + params_ptr->offset_low_speed + params_ptr->offset_seconde_goal;
 	RCLCPP_INFO(rclcpp::get_logger("simple_goal_controller"), "camera_horizontal_view: %.2f, marker_size: %.2f, camera_baselink_dis: %.2f, goal_dis_x: %.2f",
 	            camera_horizontal_view, marker_size, camera_baselink_dis, goal_dis_x);
 
@@ -204,7 +204,6 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		undocking = false;
 	}
 
-	// RCLCPP_INFO_STREAM(logger_, "simple_goal_controller => max_dock_action_run_time: " << params_ptr->max_dock_action_run_time << " seconds.");
 	time_start = std::chrono::high_resolution_clock::now();
 	BehaviorsScheduler::optional_output_t servo_vel;
 	const std::lock_guard<std::mutex> lock(mutex_);
@@ -445,9 +444,9 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 					RCLCPP_DEBUG(logger_, "coords converged, change state.");
 					start_time_recorded = false;
 
-					float distance_tmp = params_ptr->last_docked_distance_offset
-											+ params_ptr->distance_low_speed
-											+ params_ptr->second_goal_distance;
+					float distance_tmp = params_ptr->offset_last_docked_distance
+											+ params_ptr->offset_low_speed
+											+ params_ptr->offset_seconde_goal;
 					double theta = std::atan2(std::abs(robot_y_charger_), std::abs(robot_x_charger_) - distance_tmp);
 					RCLCPP_DEBUG(logger_, "robot_x_charger: %.2f", robot_x_charger_);
 					RCLCPP_DEBUG(logger_, "robot_y_charger: %.2f", robot_y_charger_);
@@ -461,18 +460,18 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 					RCLCPP_DEBUG(logger_, "base_link_y: %.2f", base_link_y);
 
 					// 三个判断条件
-					RCLCPP_DEBUG(logger_, "theta: %.2f", theta);
+					RCLCPP_DEBUG(logger_, "theta: %.2f", theta); 
 					RCLCPP_DEBUG(logger_, "thre_angle_diff: %.2f", thre_angle_diff);
-
-					RCLCPP_DEBUG(logger_, "std::abs(robot_x_charger_): %.2f", std::abs(robot_x_charger_));
-					RCLCPP_DEBUG(logger_, "distance_tmp + params_ptr->deviate_second_goal_x: %.2f", distance_tmp + params_ptr->deviate_second_goal_x);
 
 					RCLCPP_DEBUG(logger_, "std::abs(base_link_y): %.2f", std::abs(base_link_y));
 					RCLCPP_DEBUG(logger_, " params_ptr->base_link_y_thr: %.2f",  params_ptr->base_link_y_thr);
 
-					if (theta < thre_angle_diff 
-						&& std::abs(robot_x_charger_) > (distance_tmp + params_ptr->deviate_second_goal_x) 
-						&& std::abs(base_link_y) < params_ptr->base_link_y_thr)                                                                                                                                                                                      // 0.7 <= 0.5 + 0.2(x_error)
+					RCLCPP_DEBUG(logger_, "std::abs(robot_x_charger_): %.2f", std::abs(robot_x_charger_));
+					RCLCPP_DEBUG(logger_, "distance_tmp + params_ptr->deviate_second_goal_x: %.2f", distance_tmp + params_ptr->deviate_second_goal_x);
+
+					if (theta < thre_angle_diff // 角度小于阀值
+						&& std::abs(base_link_y) < params_ptr->base_link_y_thr // y坐标(左右)小于阀值
+						&& std::abs(robot_x_charger_) > (distance_tmp + params_ptr->deviate_second_goal_x))// x坐标(前后) > （second_goal + 阀值）                                                                                                                                                                                   // 0.7 <= 0.5 + 0.2(x_error)
 					{
 						RCLCPP_DEBUG(logger_, "robot change state to angle_to_goal");
 						change_state(current_state_, NavigateStates::ANGLE_TO_GOAL, clock_->now().seconds(), params_ptr->timeout_angle_to_goal);
@@ -765,9 +764,9 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		{
 			if (marker_visible_) // marker_visible: true
 			{
-				float distance_tmp = params_ptr->last_docked_distance_offset
-									+ params_ptr->distance_low_speed
-									+ params_ptr->second_goal_distance;
+				float distance_tmp = params_ptr->offset_last_docked_distance
+									+ params_ptr->offset_low_speed
+									+ params_ptr->offset_seconde_goal;
 				double theta = std::atan2(std::abs(robot_y_charger_), std::abs(robot_x_charger_) - distance_tmp);
 				RCLCPP_DEBUG(logger_, "robot_x_charger: %.2f", robot_x_charger_);
 				RCLCPP_DEBUG(logger_, "robot_y_charger: %.2f", robot_y_charger_);
@@ -791,7 +790,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 
 				if (theta < thre_angle_diff  // 角度小于阀值
 					&& std::abs(base_link_y) < params_ptr->base_link_y_thr // y坐标(左右)小于阀值
-					&& std::abs(robot_x_charger_) > (distance_tmp + params_ptr->deviate_second_goal_x)) // x坐标(前后) > （second_goal + 阀值）                                                                                                                                                                                     // 0.7 <= 0.5 + 0.2(x_error)
+					&& std::abs(robot_x_charger_) > (distance_tmp + params_ptr->deviate_second_goal_x)) // x坐标(前后) > （second_goal + 阀值）
 				{
 					RCLCPP_INFO(logger_, "converged ==>Change state to ANGLE_TO_GOAL");
 					change_state(current_state_, NavigateStates::ANGLE_TO_GOAL, clock_->now().seconds(), params_ptr->timeout_angle_to_goal );
@@ -921,7 +920,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		else
 		{
 			RCLCPP_DEBUG(logger_, "the first goal.");
-			gp.x = -(params_ptr->last_docked_distance_offset - 0.02);
+			gp.x = -(params_ptr->offset_last_docked_distance - 0.02);
 		}
 
 		if (!pose_x_init_recoreded_)
@@ -947,7 +946,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		double translate_velocity = params_ptr->go_to_goal_translation_max;
 
 		auto robot_abs_x = std::abs(current_position.getX());
-		auto dist_low_speed = params_ptr->last_docked_distance_offset + params_ptr->distance_low_speed;
+		auto dist_low_speed = params_ptr->offset_last_docked_distance + params_ptr->offset_low_speed;
 		auto dist_speed_down_length = (params_ptr->go_to_goal_translation_max + params_ptr->go_to_goal_translation_min) / 2.0 *
 		                              ((params_ptr->go_to_goal_translation_max - params_ptr->go_to_goal_translation_min) / params_ptr->go_to_goal_linear_acc);
 		auto dist_speed_down_range = params_ptr->go_to_goal_translation_max - params_ptr->go_to_goal_translation_min;
@@ -986,12 +985,8 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			infos = std::string("GO_TO_GOAL_POSITION converged ==> change state to GOAL_ANGLE");
 			// If robot angle has deviated too much from path, reset
 		}
-		// else if (abs_ang > params_ptr->go_to_goal_angle_too_far && delta_y > params_ptr->dist_error_y_1 && (delta_x + delta_y) > params_ptr->dist_error_x_and_y) {
-		// change_state(current_state_, NavigateStates::ANGLE_TO_GOAL, clock_->now().seconds(), params_ptr->timeout_angle_to_goal );
-		// RCLCPP_DEBUG(logger_, " ******** change to state ANGLE_TO_GOAL ******** ");
-		// If neither of above conditions met, drive towards goal
-		// }
-		else {
+		else 
+		{
 			// only use low speed for test
 			// translate_velocity = params_ptr->go_to_goal_translation_min;
 
@@ -1000,7 +995,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			}
 
 			// double angle_dist = angles::shortest_angular_distance(current_angle, 0);
-			if(std::abs(current_position.getX()) < (params_ptr->last_docked_distance_offset + params_ptr->distance_low_speed))
+			if(std::abs(current_position.getX()) < (params_ptr->offset_last_docked_distance + params_ptr->offset_low_speed))
 			{
 				RCLCPP_DEBUG(logger_, "low speed mode ");
 				if (!bluetooth_connected)
@@ -1014,9 +1009,10 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 
 				servo_vel->linear.x = translate_velocity;
 
-				if (std::abs(current_position.getX()) < (params_ptr->last_docked_distance_offset + params_ptr->last_goal_angle_to_x_positive_dis) )
+				if (std::abs(current_position.getX()) < (params_ptr->offset_last_docked_distance + params_ptr->last_goal_angle_to_x_positive_dis) )
 				{
 					double ang2 = angles::shortest_angular_distance(current_angle, 0);
+					RCLCPP_DEBUG(logger_, "ang2: %.2f", ang2);
 					if (ang2 < 0 && std::abs(ang2) > params_ptr->go_to_goal_apply_rotation_angle && current_position.getY() > -params_ptr->last_goal_angle_to_x_positive_y)
 					{
 						RCLCPP_DEBUG(logger_, "ang2: %.2f, y: %.2f, angle_to_x_positive direction", ang2, current_position.getY());

@@ -60,7 +60,7 @@ def generate_launch_description():
     # 参数替换配置 - 确保值为字符串类型
     param_substitutions = {
         "charger_contact_condition_type": str(type_mapping[charger_contact_type]),
-        "last_docked_distance_offset": str(last_docked_offset),
+        "offset_last_docked_distance": str(last_docked_offset),
         "camera_baselink_dis": str(camera_baselink_distance)
     }    
     

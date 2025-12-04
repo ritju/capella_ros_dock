@@ -26,7 +26,6 @@
 #include "rclcpp/qos.hpp"
 #include "capella_ros_dock/utils.hpp"
 #include "nav_msgs/msg/odometry.hpp"
-#include "sensor_msgs/msg/laser_scan.hpp"
 
 #include "capella_ros_service_interfaces/action/undock.hpp"
 #include "aruco_msgs/msg/pose_with_id.hpp"
@@ -49,7 +48,6 @@
 
 namespace capella_ros_dock
 {
-
 
 /**
  * @brief This class allows to create and manage Docking and Undocking action
@@ -78,14 +76,11 @@ void calibrate_docked_distance_offset(
 	const tf2::Transform & docked_robot_pose,
 	const tf2::Transform & dock_pose);
 
-
 // callback
 void robot_pose_callback(aruco_msgs::msg::PoseWithId::ConstSharedPtr msg);
 // void dock_pose_callback(geometry_msgs::msg::PoseStamped::ConstSharedPtr msg);
 void dock_visible_callback(capella_ros_service_interfaces::msg::ChargeMarkerVisible::ConstSharedPtr msg);
 void charge_state_callback(capella_ros_service_interfaces::msg::ChargeState::ConstSharedPtr msg);
-
-
 
 rclcpp_action::GoalResponse handle_dock_servo_goal(
 	const rclcpp_action::GoalUUID & uuid,
@@ -131,8 +126,6 @@ rclcpp::Subscription<aruco_msgs::msg::PoseWithId>::SharedPtr robot_pose_sub_;
 rclcpp::Subscription<capella_ros_msg::msg::Velocities>::SharedPtr raw_vel_sub_;
 rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
 
-rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr laserScan_sub_;
-
 rclcpp::Subscription<std_msgs::msg::String>::SharedPtr charger_id_sub_;
 rclcpp::Subscription<aruco_msgs::msg::MarkerAndMacVector>::SharedPtr marker_and_mac_sub_;
 
@@ -151,8 +144,8 @@ tf2::Transform last_robot_pose_;
 std::mutex dock_pose_mutex_;
 tf2::Transform last_dock_pose_;
 rclcpp::Time action_start_time_;
-const rclcpp::Duration max_action_runtime_;
-double last_docked_distance_offset {0.32};
+const rclcpp::Duration timeout_dock_action_;
+double offset_last_docked_distance {0.32};
 bool calibrated_offset_ {false};
 double MAX_DOCK_INTERMEDIATE_GOAL_OFFSET {0.6};   // 0.5 + 0.1
 double UNDOCK_GOAL_OFFSET {0.5};
@@ -168,19 +161,8 @@ rclcpp::Publisher<capella_ros_dock_msgs::msg::ChargerContactConditionType>::Shar
 void raw_vel_sub_callback(capella_ros_msg::msg::Velocities);
 void odom_sub_callback(nav_msgs::msg::Odometry);
 
-void laserScan_sub_callback(sensor_msgs::msg::LaserScan);
-
 void charger_id_callback(std_msgs::msg::String);
 void marker_and_mac_callback(aruco_msgs::msg::MarkerAndMacVector);
-
-bool undock_has_obstacle_ = false;
-// sin/cos table generated or not
-bool has_table = false;
-float laser_min_angle;
-float laser_angle_increament;
-int laser_data_size;
-std::vector<float> sin_table;
-std::vector<float> cos_table;
 
 int marker_id_;
 std::string charger_id_;
@@ -192,10 +174,6 @@ std::string infos;
 bool b_timeout_current_state;
 
 int charger_contact_condition_type = 0; // default 0 => only use bluetooth data
-
-
-void generate_sin_cos_table(float theta_min, float increament, int size);
-bool check_undock_has_obstale(sensor_msgs::msg::LaserScan);
 
 // topic  /charger_contact_via_camera
 double contact_state_change_time;

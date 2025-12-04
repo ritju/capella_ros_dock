@@ -21,14 +21,13 @@ DockingBehavior::DockingBehavior(
 	std::shared_ptr<BehaviorsScheduler> behavior_scheduler)
 	: clock_(node_clock_interface->get_clock()),
 	logger_(node_logging_interface->get_logger()),
-	max_action_runtime_(rclcpp::Duration(std::chrono::seconds(params_ptr->max_action_runtime)))
+	timeout_dock_action_(rclcpp::Duration(std::chrono::seconds(params_ptr->timeout_dock_action)))
 {
 	RCLCPP_INFO(logger_, "DockingBehavior constructor.");
 	behavior_scheduler_ = behavior_scheduler;
 	last_feedback_time_ = clock_->now();
 	this->params_ptr = params_ptr;
 	goal_controller_ = std::make_shared<SimpleGoalController>(node_base_interface, node_clock_interface, node_logging_interface, params_ptr);
-	// RCLCPP_INFO_STREAM(logger_, "max_dock_action_run_time: " << params_ptr->max_dock_action_run_time << " seconds.");
 
 	undock_state_pub_ = rclcpp::create_publisher<std_msgs::msg::Bool>(
 		node_topics_interface,
@@ -67,12 +66,6 @@ DockingBehavior::DockingBehavior(
 		"/odom",
 		rclcpp::SensorDataQoS(),
 		std::bind(&DockingBehavior::odom_sub_callback, this, _1)
-		);
-	laserScan_sub_ = rclcpp::create_subscription<sensor_msgs::msg::LaserScan>(
-		node_topics_interface,
-		"/scan",
-		rclcpp::SensorDataQoS(),
-		std::bind(&DockingBehavior::laserScan_sub_callback, this, _1)
 		);
 	
 	charger_id_sub_ = rclcpp::create_subscription<std_msgs::msg::String>(
@@ -144,7 +137,7 @@ DockingBehavior::DockingBehavior(
 	dock_rotation.setRPY(0, 0, 0);
 	last_dock_pose_.setRotation(dock_rotation);
 	// Set number from observation, but will repopulate on undock with calibrated value
-	last_docked_distance_offset = 0.32;
+	offset_last_docked_distance = 0.32;
 	action_start_time_ = clock_->now();
 
 	this->footprint_collision_checker_ =  nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*>();
@@ -295,17 +288,17 @@ void DockingBehavior::handle_dock_servo_accepted(
 		RCLCPP_INFO(logger_, "dock_pose  => x: %f, y: %f, yaw: %f", position.getX(), position.getY(), yaw);
 	}
 	
-	MAX_DOCK_INTERMEDIATE_GOAL_OFFSET = params_ptr->distance_low_speed + params_ptr->second_goal_distance;
-	last_docked_distance_offset = params_ptr->last_docked_distance_offset;
-	const double max_goal_offset = MAX_DOCK_INTERMEDIATE_GOAL_OFFSET + last_docked_distance_offset;
+	MAX_DOCK_INTERMEDIATE_GOAL_OFFSET = params_ptr->offset_low_speed + params_ptr->offset_seconde_goal;
+	offset_last_docked_distance = params_ptr->offset_last_docked_distance;
+	const double max_goal_offset = MAX_DOCK_INTERMEDIATE_GOAL_OFFSET + offset_last_docked_distance;
 	
 	double dist_offset = max_goal_offset;	
 	tf2::Transform dock_offset(tf2::Transform::getIdentity());
 	tf2::Quaternion dock_rotation;
 
 	float dx = 0.05;
-	float start_point_x = -(dist_offset + params_ptr->buffer_goal_distance);
-	float end_point_x = -params_ptr->last_docked_distance_offset;
+	float start_point_x = -(dist_offset + params_ptr->offset_buffer_goal);
+	float end_point_x = -params_ptr->offset_last_docked_distance;
 	RCLCPP_INFO(logger_, "start_point_x: %f", start_point_x);
 	RCLCPP_INFO(logger_, "end_point_x: %f", end_point_x);
 	int size = std::ceil(std::abs(end_point_x - start_point_x) / dx);
@@ -359,7 +352,7 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_dock_servo(
 	}
 
 	bool exceeded_runtime = false;
-	if (clock_->now() - action_start_time_ > max_action_runtime_) {
+	if (clock_->now() - action_start_time_ > timeout_dock_action_) {
 		RCLCPP_INFO(logger_, "Dock Servo Goal Exceeded Runtime");
 		exceeded_runtime = true;
 	}
@@ -376,24 +369,6 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_dock_servo(
 	{
 		RCLCPP_DEBUG(logger_, "zero cmd time => sec: %f", this->clock_.get()->now().seconds());
 	}
-
-	// tmp for test clean_robot
-	// double x,y,r;
-	// x = this->last_robot_pose_.getOrigin().getX();
-	// y = this->last_robot_pose_.getOrigin().getY();
-	// r = std::hypot(x,y);
-	// if (r < (this->params_ptr->last_docked_distance_offset + this->params_ptr->distance_low_speed))
-	// {
-	// 	RCLCPP_INFO(logger_, "distance: %f,  return success for testing.", r);
-	// 	auto result = std::make_shared<capella_ros_dock_msgs::action::Dock::Result>();
-	// 	result->is_docked = true;
-	// 	RCLCPP_INFO(logger_, "Dock Servo Goal Succeeded\n");
-	// 	goal_handle->succeed(result);
-
-	// 	goal_controller_->reset();
-	// 	running_dock_action_ = false;
-	// 	return servo_cmd;
-	// }
 
 	if (b_timeout_current_state)
 	{
@@ -439,43 +414,12 @@ rclcpp_action::GoalResponse DockingBehavior::handle_undock_goal(
 	std::shared_ptr<const capella_ros_service_interfaces::action::Undock::Goal>/*goal*/)
 {
 	RCLCPP_INFO(logger_, "Received new undock goal");
-	
-	if (!sees_dock_)
-	{
-		// RCLCPP_WARN(logger_, "Robot cannot see the aruco marker, reject");
-		// return rclcpp_action::GoalResponse::REJECT;
-	}
-	else
-	{
-		auto current_pose = last_robot_pose_.getOrigin();
-		double x;
-		x = current_pose.getX();
-		if (std::abs(x) > (std::abs(params_ptr->last_docked_distance_offset) + 0.6))
-		{
-			RCLCPP_INFO(logger_, "abs(x): %f, std::abs(params_ptr->last_docked_distance_offset) + 0.6: %f", 
-				std::abs(x), std::abs(params_ptr->last_docked_distance_offset) + 0.6);
-			RCLCPP_WARN(logger_, "Robot had undocked, reject");
-			return rclcpp_action::GoalResponse::REJECT;
-		}
-	}
-	
 
 	if (!undocking_behavior_is_done()) {
 		RCLCPP_WARN(logger_, "An un_docking behavior is already running, reject");
 		return rclcpp_action::GoalResponse::REJECT;
 	}
 
-	if (undock_has_obstacle_)
-	{
-		RCLCPP_WARN(logger_, "There are some obstacles in front of robot, reject");
-		return rclcpp_action::GoalResponse::REJECT;
-	}
-
-
-	// if (!is_docked_) {
-	// 	RCLCPP_WARN(logger_, "Robot already undocked, reject");
-	// 	return rclcpp_action::GoalResponse::REJECT;
-	// }
 	return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
 }
 
@@ -572,7 +516,6 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_undock(
 	servo_cmd = goal_controller_->get_velocity_for_position(robot_pose, current_state.pose, current_state.charger_pose, sees_dock_,
 	                                                        is_docked_, bluetooth_connected, odom_msg, hazards, 
 															state, infos, b_timeout_current_state, footprint_collision_checker_, footprint_base_, client_clear_entire_local_costmap_);
-
 	
 	auto msg = std_msgs::msg::Bool();
 	msg.data = true;
@@ -664,39 +607,9 @@ void DockingBehavior::calibrate_docked_distance_offset(
 	const tf2::Transform & dock_pose)
 {
 	tf2::Vector3 pos_diff = docked_robot_pose.getOrigin() - dock_pose.getOrigin();
-	last_docked_distance_offset = std::hypot(pos_diff.getX(), pos_diff.getY());
+	offset_last_docked_distance = std::hypot(pos_diff.getX(), pos_diff.getY());
 	calibrated_offset_ = true;
-	RCLCPP_DEBUG(logger_, "Setting robot dock offset to %f", last_docked_distance_offset);
-}
-
-void DockingBehavior::laserScan_sub_callback(sensor_msgs::msg::LaserScan msg)
-{
-	if (!has_table)
-	{
-		laser_min_angle = msg.angle_min;
-		laser_data_size = msg.ranges.size();
-		laser_angle_increament = msg.angle_increment;
-		RCLCPP_INFO(logger_, "min_angle: %f", laser_min_angle);
-		RCLCPP_INFO(logger_, "laser_data_size: %d", laser_data_size);
-		RCLCPP_INFO(logger_, "laser_angle_increament: %f", laser_angle_increament);
-		generate_sin_cos_table(laser_min_angle, laser_angle_increament, laser_data_size);
-		has_table = true;
-		undock_has_obstacle_ = check_undock_has_obstale(msg);
-	}
-	else
-	{
-		undock_has_obstacle_ = check_undock_has_obstale(msg);
-	}
-
-	// debug results
-	if(undock_has_obstacle_)
-	{
-		// RCLCPP_DEBUG_STREAM_THROTTLE(logger_, *clock_, 1000, "undock, has obstale.");
-	}
-	else
-	{
-		// RCLCPP_DEBUG_STREAM_THROTTLE(logger_, *clock_, 1000, "undock, free space.");
-	}	
+	RCLCPP_DEBUG(logger_, "Setting robot dock offset to %f", offset_last_docked_distance);
 }
 
 void DockingBehavior::charger_id_callback(std_msgs::msg::String msg)
@@ -714,55 +627,6 @@ void DockingBehavior::charger_id_callback(std_msgs::msg::String msg)
 void DockingBehavior::marker_and_mac_callback(aruco_msgs::msg::MarkerAndMacVector msg)
 {
 	this->marker_and_mac_vector = msg;
-}
-
-void DockingBehavior::generate_sin_cos_table(float theta_min, float angle_increament, int size)
-{
-	sin_table.resize(size);
-	cos_table.resize(size);
-	for(int i = 0; i < size; i++)
-	{
-		sin_table[i] = sin(theta_min + angle_increament * i);
-		cos_table[i] = cos(theta_min + angle_increament * i);
-	}
-}
-
-bool DockingBehavior::check_undock_has_obstale(sensor_msgs::msg::LaserScan msg)
-{
-	bool ret = false;
-	float pos_lr, pos_front;
-	// sin(x) => left/right, cos(x) => front
-	float range;
-	for(int i = 0; i < laser_data_size; i++)
-	{
-		range = msg.ranges[i];
-		if(isinf(range) || range < msg.range_min || range > msg.range_max)
-		{
-			continue;
-		}
-		else
-		{
-			pos_lr = std::abs(range * sin_table[i]);
-			pos_front = std::abs(range * cos_table[i]);
-			// RCLCPP_DEBUG(logger_, "range: %f", range);
-			// RCLCPP_DEBUG(logger_, "sin: %f", sin_table[i]);
-			// RCLCPP_DEBUG(logger_, "cos: %f", cos_table[i]);
-			// RCLCPP_DEBUG(logger_, "pos_lr: %f", pos_lr);
-			// RCLCPP_DEBUG(logger_, "pos_front: %f", pos_front);
-			
-			if (pos_lr < params_ptr->undock_obstacle_lr && pos_front < params_ptr->undock_obstacle_front)
-			{
-				ret = true;
-				break;
-			}
-			else
-			{
-				continue;
-			}
-		}
-		
-	}
-	return ret;
 }
 
 }  // namespace capella_ros_dock

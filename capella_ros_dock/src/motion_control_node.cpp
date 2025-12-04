@@ -74,41 +74,34 @@ MotionControlNode::MotionControlNode(const rclcpp::NodeOptions & options)
 
 void MotionControlNode::init_params()
 {
-	this->declare_parameter<int>("max_dock_action_run_time", 180);
+	this->declare_parameter<int>("timeout_dock_action", 180);
 	this->declare_parameter<float>("min_rotation", 0.15);
 	this->declare_parameter<float>("max_rotation", 0.3);
 	this->declare_parameter<float>("min_translation", 0.02);
 	this->declare_parameter<float>("max_translation", 0.1);
 	this->declare_parameter<float>("angle_to_goal_angle_converged", 0.10);
-	this->declare_parameter<float>("go_to_goal_angle_too_far", 0.15);
 	this->declare_parameter<float>("go_to_goal_apply_rotation_angle", 0.10);
 	this->declare_parameter<float>("goal_angle_converged", 0.15);
-	this->declare_parameter<float>("dist_goal_converged", 0.10);
-	this->declare_parameter<float>("last_docked_distance_offset", 0.32);
-	this->declare_parameter<float>("distance_low_speed", 0.10);
-	this->declare_parameter<float>("translate_low_speed", 0.02);
-	this->declare_parameter<float>("rotation_low_speed", 0.05);
+	this->declare_parameter<float>("offset_last_docked_distance", 0.32);
+	this->declare_parameter<float>("offset_low_speed", 0.10);
 	this->declare_parameter<float>("", 0.0);
-	this->declare_parameter<float>("second_goal_distance", 0.5);
-	this->declare_parameter<float>("buffer_goal_distance", 1.0);
+	this->declare_parameter<float>("offset_seconde_goal", 0.5);
+	this->declare_parameter<float>("offset_buffer_goal", 1.0);
 	this->declare_parameter<float>("camera_horizontal_view", 64.0);
 	this->declare_parameter<float>("localization_converged_time", 2);
 	this->declare_parameter<float>("tolerance_angle", 0.05);
 	this->declare_parameter<float>("tolerance_r", 0.1);
 	this->declare_parameter<float>("deviate_second_goal_x", 0.2);
 	this->declare_parameter<float>("dist_error_y_1", 0.05);
-	this->declare_parameter<float>("dist_error_x_and_y", 0.3);
 	this->declare_parameter<std::string>("motion_control_log_level", "info");
 	this->declare_parameter<int>("cmd_vel_hz", 10);
-	this->declare_parameter<float>("angle_delta", 0.1);
 	this->declare_parameter<float>("marker_size", 0.2);
 	this->declare_parameter<float>("dock_valid_obstacle_x", 0.4);
 	this->declare_parameter<float>("time_sleep", 3.0);
 	this->declare_parameter<float>("go_to_goal_rotation_min", 0.05);
 	this->declare_parameter<float>("go_to_goal_rotation_max", 0.10);
 	this->declare_parameter<float>("speed_rotation_acceleration", 0.20);
-	this->declare_parameter<float>("speed_rotation_init_abs", 0.02);
-	this->declare_parameter<int>("max_action_runtime", 180);
+	this->declare_parameter<float>("speed_rotation_init_abs", 0.02);	
 	this->declare_parameter<float>("contacted_keep_move_time", 0.1);
 	this->declare_parameter<float>("undock_speed", 0.15);
 	this->declare_parameter<float>("undock_timeout", 5.0);
@@ -143,32 +136,25 @@ void MotionControlNode::init_params()
 	this->declare_parameter<float>("timeout_go_to_goal_position", 30.0);
 	this->declare_parameter<float>("timeout_goal_angle", 30.0);
 
-	params.max_dock_action_run_time = this->get_parameter_or<int>("max_dock_action_run_time", 180);
 	params.min_rotation = this->get_parameter_or<float>("min_rotation", 0.15);
 	params.max_rotation = this->get_parameter_or<float>("max_rotation", 0.30);
 	params.min_translation = this->get_parameter_or<float>("min_translation", 0.02);
 	params.max_translation = this->get_parameter_or<float>("max_translation", 0.10);
 	params.angle_to_goal_angle_converged = this->get_parameter_or<float>("angle_to_goal_angle_converged", 0.10);
-	params.go_to_goal_angle_too_far = this->get_parameter_or<float>("go_to_goal_angle_too_far", 0.15);
 	params.go_to_goal_apply_rotation_angle = this->get_parameter_or<float>("go_to_goal_apply_rotation_angle", 0.10);
 	params.goal_angle_converged = this->get_parameter_or<float>("goal_angle_converged", 0.15);
-	params.dist_goal_converged = this->get_parameter_or<float>("dist_goal_converged", 0.10);
-	params.last_docked_distance_offset = this->get_parameter_or<float>("last_docked_distance_offset", 0.32);
-	params.distance_low_speed = this->get_parameter_or<float>("distance_low_speed", 0.10);
-	params.translate_low_speed = this->get_parameter_or<float>("translate_low_speed", 0.02);
-	params.rotation_low_speed = this->get_parameter_or<float>("rotation_low_speed", 0.05);
-	params.second_goal_distance = this->get_parameter_or<float>("second_goal_distance", 0.50);
-	params.buffer_goal_distance = this->get_parameter_or<float>("buffer_goal_distance", 1.0);
+	params.offset_last_docked_distance = this->get_parameter_or<float>("offset_last_docked_distance", 0.32);
+	params.offset_low_speed = this->get_parameter_or<float>("offset_low_speed", 0.10);
+	params.offset_seconde_goal = this->get_parameter_or<float>("offset_seconde_goal", 0.50);
+	params.offset_buffer_goal = this->get_parameter_or<float>("offset_buffer_goal", 1.0);
 	params.camera_horizontal_view = this->get_parameter_or<float>("camera_horizontal_view", 64.0);
 	params.localization_converged_time = this->get_parameter_or<float>("localization_converged_time", 2);
 	params.tolerance_angle = this->get_parameter_or<float>("tolerance_angle", 0.05);
 	params.tolerance_r = this->get_parameter_or<float>("tolerance_r", 0.1);
 	params.deviate_second_goal_x = this->get_parameter_or<float>("deviate_second_goal_x", 0.2);
 	params.dist_error_y_1 = this->get_parameter_or<float>("dist_error_y_1", 0.05);
-	params.dist_error_x_and_y = this->get_parameter_or<float>("dist_error_x_and_y", 0.3);
 	params.motion_control_log_level = this->get_parameter_or<std::string>("motion_control_log_level", "info");
 	params.cmd_vel_hz = this->get_parameter("cmd_vel_hz").get_value<int>();
-	params.angle_delta = this->get_parameter("angle_delta").get_value<float>();
 	params.marker_size = this->get_parameter("marker_size").get_value<float>();
 	params.dock_valid_obstacle_x = this->get_parameter("dock_valid_obstacle_x").get_value<float>();
 	params.time_sleep = this->get_parameter("time_sleep").get_value<float>();
@@ -176,7 +162,7 @@ void MotionControlNode::init_params()
 	params.go_to_goal_rotation_max = this->get_parameter("go_to_goal_rotation_max").get_value<float>();
 	params.speed_rotation_acceleration = this->get_parameter("speed_rotation_acceleration").get_value<float>();
 	params.speed_rotation_init_abs = this->get_parameter("speed_rotation_init_abs").get_value<float>();
-	params.max_action_runtime = this->get_parameter("max_action_runtime").get_value<int>();
+	params.timeout_dock_action = this->get_parameter("timeout_dock_action").get_value<int>();
 	params.contacted_keep_move_time = this->get_parameter("contacted_keep_move_time").get_value<float>();
 	params.undock_speed = this->get_parameter("undock_speed").get_value<float>();
 	params.undock_timeout = this->get_parameter("undock_timeout").get_value<float>();
@@ -211,8 +197,8 @@ void MotionControlNode::init_params()
 	params.timeout_go_to_goal_position = this->get_parameter("timeout_go_to_goal_position").get_value<float>();
 	params.timeout_goal_angle = this->get_parameter("timeout_goal_angle").get_value<float>();
 	
-	RCLCPP_INFO_STREAM(this->get_logger(), "max_dock_action_run_time: " << params.max_dock_action_run_time 
-		<< ", last_docked_distanace_offset: " << params.last_docked_distance_offset);
+	RCLCPP_INFO_STREAM(this->get_logger(), "timeout_dock_action: " << params.timeout_dock_action 
+		<< ", last_docked_distanace_offset: " << params.offset_last_docked_distance);
 }
 
 void MotionControlNode::cb_hazard_detection(capella_ros_dock_msgs::msg::HazardDetectionVector::SharedPtr msg)

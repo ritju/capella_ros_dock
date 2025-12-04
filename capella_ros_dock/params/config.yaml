@@ -22,59 +22,77 @@ test_dock:
 
 motion_control:
   ros__parameters:
-    max_dock_action_run_time: 160
-    min_rotation: 0.15
-    max_rotation: 0.20
-    go_to_goal_rotation_min: 0.05
-    go_to_goal_rotation_max: 0.05
-    go_to_goal_translation_min: 0.05
-    go_to_goal_translation_max: 0.06
-    min_translation: 0.05
-    max_translation: 0.20
-    angle_to_goal_angle_converged: 0.05
-    go_to_goal_angle_too_far: 0.35
-    go_to_goal_apply_rotation_angle: 0.01 # when angle_dist > this value,apply rotation
-    goal_angle_converged: 0.15
-    dist_goal_converged: 0.3
-    # last_docked_distance_offset: 0.60
-    distance_low_speed: 0.30
-    translate_low_speed: 0.05
-    rotation_low_speed: 0.10
-    second_goal_distance: 0.05
-    buffer_goal_distance: 0.20
-    camera_horizontal_view: 58.0
-    localization_converged_time: 3.0 # wait (n) seconds for coordinates to be converged
-    tolerance_angle: 0.02
-    tolerance_r: 0.02
-    deviate_second_goal_x: 0.1
-    dist_error_y_1: 0.05
-    dist_error_x_and_y: 0.3
-    motion_control_log_level: 'info'
-    cmd_vel_hz: 10
-    angle_delta: 0.1
-    marker_size: 0.12
-    dock_valid_obstacle_x: 0.90
-    time_sleep: 5.0
-    speed_rotation_acceleration: 0.3
-    speed_rotation_init_abs: 0.02
-    max_action_runtime: 1800
-    contacted_keep_move_time: 0.10
-    undock_speed: 0.15
-    undock_timeout: 5.0
-    undock_obstacle_lr: 0.5 # lr, left_right
-    undock_obstacle_front: 1.0
-    goal_y_correction: 0.0
-    go_to_goal_linear_acc: 0.05
-    robot_rotate_radius: 1.25
-    base_link_y_thr: 0.08
-    base_link_dummy_dis: 0.46
-    last_goal_angle_to_x_positive_dis: 0.05
-    last_goal_angle_to_x_positive_y: 0.01
-    collision_check: false
-    collision_predict_time: 5.0
-    odom_twist_scale: 0.8
-    enable_clear_local_costmap: false         # 是否定时清除local_costmap,用于处理local_costmap长时间不更新的情况
-    timout_clear_local_costmap: 2.0            # 清除local_costmap时的超时时间
+
+    # dock 时间参数
+    timeout_dock_action: 180                         # dock action 超时时间
+    timeout_lookup_marker: 30.0                      # lookup_marker 超时时间
+    timeout_angle_to_buffer_point: 30.0              # angle_to_buffer_point 超时时间
+    timeout_move_to_buffer_point: 30.0               # move_to_buffer_point 超时时间
+    timeout_angle_to_x_positive_orientation: 30.0    # angle_to_x_positive_orientation 超时时间
+    timeout_angle_to_goal: 30.0                      # angle_to_goal 超时时间
+    timeout_go_to_goal_position: 30.0                # go_to_goal_position 超时时间
+    timeout_goal_angle: 30.0                         # goal_angle 超时时间
+    time_sleep: 5.0                  # 连续看不见码时的等待时间，用于对接过程中意外导致无法再看见码时的脱困处理
+    contacted_keep_move_time: 0.3    # 收到contact=true时，继续后退的时间，防止立马停下后contact状态变回false
+    localization_converged_time: 3.0 # 首次识别到码坐标后，继续等待的时间，用于选择最优的坐标值  
+
+    # dock 目标点参数
+    offset_last_docked_distance: 0.30   # 上次对接上充电桩时的X坐标绝对值
+    offset_low_speed: 0.30              # low_speed mode 距离
+    offset_seconde_goal: 0.05           # 进入low_speed模式上一个目标点距其的距离
+    offset_buffer_goal: 0.20            # 最终选取的中间点距second_goal的距离，最终中间点x坐标为上述四个参数之和，再取反
+    
+    # dock 速度相关参数
+    min_rotation: 0.10                    # 最小旋转速度
+    max_rotation: 0.20                    # 最大旋转速度
+    min_translation: 0.05                 # 最小线速度
+    max_translation: 0.20                 # 最大线速度
+    go_to_goal_rotation_min: 0.05         # go_to_goal_position 最小旋转速度
+    go_to_goal_rotation_max: 0.05         # go_to_goal_position 最大旋转速度
+    go_to_goal_translation_min: 0.05      # go_to_goal_position 最小线速度
+    go_to_goal_translation_max: 0.06      # go_to_goal_position 最大线速度
+    go_to_goal_linear_acc: 0.05           # go_to_goal_position 线速度的加速度
+    speed_rotation_acceleration: 0.3      # 角速度平滑函数中的角度加速度
+    speed_rotation_init_abs: 0.02         # 角速度平滑函数中初始产生的角速度
+
+    # dock阀值参数
+    angle_to_goal_angle_converged: 0.05 # ANGLE_TO_GOAL过程中判断角度满足的阀值
+    goal_angle_converged: 0.15 # GOAL_ANGLE过程中判断角度的阀值
+    tolerance_angle: 0.02      # LOOKUP_MARKER过程中判断角度冗余
+    tolerance_r: 0.02          # MOVE_TO_BUFFER_POINT过程中判断到buffer_point的距离冗余
+    dist_error_y_1: 0.05       # 判断能否切换到GO_TO_GOAL_POSITION的条件，机器人距目标点很近时，只要y坐标接近中轴线就切换状态到GO_TO_GOAL_POSITION
+    base_link_y_thr: 0.08      # 判断能否切换到ANGLE_TO_GOAL状态的条件二，机器人位姿左右偏差最大值(条件一是机器人坐标x,y到目标点的最大角度)
+    deviate_second_goal_x: 0.1 # 判断能否切换到ANGLE_TO_GOAL状态的条件三，机器人位姿前后距second_goal偏差最大值
+    go_to_goal_apply_rotation_angle: 0.01   # go_to_goal_position 过程中需要增加角速度调整的阀值  last_goal_angle_to_x_positive_dis: 0.05 # 机器人马上对接上时强制回正的阀值，距上次对接上时的x轴坐标的最大距离
+    last_goal_angle_to_x_positive_y: 0.01   # 机器人马上对接上时强制回正的阀值，距上次对接上时的y轴坐标的最大距离
+    robot_rotate_radius: 1.25               # 机器人后退过程中看不到码时，判断机器人在原地能安全地通过旋转切换到ANGLE_TO_X_POSITIVE_ORIENTATION状态的最小半径
+
+    # 相机和码参数
+    camera_horizontal_view: 60.0
+    camera_baselink_dis: 0.0  # 相机在baselink_dummy_optimize坐标系上x轴上的值，有正负之分
+    marker_size: 0.12 # 码的整体尺寸，双码现在是每个码0.04，间距0.04，共计0.12
+
+    # 其它参数
+    charger_contact_condition_type: 0  # 0: BLUETOOTH_ONLY, 1: CAMERA_ONLY, 2: BLUETOOTH_AND_CAMERA; 目前只支持 0,BLUETOOTH_ONLY
+    goal_y_correction: 0.0             # 校正 目标点y值位姿，用于处理机器人对接上时，码坐标的y值偏差接近0，但实际观察固定偏向某一方向的情况 
+    base_link_dummy_dis: 0.477         # base_link_dummy到base_link的x轴距离，等于环境变量BASE_LINK_DUMMY_TRANSFORM_X
+    odom_twist_scale: 0.99             # odom速度与实际发送速度的scale
+    enable_clear_local_costmap: false  # 是否定时清除local_costmap,用于处理local_costmap长时间不更新的情况
+    timout_clear_local_costmap: 3.0    # 清除local_costmap时的超时时间
+    
+    # motion control结点参数
+    motion_control_log_level: 'info'  # motion_control 日志类型
+    cmd_vel_hz: 10                    # motion_control 控制生成速度的频率
+    
+    # 碰撞参数
+    collision_check: true        # 是否开启碰撞检测
+    collision_predict_time: 5.0  # 碰撞检测预测时间
+    dock_valid_obstacle_x: 1.2   # 机器人距充电桩x距离（码坐标系下）小于这个阀值时不再进行碰撞检测
+
+    # undock参数
+    undock_speed: 0.15     # undock的线速度
+    undock_timeout: 30.0   # undock超时时间    
+    undock_dis: 0.5        # undock要固定驶离充电桩的距离
 
 
 camera_point_cloud_process:
