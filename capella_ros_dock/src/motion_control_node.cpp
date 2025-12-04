@@ -84,8 +84,7 @@ void MotionControlNode::init_params()
 	this->declare_parameter<float>("goal_angle_converged", 0.15);
 	this->declare_parameter<float>("offset_last_docked_distance", 0.32);
 	this->declare_parameter<float>("offset_low_speed", 0.10);
-	this->declare_parameter<float>("", 0.0);
-	this->declare_parameter<float>("offset_seconde_goal", 0.5);
+	this->declare_parameter<float>("offset_second_goal", 0.5);
 	this->declare_parameter<float>("offset_buffer_goal", 1.0);
 	this->declare_parameter<float>("camera_horizontal_view", 64.0);
 	this->declare_parameter<float>("localization_converged_time", 2);
@@ -145,7 +144,7 @@ void MotionControlNode::init_params()
 	params.goal_angle_converged = this->get_parameter_or<float>("goal_angle_converged", 0.15);
 	params.offset_last_docked_distance = this->get_parameter_or<float>("offset_last_docked_distance", 0.32);
 	params.offset_low_speed = this->get_parameter_or<float>("offset_low_speed", 0.10);
-	params.offset_seconde_goal = this->get_parameter_or<float>("offset_seconde_goal", 0.50);
+	params.offset_second_goal = this->get_parameter_or<float>("offset_second_goal", 0.50);
 	params.offset_buffer_goal = this->get_parameter_or<float>("offset_buffer_goal", 1.0);
 	params.camera_horizontal_view = this->get_parameter_or<float>("camera_horizontal_view", 64.0);
 	params.localization_converged_time = this->get_parameter_or<float>("localization_converged_time", 2);

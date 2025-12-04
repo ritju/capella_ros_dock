@@ -39,7 +39,7 @@ motion_control:
     # dock 目标点参数
     offset_last_docked_distance: 0.30   # 上次对接上充电桩时的X坐标绝对值
     offset_low_speed: 0.30              # low_speed mode 距离
-    offset_seconde_goal: 0.05           # 进入low_speed模式上一个目标点距其的距离
+    offset_second_goal: 0.05            # 进入low_speed模式上一个目标点距其的距离
     offset_buffer_goal: 0.20            # 最终选取的中间点距second_goal的距离，最终中间点x坐标为上述四个参数之和，再取反
     
     # dock 速度相关参数

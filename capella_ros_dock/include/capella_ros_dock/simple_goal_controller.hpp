@@ -65,7 +65,7 @@ void init(motion_control_params* params_ptr)
 	robot_info_ = RobotInfo();
 	buffer_goal_point_x = -(params_ptr->offset_last_docked_distance
 	                        + params_ptr->offset_low_speed
-	                        + params_ptr->offset_seconde_goal
+	                        + params_ptr->offset_second_goal
 	                        + params_ptr->offset_buffer_goal);
 	buffer_goal_point_y = 0.0 + params_ptr->goal_y_correction;
 
@@ -73,7 +73,7 @@ void init(motion_control_params* params_ptr)
 	camera_horizontal_view = degree_to_radian(params_ptr->camera_horizontal_view);
 	marker_size = params_ptr->marker_size;
 	camera_baselink_dis = params_ptr->camera_baselink_dis;
-	goal_dis_x = params_ptr->offset_last_docked_distance + params_ptr->offset_low_speed + params_ptr->offset_seconde_goal;
+	goal_dis_x = params_ptr->offset_last_docked_distance + params_ptr->offset_low_speed + params_ptr->offset_second_goal;
 	RCLCPP_INFO(rclcpp::get_logger("simple_goal_controller"), "camera_horizontal_view: %.2f, marker_size: %.2f, camera_baselink_dis: %.2f, goal_dis_x: %.2f",
 	            camera_horizontal_view, marker_size, camera_baselink_dis, goal_dis_x);
 
@@ -312,7 +312,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 	{
 		print_current_state_debug(current_state_);
 		servo_vel = geometry_msgs::msg::Twist();
-		change_state(current_state_, NavigateStates::LOOKUP_MARKER, clock_->now().seconds(), 1.0); // INIT 状态只执行一次，不涉及超时问题，为保持一致，timout参数设置为1.0
+		change_state(current_state_, NavigateStates::LOOKUP_MARKER, clock_->now().seconds(), params_ptr->timeout_lookup_marker); 
 		break;
 	}
 	case NavigateStates::LOOKUP_MARKER:
@@ -430,7 +430,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 
 					float distance_tmp = params_ptr->offset_last_docked_distance
 											+ params_ptr->offset_low_speed
-											+ params_ptr->offset_seconde_goal;
+											+ params_ptr->offset_second_goal;
 					double theta = std::atan2(std::abs(robot_y_charger_), std::abs(robot_x_charger_) - distance_tmp);
 					RCLCPP_DEBUG(logger_, "robot_x_charger: %.2f", robot_x_charger_);
 					RCLCPP_DEBUG(logger_, "robot_y_charger: %.2f", robot_y_charger_);
@@ -740,9 +740,11 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		double theta_charger_to_robot = std::atan2(robot_y_map_ - charger_y_map_, robot_x_map_ - charger_x_map_);
 		double dist_yaw_map = angles::shortest_angular_distance(robot_yaw_map_, theta_charger_to_robot);
 
-		RCLCPP_DEBUG(logger_, "marker_visible: %s", sees_dock?"true":"false");
+		RCLCPP_DEBUG(logger_, "robot_yaw_map_: %.2f", robot_yaw_map_);
+		RCLCPP_DEBUG(logger_, "theta_charger_to_robot: %.2f", theta_charger_to_robot);
 		RCLCPP_DEBUG(logger_, "dist_yaw_map: %.2f", dist_yaw_map);
 		RCLCPP_DEBUG(logger_, "delta_time: %.2f", delta_time_);
+		RCLCPP_DEBUG(logger_, "marker_visible: %s", sees_dock?"true":"false");
 
 		if(std::abs(dist_yaw_map) < params_ptr->tolerance_angle) 
 		{
@@ -750,7 +752,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			{
 				float distance_tmp = params_ptr->offset_last_docked_distance
 									+ params_ptr->offset_low_speed
-									+ params_ptr->offset_seconde_goal;
+									+ params_ptr->offset_second_goal;
 				double theta = std::atan2(std::abs(robot_y_charger_), std::abs(robot_x_charger_) - distance_tmp);
 				RCLCPP_DEBUG(logger_, "robot_x_charger: %.2f", robot_x_charger_);
 				RCLCPP_DEBUG(logger_, "robot_y_charger: %.2f", robot_y_charger_);
@@ -1248,6 +1250,8 @@ bool check_current_state_timeout()
 {
 	bool ret = false;
 	now_time_ = clock_->now().seconds();
+	RCLCPP_DEBUG(logger_, "now_time: %.2f, start_time: %.2f", now_time_, current_state_start_time_);
+	RCLCPP_DEBUG(logger_, "delta_time: %.2f, timeout: %.2f",now_time_ - current_state_start_time_, current_state_timeout_);
 	if (now_time_ - current_state_start_time_ > current_state_timeout_)
 	{
 		ret = true;

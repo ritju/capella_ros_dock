@@ -17,7 +17,7 @@ struct motion_control_params
 	float goal_angle_converged;
 	float offset_last_docked_distance;
 	float offset_low_speed;
-	float offset_seconde_goal;
+	float offset_second_goal;
 	float offset_buffer_goal;
 	float camera_horizontal_view;
 	float localization_converged_time;

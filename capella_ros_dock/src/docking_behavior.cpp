@@ -288,7 +288,7 @@ void DockingBehavior::handle_dock_servo_accepted(
 		RCLCPP_INFO(logger_, "dock_pose  => x: %f, y: %f, yaw: %f", position.getX(), position.getY(), yaw);
 	}
 	
-	MAX_DOCK_INTERMEDIATE_GOAL_OFFSET = params_ptr->offset_low_speed + params_ptr->offset_seconde_goal;
+	MAX_DOCK_INTERMEDIATE_GOAL_OFFSET = params_ptr->offset_low_speed + params_ptr->offset_second_goal;
 	offset_last_docked_distance = params_ptr->offset_last_docked_distance;
 	const double max_goal_offset = MAX_DOCK_INTERMEDIATE_GOAL_OFFSET + offset_last_docked_distance;
 	
