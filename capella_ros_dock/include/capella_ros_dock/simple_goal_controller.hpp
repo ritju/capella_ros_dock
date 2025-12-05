@@ -1201,8 +1201,8 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 
 		update_time_smart();
 		undock_dis_moved_ += odom_msg.twist.twist.linear.x * delta_time_;
-		RCLCPP_INFO_THROTTLE(logger_, *clock_, 500, "undock cost time: %.2f, dis_moved: %.2f, total: %.2f", delta_time_, undock_dis_moved_, params_ptr->undock_dis);
-		RCLCPP_DEBUG(logger_, "undock cost time: %.2f, dis_moved: %.2f, total: %.2f", delta_time_, undock_dis_moved_, params_ptr->undock_dis);
+		RCLCPP_INFO_THROTTLE(logger_, *clock_, 500, "undock cost time: %.2f, dis_moved: %.2f, total: %.2f", (now_time_ - current_state_start_time_), undock_dis_moved_, params_ptr->undock_dis);
+		RCLCPP_DEBUG(logger_, "undock cost time: %.2f, dis_moved: %.2f, total: %.2f", (now_time_ - current_state_start_time_), undock_dis_moved_, params_ptr->undock_dis);
 		if (undock_dis_moved_ < params_ptr->undock_dis)
 		{
 			servo_vel->linear.x = params_ptr->undock_speed;
@@ -1230,6 +1230,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		else
 		{
 			goal_points_.clear();
+			RCLCPP_INFO(logger_, "x_charger: %.2f, y_charger: %.2f", robot_x_charger_, robot_y_charger_);
 			RCLCPP_INFO(logger_, "undock succeed.");
 			undocking = false;
 		}
