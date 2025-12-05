@@ -107,6 +107,10 @@ public:
         bool is_in_charger_range{true};
         bool is_in_charger_range_last{false};
 
+        // walltime 用于发送/charger_position_bool 话题
+        rclcpp::TimerBase::SharedPtr timer_charger_position_;
+        void timer_charger_position_callback_();
+
         // publisher
         rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr charger_position_pub_;
 

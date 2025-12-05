@@ -25,13 +25,13 @@ motion_control:
 
     # dock 时间参数
     timeout_dock_action: 180                         # dock action 超时时间
-    timeout_lookup_marker: 30.0                      # lookup_marker 超时时间
-    timeout_angle_to_buffer_point: 30.0              # angle_to_buffer_point 超时时间
-    timeout_move_to_buffer_point: 30.0               # move_to_buffer_point 超时时间
-    timeout_angle_to_x_positive_orientation: 30.0    # angle_to_x_positive_orientation 超时时间
-    timeout_angle_to_goal: 30.0                      # angle_to_goal 超时时间
-    timeout_go_to_goal_position: 30.0                # go_to_goal_position 超时时间
-    timeout_goal_angle: 30.0                         # goal_angle 超时时间
+    timeout_lookup_marker: 60.0                      # lookup_marker 超时时间
+    timeout_angle_to_buffer_point: 60.0              # angle_to_buffer_point 超时时间
+    timeout_move_to_buffer_point: 60.0               # move_to_buffer_point 超时时间
+    timeout_angle_to_x_positive_orientation: 60.0    # angle_to_x_positive_orientation 超时时间
+    timeout_angle_to_goal: 60.0                      # angle_to_goal 超时时间
+    timeout_go_to_goal_position: 120.0                # go_to_goal_position 超时时间
+    timeout_goal_angle: 60.0                         # goal_angle 超时时间
     time_sleep: 5.0                  # 连续看不见码时的等待时间，用于对接过程中意外导致无法再看见码时的脱困处理
     contacted_keep_move_time: 0.3    # 收到contact=true时，继续后退的时间，防止立马停下后contact状态变回false
     localization_converged_time: 3.0 # 首次识别到码坐标后，继续等待的时间，用于选择最优的坐标值  
@@ -74,7 +74,7 @@ motion_control:
 
     # 其它参数
     charger_contact_condition_type: 0  # 0: BLUETOOTH_ONLY, 1: CAMERA_ONLY, 2: BLUETOOTH_AND_CAMERA; 目前只支持 0,BLUETOOTH_ONLY
-    goal_y_correction: -0.01            # 校正 目标点y值位姿，用于处理机器人对接上时，码坐标的y值偏差接近0，但实际观察固定偏向某一方向的情况 
+    goal_y_correction: 0.0           # 校正 目标点y值位姿，用于处理机器人对接上时，码坐标的y值偏差接近0，但实际观察固定偏向某一方向的情况 
     base_link_dummy_dis: 0.477         # base_link_dummy到base_link的x轴距离，等于环境变量BASE_LINK_DUMMY_TRANSFORM_X
     odom_twist_scale: 0.99             # odom速度与实际发送速度的scale
     enable_clear_local_costmap: false  # 是否定时清除local_costmap,用于处理local_costmap长时间不更新的情况
@@ -108,10 +108,10 @@ camera_point_cloud_process:
 
 manual_dock:
   ros__parameters:
-    pose_x_min: -0.50
+    pose_x_min: -0.65
     pose_x_max: -0.15
-    pose_y_min: -0.1
-    pose_y_max: 0.1
+    pose_y_min: -0.3
+    pose_y_max: 0.3
     yaw_min: -3.14
     yaw_max: 3.14
 

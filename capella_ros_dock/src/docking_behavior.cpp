@@ -263,6 +263,7 @@ void DockingBehavior::handle_dock_servo_accepted(
 {
 	// Create new Docking state machine
 	running_dock_action_ = true;
+	b_timeout_current_state = false;
 	action_start_time_ = clock_->now();
 
 	const auto goal = goal_handle->get_goal();
@@ -370,33 +371,9 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_dock_servo(
 		RCLCPP_DEBUG(logger_, "zero cmd time => sec: %f", this->clock_.get()->now().seconds());
 	}
 
-	if (b_timeout_current_state)
-	{
-		RCLCPP_INFO(logger_, "Dock Goal timout at state %s, infos: %s", state.c_str(), infos.c_str());
-		auto result = std::make_shared<capella_ros_dock_msgs::action::Dock::Result>();
-		result->is_docked = is_docked_;
-		goal_handle->abort(result);
-	}
-
-	if (!servo_cmd || exceeded_runtime) {
-		auto result = std::make_shared<capella_ros_dock_msgs::action::Dock::Result>();
-		if (is_docked_) {
-			result->is_docked = true;
-			RCLCPP_INFO(logger_, "Dock Servo Goal Succeeded\n");
-			goal_handle->succeed(result);
-		} else {
-			result->is_docked = false;
-			RCLCPP_INFO(logger_, "Dock Servo Goal Aborted\n");
-			goal_handle->abort(result);
-		}
-		goal_controller_->reset();
-		running_dock_action_ = false;
-		return servo_cmd;
-	}
-
 	rclcpp::Time current_time = clock_->now();
 	auto time_since_feedback = current_time - last_feedback_time_;
-	if (time_since_feedback > report_feedback_interval_) {
+	if (time_since_feedback > report_feedback_interval_ || b_timeout_current_state) {
 		// Publish feedback
 		auto feedback = std::make_shared<capella_ros_dock_msgs::action::Dock::Feedback>();
 		feedback->sees_dock = sees_dock_;
@@ -404,6 +381,37 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_dock_servo(
 		feedback->infos = infos;
 		goal_handle->publish_feedback(feedback);
 		last_feedback_time_ = current_time;
+	}
+
+	if (b_timeout_current_state)
+	{
+		RCLCPP_INFO(logger_, "Dock Goal timout at state %s, infos: %s", state.c_str(), infos.c_str());
+		auto result = std::make_shared<capella_ros_dock_msgs::action::Dock::Result>();
+		result->is_docked = is_docked_;
+		goal_handle->abort(result);
+
+		goal_controller_->reset();
+		running_dock_action_ = false;
+		return servo_cmd;
+	}
+	else
+	{
+		if (!servo_cmd || exceeded_runtime) 
+		{
+			auto result = std::make_shared<capella_ros_dock_msgs::action::Dock::Result>();
+			if (is_docked_) {
+				result->is_docked = true;
+				RCLCPP_INFO(logger_, "Dock Servo Goal Succeeded\n");
+				goal_handle->succeed(result);
+			} else {
+				result->is_docked = false;
+				RCLCPP_INFO(logger_, "Dock Servo Goal Aborted\n");
+				goal_handle->abort(result);
+			}
+			goal_controller_->reset();
+			running_dock_action_ = false;
+			return servo_cmd;
+		}
 	}
 
 	return servo_cmd;
@@ -436,6 +444,7 @@ void DockingBehavior::handle_undock_accepted(
 		rclcpp_action::ServerGoalHandle<capella_ros_service_interfaces::action::Undock> > goal_handle)
 {
 	// Create new Docking Action
+	b_timeout_current_state = false;
 	running_undock_action_ = true;
 	action_start_time_ = clock_->now();
 
@@ -532,24 +541,31 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_undock(
 		auto result = std::make_shared<capella_ros_service_interfaces::action::Undock::Result>();
 		result->success = false;
 		goal_handle->abort(result);
-	}
-
-	if (!servo_cmd || exceeded_runtime) {
-		auto result = std::make_shared<capella_ros_service_interfaces::action::Undock::Result>();
-		result->is_docked = is_docked_;
-		result->sees_charger = sees_dock_;
-		if (!is_docked_) {
-			RCLCPP_INFO(logger_, "Undock Goal Succeeded");
-			result->success = true;
-			goal_handle->succeed(result);
-		} else {
-			result->success = false;
-			RCLCPP_INFO(logger_, "Undock Goal Aborted");
-			goal_handle->abort(result);
-		}
+		
 		goal_controller_->reset();
 		running_undock_action_ = false;
-		return BehaviorsScheduler::optional_output_t();
+		return BehaviorsScheduler::optional_output_t();		
+	}
+	else
+	{
+		if (!servo_cmd || exceeded_runtime) 
+		{
+			auto result = std::make_shared<capella_ros_service_interfaces::action::Undock::Result>();
+			result->is_docked = is_docked_;
+			result->sees_charger = sees_dock_;
+			if (!is_docked_) {
+				RCLCPP_INFO(logger_, "Undock Goal Succeeded");
+				result->success = true;
+				goal_handle->succeed(result);
+			} else {
+				result->success = false;
+				RCLCPP_INFO(logger_, "Undock Goal Aborted");
+				goal_handle->abort(result);
+			}
+			goal_controller_->reset();
+			running_undock_action_ = false;
+			return BehaviorsScheduler::optional_output_t();
+		}
 	}
 
 	return servo_cmd;

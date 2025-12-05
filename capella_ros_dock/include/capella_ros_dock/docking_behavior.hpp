@@ -171,7 +171,7 @@ bool bluetooth_connected{false};
 
 std::string state;
 std::string infos;
-bool b_timeout_current_state;
+bool b_timeout_current_state = false;
 
 int charger_contact_condition_type = 0; // default 0 => only use bluetooth data
 

@@ -37,6 +37,8 @@ def generate_launch_description():
     charger_contact_type = get_environment_value("CHARGER_CONTACT_CONDITION_TYPE", "BLUETOOTH_ONLY")
     last_docked_offset = get_environment_value("LAST_DOCKED_DISTANCE_OFFSET", "0.30")
     camera_baselink_distance = get_environment_value("CAMERA_BASELINK_DIS", "0.3")
+    motion_control_log_level = get_environment_value("DOCK_MOTION_CONTROL_LOG_LEVEL", "info")
+    goal_y_correction = get_environment_value("DOCK_GOAL_Y_CORRECTION", "0.0")
     
     # 类型映射
     type_mapping = {
@@ -53,7 +55,7 @@ def generate_launch_description():
     # 声明launch参数
     log_level_arg = DeclareLaunchArgument(
         'log_level', 
-        default_value='debug', 
+        default_value=motion_control_log_level, 
         description='define motion_control node log level'
     )
     
@@ -61,7 +63,8 @@ def generate_launch_description():
     param_substitutions = {
         "charger_contact_condition_type": str(type_mapping[charger_contact_type]),
         "offset_last_docked_distance": str(last_docked_offset),
-        "camera_baselink_dis": str(camera_baselink_distance)
+        "camera_baselink_dis": str(camera_baselink_distance),
+        "goal_y_correction": str(goal_y_correction)
     }    
     
     # 配置参数文件

@@ -225,6 +225,10 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 				start_time_recorded = false;
 				first_contacted = true;
 			}
+			else
+			{
+				RCLCPP_DEBUG(logger_, "keep moving until %.2f expired, remaining %.2f seconds", params_ptr->contacted_keep_move_time, now_time_ - first_contacted_time);
+			}
 		}
 	}
 	if (goal_points_.size() == 0) {
@@ -327,6 +331,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		b_timeout_current_state = check_current_state_timeout();
 		if (b_timeout_current_state)
 		{
+			change_state(current_state_, NavigateStates::INIT, clock_->now().seconds(), 1.0);
 			return servo_vel;		
 		}
 
@@ -531,6 +536,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		b_timeout_current_state = check_current_state_timeout();
 		if (b_timeout_current_state)
 		{
+			change_state(current_state_, NavigateStates::INIT, clock_->now().seconds(), 1.0);
 			return servo_vel;		
 		}
 
@@ -632,6 +638,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		b_timeout_current_state = check_current_state_timeout();
 		if (b_timeout_current_state)
 		{
+			change_state(current_state_, NavigateStates::INIT, clock_->now().seconds(), 1.0);
 			return servo_vel;		
 		}
 
@@ -694,8 +701,8 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 				RCLCPP_DEBUG(logger_, "need_check_collision: %s", need_check_collision?"true":"false");
 			}
 
-			double remaining_rotation_time = std::abs(dist_buffer_point / servo_vel->linear.x);
-			double predict_time = std::min(double(params_ptr->collision_predict_time), remaining_rotation_time);
+			double remaining_time = std::abs(dist_buffer_point / servo_vel->linear.x);
+			double predict_time = std::min(double(params_ptr->collision_predict_time), remaining_time);
 			RCLCPP_DEBUG(logger_, "predict_time: %.2f", predict_time);
 			if (params_ptr->collision_check && need_check_collision)
 			{
@@ -737,6 +744,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		b_timeout_current_state = check_current_state_timeout();
 		if (b_timeout_current_state)
 		{
+			change_state(current_state_, NavigateStates::INIT, clock_->now().seconds(), 1.0);
 			return servo_vel;		
 		}
 
@@ -846,6 +854,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		b_timeout_current_state = check_current_state_timeout();
 		if (b_timeout_current_state)
 		{
+			change_state(current_state_, NavigateStates::INIT, clock_->now().seconds(), 1.0);
 			return servo_vel;		
 		}
 
@@ -902,6 +911,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		b_timeout_current_state = check_current_state_timeout();
 		if (b_timeout_current_state)
 		{
+			change_state(current_state_, NavigateStates::INIT, clock_->now().seconds(), 1.0);
 			return servo_vel;		
 		}
 
@@ -1135,6 +1145,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		b_timeout_current_state = check_current_state_timeout();
 		if (b_timeout_current_state)
 		{
+			change_state(current_state_, NavigateStates::INIT, clock_->now().seconds(), 1.0);
 			return servo_vel;		
 		}
 
@@ -1183,13 +1194,15 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		b_timeout_current_state = check_current_state_timeout();
 		if (b_timeout_current_state)
 		{
+			change_state(current_state_, NavigateStates::INIT, clock_->now().seconds(), 1.0);
 			undocking = false;
 			return servo_vel;		
 		}
 
 		update_time_smart();
 		undock_dis_moved_ += odom_msg.twist.twist.linear.x * delta_time_;
-		RCLCPP_INFO_THROTTLE(logger_, *clock_, 500, "undock cost time: %.2f, dis_moved: %.2f", delta_time_, undock_dis_moved_);
+		RCLCPP_INFO_THROTTLE(logger_, *clock_, 500, "undock cost time: %.2f, dis_moved: %.2f, total: %.2f", delta_time_, undock_dis_moved_, params_ptr->undock_dis);
+		RCLCPP_DEBUG(logger_, "undock cost time: %.2f, dis_moved: %.2f, total: %.2f", delta_time_, undock_dis_moved_, params_ptr->undock_dis);
 		if (undock_dis_moved_ < params_ptr->undock_dis)
 		{
 			servo_vel->linear.x = params_ptr->undock_speed;

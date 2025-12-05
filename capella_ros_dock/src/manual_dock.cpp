@@ -13,6 +13,8 @@ namespace capella_ros_dock
                 RCLCPP_INFO(this->get_logger(), "manual_dock node start.");
                 init_params();
 
+                // 创建 timer
+                timer_charger_position_ = this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&ManualDock::timer_charger_position_callback_, this));;
                 // publisher
                 charger_position_pub_ = this->create_publisher<std_msgs::msg::Bool>("charger_position_bool", rclcpp::QoS(rclcpp::KeepLast(1)).reliable().transient_local());
 
@@ -136,7 +138,7 @@ namespace capella_ros_dock
                 is_in_charger_range_last = msg_bool.data;
                 RCLCPP_INFO(get_logger(), "publish /charger_position_bool false for init.");
                 robot_stop_time_start = this->get_clock()->now().seconds();
-        }
+        }        
 
         void ManualDock::get_robot_pose_map(float& robot_x, float& robot_y, float& yaw)
         {
@@ -320,11 +322,9 @@ namespace capella_ros_dock
                 RCLCPP_DEBUG_THROTTLE(get_logger(), *this->get_clock(), 15000, "******************************* charger/state callback *******************************");
         }
 
-        void ManualDock::charger_visible_sub_callback(capella_ros_service_interfaces::msg::ChargeMarkerVisible msg)
+        void ManualDock::timer_charger_position_callback_()
         {
-                this->charger_visible = msg.marker_visible;
-                std_msgs::msg::Bool msg_pub;
-                RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 60000, "charger_visible: %s", charger_visible ? "true" : "false");
+               std_msgs::msg::Bool msg_pub;
                 if(!charger_visible)
                 {
                         use_marker = false;
@@ -403,7 +403,13 @@ namespace capella_ros_dock
                         RCLCPP_INFO(get_logger(), "/charger_position_bool state changed, publish one time ...... value: %s", is_in_charger_range ? "true" : "false");
                         charger_position_pub_->publish(msg_pub);
                         is_in_charger_range_last = is_in_charger_range;
-                }
+                } 
+        }
+
+        void ManualDock::charger_visible_sub_callback(capella_ros_service_interfaces::msg::ChargeMarkerVisible msg)
+        {
+                this->charger_visible = msg.marker_visible;
+                RCLCPP_INFO(this->get_logger(), "charger_visible changed to: %s", charger_visible ? "true" : "false");                
         }
 
         void ManualDock::pose_with_id_sub_callback(aruco_msgs::msg::PoseWithId msg)

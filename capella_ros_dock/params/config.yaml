@@ -25,13 +25,13 @@ motion_control:
 
     # dock 时间参数
     timeout_dock_action: 180                         # dock action 超时时间
-    timeout_lookup_marker: 30.0                      # lookup_marker 超时时间
-    timeout_angle_to_buffer_point: 30.0              # angle_to_buffer_point 超时时间
-    timeout_move_to_buffer_point: 30.0               # move_to_buffer_point 超时时间
-    timeout_angle_to_x_positive_orientation: 30.0    # angle_to_x_positive_orientation 超时时间
-    timeout_angle_to_goal: 30.0                      # angle_to_goal 超时时间
-    timeout_go_to_goal_position: 30.0                # go_to_goal_position 超时时间
-    timeout_goal_angle: 30.0                         # goal_angle 超时时间
+    timeout_lookup_marker: 60.0                      # lookup_marker 超时时间
+    timeout_angle_to_buffer_point: 60.0              # angle_to_buffer_point 超时时间
+    timeout_move_to_buffer_point: 60.0               # move_to_buffer_point 超时时间
+    timeout_angle_to_x_positive_orientation: 60.0    # angle_to_x_positive_orientation 超时时间
+    timeout_angle_to_goal: 60.0                      # angle_to_goal 超时时间
+    timeout_go_to_goal_position: 120.0                # go_to_goal_position 超时时间
+    timeout_goal_angle: 60.0                         # goal_angle 超时时间
     time_sleep: 5.0                  # 连续看不见码时的等待时间，用于对接过程中意外导致无法再看见码时的脱困处理
     contacted_keep_move_time: 0.3    # 收到contact=true时，继续后退的时间，防止立马停下后contact状态变回false
     localization_converged_time: 3.0 # 首次识别到码坐标后，继续等待的时间，用于选择最优的坐标值  
@@ -109,10 +109,10 @@ camera_point_cloud_process:
 
 manual_dock:
   ros__parameters:
-    pose_x_min: -0.50
+    pose_x_min: -0.60
     pose_x_max: -0.15
-    pose_y_min: -0.1
-    pose_y_max: 0.1
+    pose_y_min: -0.3
+    pose_y_max: 0.3
     yaw_min: -3.14
     yaw_max: 3.14
 
