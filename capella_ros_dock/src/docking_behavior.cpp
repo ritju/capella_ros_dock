@@ -27,7 +27,7 @@ DockingBehavior::DockingBehavior(
 	behavior_scheduler_ = behavior_scheduler;
 	last_feedback_time_ = clock_->now();
 	this->params_ptr = params_ptr;
-	goal_controller_ = std::make_shared<SimpleGoalController>(node_base_interface, node_clock_interface, node_logging_interface, params_ptr);
+	goal_controller_ = std::make_shared<SimpleGoalController>(node_base_interface, node_clock_interface, node_logging_interface, node_topics_interface, params_ptr);
 
 	undock_state_pub_ = rclcpp::create_publisher<std_msgs::msg::Bool>(
 		node_topics_interface,

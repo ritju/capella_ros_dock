@@ -134,6 +134,9 @@ void MotionControlNode::init_params()
 	this->declare_parameter<float>("timeout_angle_to_goal", 30.0);
 	this->declare_parameter<float>("timeout_go_to_goal_position", 30.0);
 	this->declare_parameter<float>("timeout_goal_angle", 30.0);
+	this->declare_parameter<bool>("garage_test", "false");
+	this->declare_parameter<float>("offset_buffer_goal2_x", 1.5);
+	this->declare_parameter<float>("offset_buffer_goal2_y", 0.0);
 
 	params.min_rotation = this->get_parameter_or<float>("min_rotation", 0.15);
 	params.max_rotation = this->get_parameter_or<float>("max_rotation", 0.30);
@@ -195,6 +198,9 @@ void MotionControlNode::init_params()
 	params.timeout_angle_to_goal = this->get_parameter("timeout_angle_to_goal").get_value<float>();
 	params.timeout_go_to_goal_position = this->get_parameter("timeout_go_to_goal_position").get_value<float>();
 	params.timeout_goal_angle = this->get_parameter("timeout_goal_angle").get_value<float>();
+	params.garage_test = this->get_parameter("garage_test").get_value<bool>();
+	params.offset_buffer_goal2_x = this->get_parameter("offset_buffer_goal2_x").get_value<float>();
+	params.offset_buffer_goal2_y = this->get_parameter("offset_buffer_goal2_y").get_value<float>();
 	
 	RCLCPP_INFO_STREAM(this->get_logger(), "timeout_dock_action: " << params.timeout_dock_action 
 		<< ", last_docked_distanace_offset: " << params.offset_last_docked_distance);

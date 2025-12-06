@@ -39,6 +39,7 @@ def generate_launch_description():
     camera_baselink_distance = get_environment_value("CAMERA_BASELINK_DIS", "0.3")
     motion_control_log_level = get_environment_value("DOCK_MOTION_CONTROL_LOG_LEVEL", "info")
     goal_y_correction = get_environment_value("DOCK_GOAL_Y_CORRECTION", "0.0")
+    garage_test = get_environment_value("DOCK_GARAGE_TEST", "false")
     
     # 类型映射
     type_mapping = {
@@ -64,7 +65,8 @@ def generate_launch_description():
         "charger_contact_condition_type": str(type_mapping[charger_contact_type]),
         "offset_last_docked_distance": str(last_docked_offset),
         "camera_baselink_dis": str(camera_baselink_distance),
-        "goal_y_correction": str(goal_y_correction)
+        "goal_y_correction": str(goal_y_correction),
+        "garage_test": str(garage_test)
     }    
     
     # 配置参数文件

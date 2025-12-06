@@ -41,6 +41,8 @@ motion_control:
     offset_low_speed: 0.30              # low_speed mode 距离
     offset_second_goal: 0.05            # 进入low_speed模式上一个目标点距其的距离
     offset_buffer_goal: 0.20            # 最终选取的中间点距second_goal的距离，最终中间点x坐标为上述四个参数之和，再取反
+    offset_buffer_goal2_x: 1.5          # 用于处理充电桩两侧狭窄，依赖机器人和充电桩map下位姿先到达充电桩正前方x坐标
+    offset_buffer_goal2_y: 0.0          # 用于处理充电桩两侧狭窄，依赖机器人和充电桩map下位姿先到达充电桩正前方y坐标
     
     # dock 速度相关参数
     min_rotation: 0.10                    # 最小旋转速度
@@ -74,11 +76,12 @@ motion_control:
 
     # 其它参数
     charger_contact_condition_type: 0  # 0: BLUETOOTH_ONLY, 1: CAMERA_ONLY, 2: BLUETOOTH_AND_CAMERA; 目前只支持 0,BLUETOOTH_ONLY
-    goal_y_correction: 0.0           # 校正 目标点y值位姿，用于处理机器人对接上时，码坐标的y值偏差接近0，但实际观察固定偏向某一方向的情况 
+    goal_y_correction: 0.0             # 校正 目标点y值位姿，用于处理机器人对接上时，码坐标的y值偏差接近0，但实际观察固定偏向某一方向的情况 
     base_link_dummy_dis: 0.477         # base_link_dummy到base_link的x轴距离，等于环境变量BASE_LINK_DUMMY_TRANSFORM_X
     odom_twist_scale: 0.99             # odom速度与实际发送速度的scale
     enable_clear_local_costmap: false  # 是否定时清除local_costmap,用于处理local_costmap长时间不更新的情况
     timout_clear_local_costmap: 3.0    # 清除local_costmap时的超时时间
+    garage_test: false                 # 用于测试充电桩两边空间狭窄的情况
     
     # motion control结点参数
     motion_control_log_level: 'info'  # motion_control 日志类型

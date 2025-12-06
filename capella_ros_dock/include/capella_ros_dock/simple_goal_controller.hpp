@@ -33,6 +33,7 @@
 #include "nav2_msgs/srv/clear_entire_costmap.hpp"
 #include <chrono>
 #include <magic_enum.hpp>
+#include "visualization_msgs/msg/marker.hpp"
 
 
 using namespace std;
@@ -48,16 +49,32 @@ namespace capella_ros_dock
 class SimpleGoalController
 {
 public:
-SimpleGoalController(rclcpp::node_interfaces::NodeBaseInterface::SharedPtr node_,
+SimpleGoalController(rclcpp::node_interfaces::NodeBaseInterface::SharedPtr node,
                      rclcpp::node_interfaces::NodeClockInterface::SharedPtr node_clock_interface,
                      rclcpp::node_interfaces::NodeLoggingInterface::SharedPtr node_logging_interface,
+					 rclcpp::node_interfaces::NodeTopicsInterface::SharedPtr node_topics_interface,
                      motion_control_params *params_ptr)
 	: logger_(node_logging_interface->get_logger()),
 	clock_(node_clock_interface->get_clock())
 {
-	this->node_ = node_;
+	this->node_ = node;
 	this->params_ptr = params_ptr;
 	init(params_ptr);
+	marker_charger_pose_agent_pub_ = rclcpp::create_publisher<visualization_msgs::msg::Marker>(
+		node_topics_interface,
+		"marker_charger_pose_agent",
+		rclcpp::QoS(1).reliable().transient_local()
+	);
+	marker_charger_pose_apriltag_pub_ = rclcpp::create_publisher<visualization_msgs::msg::Marker>(
+		node_topics_interface,
+		"marker_charger_pose_apriltag",
+		rclcpp::QoS(1).reliable().transient_local()
+	);
+	marker_buffer_point2_pub_ = rclcpp::create_publisher<visualization_msgs::msg::Marker>(
+		node_topics_interface,
+		"marker_buffer_point2",
+		rclcpp::QoS(1).reliable().transient_local()
+	);
 }
 
 void init(motion_control_params* params_ptr)
@@ -316,7 +333,76 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 	{
 		print_current_state_debug(current_state_);
 		servo_vel = geometry_msgs::msg::Twist();
-		change_state(current_state_, NavigateStates::LOOKUP_MARKER, clock_->now().seconds(), params_ptr->timeout_lookup_marker); 
+
+		RCLCPP_INFO(logger_, "robot_x_map: %.2f, robot_y_map: %.2f", robot_x_map_, robot_y_map_);
+		RCLCPP_INFO(logger_, "charger_x_map: %.2f, charger_y_map: %.2f", charger_x_map_, charger_y_map_);
+		
+		// pub agent发出的 /charger/pose位姿
+		visualization_msgs::msg::Marker msg_marker_charger_pose_agent;
+		msg_marker_charger_pose_agent.header.frame_id = "map";
+		msg_marker_charger_pose_agent.header.stamp = clock_->now();
+		msg_marker_charger_pose_agent.id = 1;
+		msg_marker_charger_pose_agent.type = visualization_msgs::msg::Marker::CUBE;
+		msg_marker_charger_pose_agent.action = visualization_msgs::msg::Marker::ADD;
+		msg_marker_charger_pose_agent.scale.x = 0.2;
+		msg_marker_charger_pose_agent.scale.y = 0.2;
+		msg_marker_charger_pose_agent.scale.z = 0.2;
+		msg_marker_charger_pose_agent.color.r = 0.0;
+		msg_marker_charger_pose_agent.color.g = 1.0;
+		msg_marker_charger_pose_agent.color.b = 0.0;
+		msg_marker_charger_pose_agent.color.a = 1.0;
+		msg_marker_charger_pose_agent.pose.position.x = charger_x_map_;
+		msg_marker_charger_pose_agent.pose.position.y = charger_y_map_;
+		RCLCPP_INFO(logger_, "publish topic /marker_charger_pose_agent");
+		marker_charger_pose_agent_pub_->publish(msg_marker_charger_pose_agent);		
+
+		double dist_robot_to_charger = std::hypot(robot_x_map_ - charger_x_map_, robot_y_map_ - charger_y_map_);
+		RCLCPP_INFO(logger_, "dist_robot_to_charger: %.2f", dist_robot_to_charger);
+
+		if (params_ptr->garage_test && dist_robot_to_charger > 2.5)
+		{			
+			RCLCPP_INFO(logger_, "garage_test mode trigger");
+			tf2::Transform tf_charger_to_buffer_point2;
+			tf_charger_to_buffer_point2.setIdentity();
+			tf_charger_to_buffer_point2.setOrigin(tf2::Vector3(params_ptr->offset_buffer_goal2_x, params_ptr->offset_buffer_goal2_y, 0.0));
+			tf2::Transform tf_map_to_buffer_point2;
+			tf_map_to_buffer_point2 = tf_charger_map_ * tf_charger_to_buffer_point2;
+			
+			buffer_point2_x_map = tf_map_to_buffer_point2.getOrigin().getX();
+			buffer_point2_y_map = tf_map_to_buffer_point2.getOrigin().getY();
+			RCLCPP_INFO(logger_, "buffer point2: (%.2f, %.2f)", buffer_point2_x_map, buffer_point2_y_map);
+
+			// pub /marker_buffer_point2
+			visualization_msgs::msg::Marker msg_marker_buffer_point2;
+			msg_marker_buffer_point2.header.frame_id = "map";
+			msg_marker_buffer_point2.header.stamp = clock_->now();
+			msg_marker_buffer_point2.id = 2;
+			msg_marker_buffer_point2.type = visualization_msgs::msg::Marker::SPHERE;
+			msg_marker_buffer_point2.action = visualization_msgs::msg::Marker::ADD;
+			msg_marker_buffer_point2.scale.x = 0.2;
+			msg_marker_buffer_point2.scale.y = 0.2;
+			msg_marker_buffer_point2.scale.z = 0.2;
+			msg_marker_buffer_point2.color.r = 1.0;
+			msg_marker_buffer_point2.color.g = 0.0;
+			msg_marker_buffer_point2.color.b = 0.0;
+			msg_marker_buffer_point2.color.a = 1.0;
+			msg_marker_buffer_point2.pose.position.x = buffer_point2_x_map;
+			msg_marker_buffer_point2.pose.position.y = buffer_point2_y_map;
+			RCLCPP_INFO(logger_, "publish topic /marker_buffer_point2");
+			marker_buffer_point2_pub_->publish(msg_marker_buffer_point2);
+
+			dist_buffer_point = std::hypot(robot_x_map_ - buffer_point2_x_map, robot_y_map_ - buffer_point2_y_map);
+
+			double theta_buffer_point2_to_robot = std::atan2(robot_y_map_ - buffer_point2_y_map, robot_x_map_ - buffer_point2_x_map);
+			dist_buffer_point_yaw = angles::shortest_angular_distance(robot_yaw_map_, theta_buffer_point2_to_robot);
+
+			RCLCPP_INFO(logger_, "dist_buffer_point: %.2f, dis_buffer_point_yaw: %.2f", dist_buffer_point, dist_buffer_point_yaw);
+			change_state(current_state_, NavigateStates::ANGLE_TO_BUFFER_POINT, clock_->now().seconds(), params_ptr->timeout_angle_to_buffer_point);
+		}    // end of garage_test = true
+		else // garage_test = false
+		{
+			change_state(current_state_, NavigateStates::LOOKUP_MARKER, clock_->now().seconds(), params_ptr->timeout_lookup_marker); 
+		} // end of garage_test = false
 		
 		pre_time_ = clock_->now().seconds(); // 第一次进入switch,初始化pre_time_为当前时间
 		update_time_smart();
@@ -666,7 +752,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		else
 		{
 			double translate_velocity = dist_y;
-			if(drive_back)
+			if(drive_back || params_ptr->garage_test)
 			{
 				translate_velocity *= -1;
 			}
@@ -678,6 +764,14 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			}
 			servo_vel->linear.x = translate_velocity;
 			RCLCPP_DEBUG(logger_, "linear.x: : %.2f", translate_velocity);
+
+			if (params_ptr->garage_test && dist_buffer_point > 0.2)
+			{
+				auto theta_buffer_point2_to_robot_current = std::atan2(robot_y_map_ - buffer_point2_y_map, robot_x_map_ - buffer_point2_x_map);
+				auto dist_buffer_point_yaw_now = angles::shortest_angular_distance(robot_yaw_map_, theta_buffer_point2_to_robot_current);
+				bound_rotation(dist_buffer_point_yaw_now, params_ptr->go_to_goal_rotation_min, params_ptr->go_to_goal_rotation_max);
+				servo_vel->angular.z = dist_buffer_point_yaw_now;
+			}
 
 			// before actually begin moving, collision_check first
 			// current state: MOVE_TO_BUFFER_POINT
@@ -1676,7 +1770,17 @@ double charger_y_map_;
 double charger_yaw_map_;
 // 是否可以识别出充电桩码坐标
 bool marker_visible_{false};
-};
+
+//  用于调试的 Makers
+rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_charger_pose_agent_pub_;
+rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_charger_pose_apriltag_pub_;
+rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_buffer_point2_pub_;
+
+double buffer_point2_x_map, buffer_point2_y_map;
+
+}; // end of class SimpleGoalController
+
+
 
 }  // namespace capella_ros_dock
 #endif   // CAPELLA_ROS_DOCK__SIMPLE_GOAL_CONTROLLER_HPP_

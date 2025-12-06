@@ -67,6 +67,9 @@ struct motion_control_params
 	float timeout_angle_to_goal;
 	float timeout_go_to_goal_position;
 	float timeout_goal_angle;
+	bool garage_test;
+	float offset_buffer_goal2_x;
+	float offset_buffer_goal2_y;
 };
 } // end namespace capella_ros_dock
 

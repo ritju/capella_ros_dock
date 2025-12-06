@@ -52,6 +52,9 @@ def generate_launch_description():
     apriltag_double_log_level = get_environment_value("DOCK_APRILTAG_DOUBLE_LOG_LEVEL", "info")
     motion_control_log_level = get_environment_value("DOCK_MOTION_CONTROL_LOG_LEVEL", "info")
     goal_y_correction = get_environment_value("DOCK_GOAL_Y_CORRECTION", "0.0")
+    garage_test = get_environment_value("DOCK_GARAGE_TEST", "false")
+    offset_buffer_goal2_x = get_environment_value("DOCK_OFFSET_BUFFER_POINT2_X", "1.5")
+    offset_buffer_goal2_y = get_environment_value("DOCK_OFFSET_BUFFER_POINT2_Y", "0.0")
     
     # 类型映射
     type_mapping = {
@@ -70,7 +73,10 @@ def generate_launch_description():
         "charger_contact_condition_type": str(type_mapping[charger_contact_type]),
         "offset_last_docked_distance": str(last_docked_offset),
         "camera_baselink_dis": str(camera_baselink_distance),
-        "goal_y_correction": str(goal_y_correction)
+        "goal_y_correction": str(goal_y_correction),
+        "garage_test": str(garage_test),
+        "offset_buffer_goal2_x": str(offset_buffer_goal2_x),
+        "offset_buffer_goal2_y": str(offset_buffer_goal2_y),
     }    
     
     # 配置参数文件
