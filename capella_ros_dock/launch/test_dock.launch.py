@@ -59,6 +59,7 @@ def generate_launch_description():
     base_link_y_thr = get_environment_value("DOCK_BASE_LINK_Y_THR", "0.08")
     enable_clear_local_costmap = get_environment_value("DOCK_ENABLE_CLEAR_LOCAL_COSTMAP", "false")
     timeout_clear_local_costmap = get_environment_value("DOCK_TIMEOUT_CLEAR_LOCAL_COSTMAP", "5.0")
+    contacted_keep_move_time = get_environment_value("DOCK_CONTACTED_KEEP_MOVE_TIME", "0.3")
     # 类型映射
     type_mapping = {
         'BLUETOOTH_ONLY': 0,
@@ -84,6 +85,7 @@ def generate_launch_description():
         "base_link_y_thr": str(base_link_y_thr),
         "enable_clear_local_costmap": str(enable_clear_local_costmap),
         "timeout_clear_local_costmap": str(timeout_clear_local_costmap),
+        "contacted_keep_move_time": str(contacted_keep_move_time),
     }    
     
     # 配置参数文件
