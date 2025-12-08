@@ -125,7 +125,7 @@ void MotionControlNode::init_params()
 	this->declare_parameter<std::string>("footprint", "[]");
 	this->declare_parameter<float>("collision_predict_time", 2.0);
 	this->declare_parameter<bool>("enable_clear_local_costmap", false);
-	this->declare_parameter<float>("timout_clear_local_costmap", 4.5);
+	this->declare_parameter<float>("timeout_clear_local_costmap", 4.5);
 	this->declare_parameter<float>("odom_twist_scale", 0.85);
 	this->declare_parameter<float>("timeout_lookup_marker", 30.0);
 	this->declare_parameter<float>("timeout_angle_to_buffer_point", 30.0);
@@ -189,7 +189,7 @@ void MotionControlNode::init_params()
 	params.footprint = this->get_parameter("footprint").get_value<std::string>();
 	params.collision_predict_time = this->get_parameter("collision_predict_time").get_value<float>();
 	params.enable_clear_local_costmap = this->get_parameter("enable_clear_local_costmap").get_value<bool>();
-	params.timout_clear_local_costmap = this->get_parameter("timout_clear_local_costmap").get_value<float>();
+	params.timeout_clear_local_costmap = this->get_parameter("timeout_clear_local_costmap").get_value<float>();
 	params.odom_twist_scale = this->get_parameter("odom_twist_scale").get_value<float>();
 	params.timeout_lookup_marker = this->get_parameter("timeout_lookup_marker").get_value<float>();
 	params.timeout_angle_to_buffer_point = this->get_parameter("timeout_angle_to_buffer_point").get_value<float>();

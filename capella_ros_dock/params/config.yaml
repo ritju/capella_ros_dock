@@ -78,7 +78,7 @@ motion_control:
     base_link_dummy_dis: 0.477         # base_link_dummy到base_link的x轴距离，等于环境变量BASE_LINK_DUMMY_TRANSFORM_X
     odom_twist_scale: 0.99             # odom速度与实际发送速度的scale
     enable_clear_local_costmap: false  # 是否定时清除local_costmap,用于处理local_costmap长时间不更新的情况
-    timout_clear_local_costmap: 3.0    # 清除local_costmap时的超时时间
+    timeout_clear_local_costmap: 3.0    # 清除local_costmap时的超时时间
     
     # motion control结点参数
     motion_control_log_level: 'info'  # motion_control 日志类型

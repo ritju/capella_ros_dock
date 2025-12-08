@@ -55,7 +55,10 @@ def generate_launch_description():
     garage_test = get_environment_value("DOCK_GARAGE_TEST", "false")
     offset_buffer_goal2_x = get_environment_value("DOCK_OFFSET_BUFFER_POINT2_X", "1.5")
     offset_buffer_goal2_y = get_environment_value("DOCK_OFFSET_BUFFER_POINT2_Y", "0.0")
-    
+    camera_horizontal_view = get_environment_value("DOCK_CAMERA_HORIZONTAL_VIEW", "90.0")
+    base_link_y_thr = get_environment_value("DOCK_BASE_LINK_Y_THR", "0.08")
+    enable_clear_local_costmap = get_environment_value("DOCK_ENABLE_CLEAR_LOCAL_COSTMAP", "false")
+    timeout_clear_local_costmap = get_environment_value("DOCK_TIMEOUT_CLEAR_LOCAL_COSTMAP", "5.0")
     # 类型映射
     type_mapping = {
         'BLUETOOTH_ONLY': 0,
@@ -77,6 +80,10 @@ def generate_launch_description():
         "garage_test": str(garage_test),
         "offset_buffer_goal2_x": str(offset_buffer_goal2_x),
         "offset_buffer_goal2_y": str(offset_buffer_goal2_y),
+        "camera_horizontal_view": str(camera_horizontal_view),
+        "base_link_y_thr": str(base_link_y_thr),
+        "enable_clear_local_costmap": str(enable_clear_local_costmap),
+        "timeout_clear_local_costmap": str(timeout_clear_local_costmap),
     }    
     
     # 配置参数文件

@@ -58,7 +58,7 @@ struct motion_control_params
 	std::string footprint;
 	float collision_predict_time;
 	bool enable_clear_local_costmap;
-	float timout_clear_local_costmap;
+	float timeout_clear_local_costmap;
 	float odom_twist_scale;
 	float timeout_lookup_marker;
 	float timeout_angle_to_buffer_point;

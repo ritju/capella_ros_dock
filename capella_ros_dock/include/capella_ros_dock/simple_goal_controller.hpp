@@ -1615,7 +1615,7 @@ bool clear_local_costmap(rclcpp::Client<nav2_msgs::srv::ClearEntireCostmap>::Sha
 	RCLCPP_DEBUG(logger_, "/local_costmap/clear_entirely_local_costmap time_last : %.2f", clear_time_last);
 	RCLCPP_DEBUG(logger_, "/local_costmap/clear_entirely_local_costmap time_delta: %.2f", clear_time_delta);
 
-	if (clear_time_delta > params_ptr->timout_clear_local_costmap)
+	if (clear_time_delta > params_ptr->timeout_clear_local_costmap)
 	{
 		auto request = std::make_shared<nav2_msgs::srv::ClearEntireCostmap::Request>();
 
@@ -1627,7 +1627,7 @@ bool clear_local_costmap(rclcpp::Client<nav2_msgs::srv::ClearEntireCostmap>::Sha
 		else
 		{
 			clear_time_last = clear_time_now;
-			RCLCPP_INFO(logger_, "call service: /local_costmap/clear_entirely_local_costmap. (delta_time: %.2f, timout: %.2f)", clear_time_delta, params_ptr->timout_clear_local_costmap);
+			RCLCPP_INFO(logger_, "call service: /local_costmap/clear_entirely_local_costmap. (delta_time: %.2f, timout: %.2f)", clear_time_delta, params_ptr->timeout_clear_local_costmap);
 			client_clear_entire_local_costmap->async_send_request(request);
 			ret = true; // 这里为简化处理，只要发送了/local_costmap/clear_entirely_local_costmap的服务请求,就返回true
 		}
