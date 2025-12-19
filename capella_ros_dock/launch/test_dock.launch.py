@@ -8,6 +8,7 @@ from launch_ros.actions import Node
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch.substitutions import TextSubstitution
 from nav2_common.launch import RewrittenYaml
+import yaml
 
 """
 用于获取环境变量值
@@ -31,35 +32,126 @@ def get_environment_value(env, default):
         print(f"Please input {env} in environment")
         return default
 
+"""
+用于生成{'param_name': '', 'evn_name': '', 'default_value': '', 'current_value': ''}的列表
+参数
+yaml_file  : 参数文件的地址
+output_file: 输入文件的名字
+prefix     : 环境变量的前缀，适配docker-compose.yaml文件
+返回值
+返回{'param_name': '', 'evn_name': '', 'default_value': ''}的列表
+"""
+def generate_env_vars_from_yaml(yaml_file, output_file=None, prefix="- DOCK_"):
+    # 读取YAML文件
+    with open(yaml_file, 'r') as f:
+        data = yaml.safe_load(f)
+    
+    # 查找节点参数（通常位于ros__parameters下）
+    params = {}
+
+    if isinstance(data, dict):
+        # 如果没有ros__parameters，尝试直接读取参数
+        params = data
+    else:
+        print("无法找到参数部分")
+        return
+    
+    env_lines = []
+    param_lines = []
+   
+    # 用于提取参数文件中所有完整路径的parameters
+    def process_params2(param_dict, param_name = None, surffix="."):
+        for key, value in param_dict.items():
+            if isinstance(value, dict):
+                if param_name == None:
+                    param_name = f"{key}"
+                else:
+                    param_name = f"{param_name}{surffix}{key}"
+                process_params2(value, param_name, surffix)
+            else:
+                if param_name != None:
+                    param_lines.append(f"{param_name}{surffix}{key}")
+                else:
+                    param_lines.append(f"{key}")
+  
+    # 用于生成docker-compose.yaml中使用的完整的环境变量
+    def process_params(prefix_path, param_dict):        
+        for key, value in param_dict.items():
+            if key == "ros__parameters":
+                omit=True
+                full_key = f"{prefix_path}"
+                process_params2(value)
+            else:
+                omit=False
+                full_key = f"{prefix_path}{key.upper()}"
+            if isinstance(value, dict):
+                # 处理嵌套参数
+                if omit:
+                    process_params(f"{full_key}", value)
+                else:
+                    process_params(f"{full_key}_", value)
+            else:
+                # 生成环境变量行
+                env_lines.append(f"{full_key}=\"{value}\"")
+    
+    process_params(prefix, params)
+
+    keys, values = zip(*[(k.strip(), v.strip().strip('"\'')) 
+                        for k, v in (item.split('=', 1) for item in env_lines)])
+    keys, values = list(keys), list(values)    
+
+    result = [
+        {'param_name': param, 'env_name': env.split(' ', 1)[1], 'default_value': value, 'current_value': value}
+         for param, env, value in zip(param_lines, keys, values)
+         ]
+    
+    # for i in result:
+    #     print(i)
+    
+    # 输出到文件或控制台
+    if output_file:
+        if output_file.startswith('/'):
+            output_file = output_file
+        else:
+            if yaml_file.startswith('/'):
+                directory = os.path.dirname(yaml_file)
+                output_file = os.path.join(directory, output_file)
+            else:
+                output_file = output_file
+        with open(output_file, 'w') as f:
+            f.write("\n".join(env_lines))
+        print(f"已生成环境变量文件: {output_file}")
+    else:
+        print("\n".join(env_lines))   
+    
+    return result
 
 def generate_launch_description():
     
     launch_description = LaunchDescription()
 
     # get pkg path
+    dock_pkg_path = get_package_share_directory('capella_ros_dock')
     camera_pkg_path = get_package_share_directory('astra_camera')
     aruco_pkg_path = get_package_share_directory('aruco_ros')
     apriltag_pkg_path = get_package_share_directory('apriltag_ros')
-    dock_pkg_path = get_package_share_directory('capella_ros_dock')
     usb_cam_pkg_path = get_package_share_directory('usb_cam')
     laserscan_3d_to_2d_path = get_package_share_directory('pointcloud_to_laserscan') 
+
+    # 自动获取所有参数文件中相应的环境变量值
+    dock_param_file_name = get_environment_value("DOCK_PARAM_FILE", "config.yaml")
+    yaml_file = os.path.join(dock_pkg_path, 'params', dock_param_file_name)
+    output_file = "env_lines.txt"
+    result = generate_env_vars_from_yaml(yaml_file, output_file)
+    result = [item for item in result if item['env_name'] in os.environ]
+    result_update = [{**item, "current_value": get_environment_value(item["env_name"], item["default_value"])} for item in result]
+    result_dict = {item["param_name"]: item["current_value"] for item in result_update}
+    print(result_dict)
     
     # 获取环境变量值
-    dock_param_file_name = get_environment_value("DOCK_PARAM_FILE", "config.yaml")
-    charger_contact_type = get_environment_value("CHARGER_CONTACT_CONDITION_TYPE", "BLUETOOTH_ONLY")
-    last_docked_offset = get_environment_value("LAST_DOCKED_DISTANCE_OFFSET", "0.30")
-    camera_baselink_distance = get_environment_value("CAMERA_BASELINK_DIS", "0.3")
     apriltag_double_log_level = get_environment_value("DOCK_APRILTAG_DOUBLE_LOG_LEVEL", "info")
     motion_control_log_level = get_environment_value("DOCK_MOTION_CONTROL_LOG_LEVEL", "info")
-    goal_y_correction = get_environment_value("DOCK_GOAL_Y_CORRECTION", "0.0")
-    garage_test = get_environment_value("DOCK_GARAGE_TEST", "false")
-    offset_buffer_goal2_x = get_environment_value("DOCK_OFFSET_BUFFER_POINT2_X", "1.5")
-    offset_buffer_goal2_y = get_environment_value("DOCK_OFFSET_BUFFER_POINT2_Y", "0.0")
-    camera_horizontal_view = get_environment_value("DOCK_CAMERA_HORIZONTAL_VIEW", "90.0")
-    base_link_y_thr = get_environment_value("DOCK_BASE_LINK_Y_THR", "0.08")
-    enable_clear_local_costmap = get_environment_value("DOCK_ENABLE_CLEAR_LOCAL_COSTMAP", "false")
-    timeout_clear_local_costmap = get_environment_value("DOCK_TIMEOUT_CLEAR_LOCAL_COSTMAP", "5.0")
-    contacted_keep_move_time = get_environment_value("DOCK_CONTACTED_KEEP_MOVE_TIME", "0.3")
+    
     # 类型映射
     type_mapping = {
         'BLUETOOTH_ONLY': 0,
@@ -73,20 +165,9 @@ def generate_launch_description():
     ])
     
     # 参数替换配置 - 确保值为字符串类型
-    param_substitutions = {
-        "charger_contact_condition_type": str(type_mapping[charger_contact_type]),
-        "offset_last_docked_distance": str(last_docked_offset),
-        "camera_baselink_dis": str(camera_baselink_distance),
-        "goal_y_correction": str(goal_y_correction),
-        "garage_test": str(garage_test),
-        "offset_buffer_goal2_x": str(offset_buffer_goal2_x),
-        "offset_buffer_goal2_y": str(offset_buffer_goal2_y),
-        "camera_horizontal_view": str(camera_horizontal_view),
-        "base_link_y_thr": str(base_link_y_thr),
-        "enable_clear_local_costmap": str(enable_clear_local_costmap),
-        "timeout_clear_local_costmap": str(timeout_clear_local_costmap),
-        "contacted_keep_move_time": str(contacted_keep_move_time),
-    }    
+    if "charger_contact_condition_type" in result_dict:
+        result_dict["charger_contact_condition_type"] = str(type_mapping[result_dict["charger_contact_condition_type"]])
+    param_substitutions = result_dict
     
     # 配置参数文件
     configured_params = RewrittenYaml(
