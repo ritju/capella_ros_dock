@@ -151,6 +151,7 @@ def generate_launch_description():
     # 获取环境变量值
     apriltag_double_log_level = get_environment_value("DOCK_APRILTAG_DOUBLE_LOG_LEVEL", "info")
     motion_control_log_level = get_environment_value("DOCK_MOTION_CONTROL_LOG_LEVEL", "info")
+    use_bluetooth_restore_service = get_environment_value("DOCK_USE_BLUETOOTH_RESTORE_SERVICE", "true")
     
     # 类型映射
     type_mapping = {
@@ -328,6 +329,7 @@ def generate_launch_description():
         executable='charge_bluetooth_old',
         package='charge_manager',
         name='charge_bluetooth_server_node',
+        parameters=[{"use_bluetooth_restore_service": use_bluetooth_restore_service}],
         respawn=True
     )
 
