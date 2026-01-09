@@ -633,27 +633,19 @@ namespace capella_ros_dock
 
         bool ManualDock::is_charging_position_moved(float x1, float y1, float yaw1, float x2, float y2, float yaw2)
         {
-                bool ret = true;
+                bool ret = false;
 
-                if(std::hypot(x1 - x2, y1 - y2) > 1.0)
+                double dist = std::hypot(x1 - x2, y1 - y2);
+                if(dist > 0.3)
                 {
                         ret = true;
                 }
                 else
                 {
-                        float dist_yaw1 = std::abs(angles::shortest_angular_distance(yaw1, std::atan2(y2 - y1, x2 - x1)));
-                        float dist_yaw2 = std::abs(angles::shortest_angular_distance(yaw1, yaw2));
-                        if (dist_yaw1 < 0.5 && dist_yaw2 < 0.5)
-                        {
-                                ret = false;
-                        }
-                        else
-
-                        {
-                                ret = true;
-                        }
+                        ret = false;
                 }
-
+                (void) yaw1;
+                (void) yaw2;               
 
                 return ret;
         }
