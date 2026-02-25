@@ -263,6 +263,7 @@ void DockingBehavior::handle_dock_servo_accepted(
 {
 	// Create new Docking state machine
 	running_dock_action_ = true;
+	running_undock_action_ = false;
 	b_timeout_current_state = false;
 	action_start_time_ = clock_->now();
 
@@ -446,6 +447,7 @@ void DockingBehavior::handle_undock_accepted(
 	// Create new Docking Action
 	b_timeout_current_state = false;
 	running_undock_action_ = true;
+	running_dock_action_ = false;
 	action_start_time_ = clock_->now();
 
 	SimpleGoalController::CmdPath undock_path;
