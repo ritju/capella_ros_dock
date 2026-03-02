@@ -54,7 +54,8 @@ def generate_launch_description():
     goal_y_correction = get_environment_value("DOCK_GOAL_Y_CORRECTION", "0.0")
     garage_test = get_environment_value("DOCK_GARAGE_TEST", "false")
     offset_buffer_goal2_x = get_environment_value("DOCK_OFFSET_BUFFER_POINT2_X", "1.5")
-    offset_buffer_goal2_y = get_environment_value("DOCK_OFFSET_BUFFER_POINT2_Y", "0.0")
+    offset_buffer_goal2_y = get_environment_value("DOCK_OFFSET_BUFFER_POINT2_Y", "0.0")    
+    contacted_keep_move_time = get_environment_value("DOCK_CONTACTED_KEEP_MOVE_TIME=", "0.3")
     
     # 类型映射
     type_mapping = {
@@ -77,6 +78,7 @@ def generate_launch_description():
         "garage_test": str(garage_test),
         "offset_buffer_goal2_x": str(offset_buffer_goal2_x),
         "offset_buffer_goal2_y": str(offset_buffer_goal2_y),
+        "contacted_keep_move_time": str(contacted_keep_move_time),
     }    
     
     # 配置参数文件
