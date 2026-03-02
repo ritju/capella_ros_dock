@@ -55,7 +55,7 @@ def generate_launch_description():
     garage_test = get_environment_value("DOCK_GARAGE_TEST", "false")
     offset_buffer_goal2_x = get_environment_value("DOCK_OFFSET_BUFFER_POINT2_X", "1.5")
     offset_buffer_goal2_y = get_environment_value("DOCK_OFFSET_BUFFER_POINT2_Y", "0.0")    
-    contacted_keep_move_time = get_environment_value("DOCK_CONTACTED_KEEP_MOVE_TIME=", "0.3")
+    contacted_keep_move_time = get_environment_value("DOCK_CONTACTED_KEEP_MOVE_TIME", "0.3")
     
     # 类型映射
     type_mapping = {
