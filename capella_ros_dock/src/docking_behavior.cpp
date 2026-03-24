@@ -173,9 +173,9 @@ void DockingBehavior::footprint_sub_callback_(const geometry_msgs::msg::PolygonS
 	for (size_t i = 0; i < footprint_.polygon.points.size(); i++)
 	{
 		geometry_msgs::msg::Point point;
-		point.x = footprint_.polygon.points[i].x;
-		point.y = footprint_.polygon.points[i].y;
-		point.z = footprint_.polygon.points[i].z;
+		point.x = footprint_.polygon.points[i].x * params_ptr->footprint_zoom_factor;
+		point.y = footprint_.polygon.points[i].y * params_ptr->footprint_zoom_factor;
+		point.z = footprint_.polygon.points[i].z * params_ptr->footprint_zoom_factor;
 		footprint_vec_.push_back(point);
 	}
 

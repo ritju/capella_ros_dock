@@ -70,6 +70,7 @@ struct motion_control_params
 	bool garage_test;
 	float offset_buffer_goal2_x;
 	float offset_buffer_goal2_y;
+	float footprint_zoom_factor;
 };
 } // end namespace capella_ros_dock
 
