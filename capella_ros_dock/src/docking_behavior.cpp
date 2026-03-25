@@ -210,7 +210,8 @@ void DockingBehavior::footprint_sub_callback_(const geometry_msgs::msg::PolygonS
 
 	// ---------- 新增：发布 footprint marker ----------
     visualization_msgs::msg::Marker marker;
-    marker.header = msg.header;                 // 使用 footprint 消息的 frame_id 和时间戳
+    marker.header.frame_id = "base_link";               // 改为机器人基坐标系
+	marker.header.stamp = msg.header.stamp;              
     marker.ns = "motion_control_footprint";
     marker.id = 1;
     marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
