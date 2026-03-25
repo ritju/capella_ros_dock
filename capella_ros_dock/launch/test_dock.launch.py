@@ -106,23 +106,7 @@ def generate_launch_description():
         description='define robot version, it will affect the robot footprint and some parametersi'
     )
 
-    robot_version = LaunchConfiguration('robot_version')
-
-    if robot_version == 'outdoor_robot_version':
-        footprint_zoom_factor = 1.0
-    elif robot_version == 'outdoor_robot_qp':
-        footprint_zoom_factor = 0.9
-    elif robot_version == 'outdoor_robot_qp_2':
-        footprint_zoom_factor = 1.0
-    elif robot_version == 'new_g3_robot_version':
-        footprint_zoom_factor = 1.0
-    elif robot_version == 'ad_robot_version':
-        footprint_zoom_factor = 1.0
-    elif robot_version == 'indoor_robot_version':
-        footprint_zoom_factor = 1.0
-    else:     
-        footprint_zoom_factor = 1.0 
-        
+    robot_version = LaunchConfiguration('robot_version')        
 
     # serial Node
     serial_node = Node(
@@ -210,7 +194,7 @@ def generate_launch_description():
         name='motion_control',
         namespace='',
         output='screen',
-        parameters=[configured_params, {"footprint_zoom_factor": footprint_zoom_factor}],
+        parameters=[configured_params, {"robot_version": robot_version}],
         arguments=['--ros-args', '--log-level', ['motion_control:=', LaunchConfiguration("motion_control_log_level")]]        
     )
 
@@ -297,6 +281,7 @@ def generate_launch_description():
     else:
         launch_description.add_action(aruco_launch_file) 
 
+    launch_description.add_action(robot_version_arg)
     launch_description.add_action(motion_control_node)
     # launch_description.add_action(hazards_vector_publisher_node) 
     # launch_description.add_action(camera_point_cloud_process_node) # 后退避障改用local_costmap，不再使用深度相机数据

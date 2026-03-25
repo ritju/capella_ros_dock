@@ -137,7 +137,10 @@ void MotionControlNode::init_params()
 	this->declare_parameter<bool>("garage_test", "false");
 	this->declare_parameter<float>("offset_buffer_goal2_x", 1.5);
 	this->declare_parameter<float>("offset_buffer_goal2_y", 0.0);
-	this->declare_parameter<float>("footprint_zoom_factor", 0.9);
+    this->declare_parameter<std::string>("robot_version", "outdoor_robot_qp_2");
+    this->declare_parameter<double>("footprint_zoom_factor", 1.0);
+	this->declare_parameter<std::vector<std::string>>("robot_versions", std::vector<std::string>{"outdoor_robot_version", "outdoor_robot_qp", "outdoor_robot_qp_2", "new_g3_robot_version", "ad_robot_version", "indoor_robot_version"});
+	this->declare_parameter<std::vector<double>>("footprint_factors", std::vector<double>{0.9, 1.0, 0.9, 1.0, 1.0, 1.0});
 
 	params.min_rotation = this->get_parameter_or<float>("min_rotation", 0.15);
 	params.max_rotation = this->get_parameter_or<float>("max_rotation", 0.30);
@@ -202,10 +205,25 @@ void MotionControlNode::init_params()
 	params.garage_test = this->get_parameter("garage_test").get_value<bool>();
 	params.offset_buffer_goal2_x = this->get_parameter("offset_buffer_goal2_x").get_value<float>();
 	params.offset_buffer_goal2_y = this->get_parameter("offset_buffer_goal2_y").get_value<float>();
+	params.robot_version = this->get_parameter("robot_version").get_value<std::string>();
 	params.footprint_zoom_factor = this->get_parameter("footprint_zoom_factor").get_value<float>();
-	
+	params.robot_versions = this->get_parameter("robot_versions").get_value<std::vector<std::string>>();
+	params.footprint_factors = this->get_parameter("footprint_factors").get_value<std::vector<double>>();
+
+	params.footprint_zoom_factor = 1.0;
+	for (size_t i = 0; i < params.robot_versions.size(); ++i) {
+		if (params.robot_versions[i] == params.robot_version) {
+			params.footprint_zoom_factor = static_cast<float>(params.footprint_factors[i]);
+			break;
+		}
+	}
+	this->set_parameter(rclcpp::Parameter("footprint_zoom_factor", params.footprint_zoom_factor));
+
 	RCLCPP_INFO_STREAM(this->get_logger(), "timeout_dock_action: " << params.timeout_dock_action 
-		<< ", last_docked_distanace_offset: " << params.offset_last_docked_distance);
+		<< ", last_docked_distanace_offset: " << params.offset_last_docked_distance
+		<< ", robot_version: " << params.robot_version
+		<< ", footprint_zoom_factor: " << params.footprint_zoom_factor
+	);
 }
 
 // void MotionControlNode::cb_hazard_detection(capella_ros_dock_msgs::msg::HazardDetectionVector::SharedPtr msg)

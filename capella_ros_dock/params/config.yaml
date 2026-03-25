@@ -94,6 +94,11 @@ motion_control:
     undock_timeout: 30.0   # undock超时时间    
     undock_dis: 0.5        # undock要固定驶离充电桩的距离
 
+    # 缩放机器人footprint参数
+    footprint_zoom_factor: 1.0  # 机器人footprint的缩放系
+    robot_versions: ["outdoor_robot_version", "outdoor_robot_qp", "outdoor_robot_qp_2", "new_g3_robot_version", "ad_robot_version", "indoor_robot_version"]
+    footprint_factors: [0.9, 1.0, 0.9, 1.0, 1.0, 1.0]  # 与robot_versions一一对应的footprint缩放系数
+
 
 camera_point_cloud_process:
   ros__parameters:

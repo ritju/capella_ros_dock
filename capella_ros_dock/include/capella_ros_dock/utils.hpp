@@ -70,7 +70,10 @@ struct motion_control_params
 	bool garage_test;
 	float offset_buffer_goal2_x;
 	float offset_buffer_goal2_y;
+	std::string robot_version;
 	float footprint_zoom_factor;
+	std::vector<std::string> robot_versions;
+	std::vector<double> footprint_factors;
 };
 } // end namespace capella_ros_dock
 
