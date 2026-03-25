@@ -93,6 +93,12 @@ DockingBehavior::DockingBehavior(
 		std::bind(&DockingBehavior::local_costmap_sub_callback_, this, _1)
 	);
 
+	footprint_marker_pub_ = rclcpp::create_publisher<visualization_msgs::msg::Marker>(
+    node_topics_interface,
+    "motion_control_footprint_marker",
+    rclcpp::QoS(rclcpp::KeepLast(1)).best_effort()
+);
+
 	rmw_qos_profile_t qos;
 	qos = rmw_qos_profile_services_default;
 	// qos.history = rmw_qos_history_policy_t::RMW_QOS_POLICY_HISTORY_KEEP_LAST;
@@ -202,6 +208,45 @@ void DockingBehavior::footprint_sub_callback_(const geometry_msgs::msg::PolygonS
 	// 	RCLCPP_INFO(logger_, "base footprint Point(%f, %f)", point.x, point.y);
 	// }
 
+	// ---------- 新增：发布 footprint marker ----------
+    visualization_msgs::msg::Marker marker;
+    marker.header = msg.header;                 // 使用 footprint 消息的 frame_id 和时间戳
+    marker.ns = "motion_control_footprint";
+    marker.id = 1;
+    marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
+    marker.action = visualization_msgs::msg::Marker::ADD;
+
+    // 将 footprint_base_ 中的点按顺序添加，最后再回到第一个点形成闭合矩形
+    if (footprint_base_.size() >= 4) {
+        for (const auto& pt : footprint_base_) {
+            geometry_msgs::msg::Point p;
+            p.x = pt.x;
+            p.y = pt.y;
+            p.z = 0.0;                     // 默认在平面内
+            marker.points.push_back(p);
+        }
+        // 闭合：添加第一个点
+        geometry_msgs::msg::Point p0;
+        p0.x = footprint_base_[0].x;
+        p0.y = footprint_base_[0].y;
+        p0.z = 0.0;
+        marker.points.push_back(p0);
+    } else {
+        RCLCPP_WARN(logger_, "footprint_base_ size is %zu, cannot draw marker", footprint_base_.size());
+        return;
+    }
+
+    // 设置线宽和颜色
+    marker.scale.x = 0.05;      // 线宽 0.05m
+    marker.color.r = 1.0;
+    marker.color.g = 0.0;
+    marker.color.b = 0.0;
+    marker.color.a = 1.0;       // 完全不透明
+
+    // 生命周期为0表示永久显示（直到新消息覆盖）
+    marker.lifetime = rclcpp::Duration(0, 0);
+
+    footprint_marker_pub_->publish(marker);
 
 }
 

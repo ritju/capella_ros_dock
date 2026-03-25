@@ -36,6 +36,8 @@
 
 #include "std_msgs/msg/bool.hpp"
 
+#include <visualization_msgs/msg/marker.hpp>
+
 
 // collision check
 #include "nav2_costmap_2d/footprint_collision_checker.hpp"
@@ -219,6 +221,8 @@ void local_costmap_sub_callback_(const nav_msgs::msg::OccupancyGrid &msg);
 void footprint_sub_callback_(const geometry_msgs::msg::PolygonStamped &msg);
 
 tf2::Transform tf_robot_map;
+
+rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr footprint_marker_pub_;
 
 
 };
