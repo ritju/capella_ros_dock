@@ -179,9 +179,9 @@ void DockingBehavior::footprint_sub_callback_(const geometry_msgs::msg::PolygonS
 	for (size_t i = 0; i < footprint_.polygon.points.size(); i++)
 	{
 		geometry_msgs::msg::Point point;
-		point.x = footprint_.polygon.points[i].x * params_ptr->footprint_zoom_factor;
-		point.y = footprint_.polygon.points[i].y * params_ptr->footprint_zoom_factor;
-		point.z = footprint_.polygon.points[i].z * params_ptr->footprint_zoom_factor;
+		point.x = footprint_.polygon.points[i].x;
+		point.y = footprint_.polygon.points[i].y;
+		point.z = footprint_.polygon.points[i].z;
 		footprint_vec_.push_back(point);
 	}
 
@@ -207,6 +207,14 @@ void DockingBehavior::footprint_sub_callback_(const geometry_msgs::msg::PolygonS
 	// 	auto point = footprint_base_[i];
 	// 	RCLCPP_INFO(logger_, "base footprint Point(%f, %f)", point.x, point.y);
 	// }
+
+	// 在机器人基坐标系下缩放足迹（缩放大小）
+	for (size_t i = 0; i < footprint_base_.size(); i++)
+	{
+		footprint_base_[i].x *= params_ptr->footprint_zoom_factor;
+		footprint_base_[i].y *= params_ptr->footprint_zoom_factor;
+		footprint_base_[i].z = 0.0;
+	}
 
 	// ---------- 新增：发布 footprint marker ----------
     visualization_msgs::msg::Marker marker;
