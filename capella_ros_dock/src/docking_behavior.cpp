@@ -77,7 +77,7 @@ DockingBehavior::DockingBehavior(
 	marker_and_mac_sub_ = rclcpp::create_subscription<aruco_msgs::msg::MarkerAndMacVector>(
 		node_topics_interface,
 		"/id_mac",
-		rclcpp::QoS(rclcpp::KeepLast(30)),
+		rclcpp::QoS(1).transient_local().reliable(),
 		std::bind(&DockingBehavior::marker_and_mac_callback, this, _1)
 		);
 	footprint_sub_ = rclcpp::create_subscription<geometry_msgs::msg::PolygonStamped>(
