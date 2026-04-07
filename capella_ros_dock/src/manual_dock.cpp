@@ -66,7 +66,7 @@ namespace capella_ros_dock
 
                 marker_and_mac_sub_ = this->create_subscription<aruco_msgs::msg::MarkerAndMacVector>(
                         "/id_mac",
-                        30,
+                        rclcpp::QoS(rclcpp::KeepLast(1)).reliable().transient_local(),
                         std::bind(&ManualDock::marker_and_mac_sub_callback, this, std::placeholders::_1),
                         sub_ops1
                 );
