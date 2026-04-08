@@ -1304,7 +1304,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			double predict_time = std::min((current_state_timeout_ - delta_time_), double(params_ptr->collision_predict_time));
 			if (params_ptr->collision_check)
 			{
-				double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, false, servo_vel->linear.x, 0.0,
+				double cost_value = get_cost_value_undock(logger_,collision_checker, robot_pose_map, footprint_vec,  servo_vel->linear.x, 
 				                                   predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
 				if (cost_value >= nav2_costmap_2d::LETHAL_OBSTACLE)
 				{
@@ -1425,6 +1425,78 @@ void bound_rotation(double & rotation_velocity, float min, float max)
 	}
 }
 
+// undock时，不计算后边的碰撞检查了，因为undock时机器人和充电桩是有接触的，必然会有碰撞，没必要检查碰撞值了
+double get_cost_value_undock(rclcpp::Logger logger_, 
+					nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*>  collision_checker,
+                    tf2::Transform tf_robot,std::vector<geometry_msgs::msg::Point> footprint,
+                    double linear, double predict_time, int hz, double scale)
+{	
+	(void) logger_;
+	double x,y,theta;
+	tf2::Transform tf_offset;
+	tf2::Transform tf_new;
+	tf_offset.setIdentity();
+	int counts_number = std::floor(predict_time * hz);
+	double vel_linear = linear * scale;	
+	double footprint_cost = 0.0;
+
+	// 生成不包含机器人后边的三条边
+	std::vector<std::pair<geometry_msgs::msg::Point, geometry_msgs::msg::Point>> otherEdges;
+	for (size_t i = 0; i < footprint.size(); i++)
+	{
+		auto p1 = footprint[i];
+		auto p2 = footprint[(i + 1) % footprint.size()];
+		double midX = (p1.x + p2.x) / 2.0;
+		if (midX > 0) // 只保留机器人前边的边，去掉后边的边
+		{
+			otherEdges.push_back(std::make_pair(p1, p2));
+			RCLCPP_DEBUG(logger_, "edge %d: Point(%.2f, %.2f) to Point(%.2f, %.2f)", i, p1.x, p1.y, p2.x, p2.y);
+		}
+	}
+
+	for (int i = 0; i < counts_number; i++)
+	{
+		tf_offset.setOrigin(tf2::Vector3(1.0 / hz * vel_linear * i, 0.0, 0.0));
+		tf_new = tf_robot * tf_offset;
+		x = tf_new.getOrigin().getX();
+		y = tf_new.getOrigin().getY();
+		theta = tf2::getYaw(tf_new.getRotation());
+		// RCLCPP_DEBUG(logger_, "x: %.2f, y: %.2f, theta: %.2f", x, y, theta);
+		// RCLCPP_DEBUG(logger_,"base footprint");
+		// RCLCPP_DEBUG(logger_, "Point(%.2f, %.2f)", footprint[0].x, footprint[0].y);
+		// RCLCPP_DEBUG(logger_, "Point(%.2f, %.2f)", footprint[1].x, footprint[1].y);
+		// RCLCPP_DEBUG(logger_, "Point(%.2f, %.2f)", footprint[2].x, footprint[2].y);
+		// RCLCPP_DEBUG(logger_, "Point(%.2f, %.2f)", footprint[3].x, footprint[3].y);
+		for (size_t j = 0; j < otherEdges.size(); j++)
+		{
+			auto edge = otherEdges[j];
+			RCLCPP_DEBUG(logger_, "check edge %d: Point(%.2f, %.2f) to Point(%.2f, %.2f)", j, edge.first.x, edge.first.y, edge.second.x, edge.second.y);
+			auto p1 = edge.first;
+			auto p2 = edge.second;
+			geometry_msgs::msg::Point p1_transformed;
+			geometry_msgs::msg::Point p2_transformed;
+			p1_transformed.x = p1.x * cos(theta) - p1.y * sin(theta) + x;
+			p1_transformed.y = p1.x * sin(theta) + p1.y * cos(theta) + y;
+			p2_transformed.x = p2.x * cos(theta) - p2.y * sin(theta) + x;
+			p2_transformed.y = p2.x * sin(theta) + p2.y * cos(theta) + y;
+			unsigned int x0, x1, y0, y1;
+			if (!collision_checker.worldToMap(p1_transformed.x, p1_transformed.y, x0, y0)) {
+				return static_cast<double>(nav2_costmap_2d::NO_INFORMATION);
+			}
+			if (!collision_checker.worldToMap(p2_transformed.x, p2_transformed.y, x1, y1)) {
+				return static_cast<double>(nav2_costmap_2d::NO_INFORMATION);
+			}
+			double cost_value_edge = collision_checker.lineCost(x0, y0, x1, y1);
+			// RCLCPP_DEBUG(logger_, "edge %d cost_value: %.2f", j, cost_value_edge);
+			footprint_cost = std::max(footprint_cost, cost_value_edge);
+			if (footprint_cost >= static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE))
+			{
+				return footprint_cost;
+			}
+		}
+	}
+	return footprint_cost;
+}
 double get_cost_value(rclcpp::Logger logger_, nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*>  collision_checker,
                       tf2::Transform tf_robot,std::vector<geometry_msgs::msg::Point> footprint, bool rotation,
                       double linear, double angular, double predict_time, int hz, double scale)
