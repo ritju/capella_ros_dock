@@ -1450,7 +1450,7 @@ double get_cost_value_undock(rclcpp::Logger logger_,
 		if (midX > 0) // 只保留机器人前边的边，去掉后边的边
 		{
 			otherEdges.push_back(std::make_pair(p1, p2));
-			RCLCPP_DEBUG(logger_, "edge %d: Point(%.2f, %.2f) to Point(%.2f, %.2f)", i, p1.x, p1.y, p2.x, p2.y);
+			RCLCPP_DEBUG(logger_, "edge %zu: Point(%.2f, %.2f) to Point(%.2f, %.2f)", i, p1.x, p1.y, p2.x, p2.y);
 		}
 	}
 
@@ -1470,7 +1470,7 @@ double get_cost_value_undock(rclcpp::Logger logger_,
 		for (size_t j = 0; j < otherEdges.size(); j++)
 		{
 			auto edge = otherEdges[j];
-			RCLCPP_DEBUG(logger_, "check edge %d: Point(%.2f, %.2f) to Point(%.2f, %.2f)", j, edge.first.x, edge.first.y, edge.second.x, edge.second.y);
+			RCLCPP_DEBUG(logger_, "check edge %zu: Point(%.2f, %.2f) to Point(%.2f, %.2f)", j, edge.first.x, edge.first.y, edge.second.x, edge.second.y);
 			auto p1 = edge.first;
 			auto p2 = edge.second;
 			geometry_msgs::msg::Point p1_transformed;
