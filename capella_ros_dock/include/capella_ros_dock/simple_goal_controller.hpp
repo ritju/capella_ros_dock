@@ -75,6 +75,11 @@ SimpleGoalController(rclcpp::node_interfaces::NodeBaseInterface::SharedPtr node,
 		"marker_buffer_point2",
 		rclcpp::QoS(1).reliable().transient_local()
 	);
+	marker_undock_collision_pub_ = rclcpp::create_publisher<visualization_msgs::msg::Marker>(
+		node_topics_interface,
+		"marker_undock_collision",
+		rclcpp::QoS(1).reliable().transient_local()
+	);
 }
 
 void init(motion_control_params* params_ptr)
@@ -1461,7 +1466,7 @@ double get_cost_value_undock(rclcpp::Logger logger_,
 		x = tf_new.getOrigin().getX();
 		y = tf_new.getOrigin().getY();
 		theta = tf2::getYaw(tf_new.getRotation());
-		// RCLCPP_DEBUG(logger_, "x: %.2f, y: %.2f, theta: %.2f", x, y, theta);
+		RCLCPP_DEBUG(logger_, "x: %.2f, y: %.2f, theta: %.2f", x, y, theta);
 		// RCLCPP_DEBUG(logger_,"base footprint");
 		// RCLCPP_DEBUG(logger_, "Point(%.2f, %.2f)", footprint[0].x, footprint[0].y);
 		// RCLCPP_DEBUG(logger_, "Point(%.2f, %.2f)", footprint[1].x, footprint[1].y);
@@ -1481,16 +1486,40 @@ double get_cost_value_undock(rclcpp::Logger logger_,
 			p2_transformed.y = p2.x * sin(theta) + p2.y * cos(theta) + y;
 			unsigned int x0, x1, y0, y1;
 			if (!collision_checker.worldToMap(p1_transformed.x, p1_transformed.y, x0, y0)) {
+				RCLCPP_DEBUG(logger_, "p1_transformed(%.2f, %.2f) can not coverted to map, return 255.", p1_transformed.x, p1_transformed.y);
 				return static_cast<double>(nav2_costmap_2d::NO_INFORMATION);
 			}
 			if (!collision_checker.worldToMap(p2_transformed.x, p2_transformed.y, x1, y1)) {
+				RCLCPP_DEBUG(logger_, "p2_transformed(%.2f, %.2f) can not coverted to map, return 255.", p2_transformed.x, p2_transformed.y);
 				return static_cast<double>(nav2_costmap_2d::NO_INFORMATION);
 			}
 			double cost_value_edge = collision_checker.lineCost(x0, y0, x1, y1);
-			// RCLCPP_DEBUG(logger_, "edge %d cost_value: %.2f", j, cost_value_edge);
+			RCLCPP_DEBUG(logger_, "edge %zu cost_value: %.2f", j, cost_value_edge);
 			footprint_cost = std::max(footprint_cost, cost_value_edge);
 			if (footprint_cost >= static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE))
 			{
+				// pub /marker_undock_collision
+				visualization_msgs::msg::Marker marker;
+				marker.header.frame_id = "map";
+				marker.header.stamp = rclcpp::Clock().now();
+				marker.ns = "collision_edges";
+				marker.id = 3;  // 每次覆盖之前的碰撞边
+				marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
+				marker.action = visualization_msgs::msg::Marker::ADD;
+
+				// 设置线段的两点
+				marker.points.push_back(p1_transformed);
+				marker.points.push_back(p2_transformed);
+
+				// 设置线段属性
+				marker.scale.x = 0.05;  // 线宽
+				marker.color.r = 1.0;
+				marker.color.g = 0.0;
+				marker.color.b = 0.0;
+				marker.color.a = 1.0;
+
+				marker_undock_collision_pub_->publish(marker);
+
 				return footprint_cost;
 			}
 		}
@@ -1847,6 +1876,7 @@ bool marker_visible_{false};
 rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_charger_pose_agent_pub_;
 rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_charger_pose_apriltag_pub_;
 rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_buffer_point2_pub_;
+rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_undock_collision_pub_;
 
 double buffer_point2_x_map, buffer_point2_y_map;
 
