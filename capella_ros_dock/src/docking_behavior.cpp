@@ -420,7 +420,8 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_dock_servo(
 	}
 	// auto hazards = current_state.hazards;
 	servo_cmd = goal_controller_->get_velocity_for_position(robot_pose, current_state.pose, current_state.charger_pose, sees_dock_, is_docked_,
-	 bluetooth_connected,  odom_msg,  state, infos, b_timeout_current_state, footprint_collision_checker_, footprint_base_, client_clear_entire_local_costmap_);
+							bluetooth_connected,  odom_msg,  state, infos, b_timeout_current_state, 
+							footprint_collision_checker_, costmap2d_, footprint_base_, client_clear_entire_local_costmap_);
 	if(this->is_docked_)
 	{
 		RCLCPP_DEBUG(logger_, "zero cmd time => sec: %f", this->clock_.get()->now().seconds());
@@ -580,7 +581,8 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_undock(
 	// auto hazards = current_state.hazards;
 	servo_cmd = goal_controller_->get_velocity_for_position(robot_pose, current_state.pose, current_state.charger_pose, sees_dock_,
 	                                                        is_docked_, bluetooth_connected, odom_msg,
-															state, infos, b_timeout_current_state, footprint_collision_checker_, footprint_base_, client_clear_entire_local_costmap_);
+								state, infos, b_timeout_current_state, footprint_collision_checker_, costmap2d_,
+								footprint_base_, client_clear_entire_local_costmap_);
 	
 	auto msg = std_msgs::msg::Bool();
 	msg.data = true;

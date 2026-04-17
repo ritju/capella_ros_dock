@@ -31,6 +31,7 @@ find_package(aruco_msgs)
 find_package(charge_manager_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(nav2_costmap_2d REQUIRED)
+find_package(nav2_util REQUIRED)
 find_package(ament_cmake REQUIRED)
 find_package(nav2_common REQUIRED)
 find_package(magic_enum CONFIG REQUIRED)
@@ -56,6 +57,7 @@ set(dependencies
   charge_manager_msgs
   std_msgs
   nav2_costmap_2d
+  nav2_util
   ament_cmake
   nav2_common
   nav2_msgs

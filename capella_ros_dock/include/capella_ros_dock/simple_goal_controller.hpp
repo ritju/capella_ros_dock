@@ -24,6 +24,7 @@
 #include <inttypes.h>
 #include <nav_msgs/msg/odometry.hpp>
 #include "nav2_costmap_2d/footprint_collision_checker.hpp"
+#include "nav2_util/line_iterator.hpp"
 #include "nav_msgs/msg/occupancy_grid.hpp"
 #include "geometry_msgs/msg/polygon_stamped.hpp"
 #include "geometry_msgs/msg/point.hpp"
@@ -75,9 +76,19 @@ SimpleGoalController(rclcpp::node_interfaces::NodeBaseInterface::SharedPtr node,
 		"marker_buffer_point2",
 		rclcpp::QoS(1).reliable().transient_local()
 	);
-	marker_undock_collision_pub_ = rclcpp::create_publisher<visualization_msgs::msg::Marker>(
+	marker_undock_collision_line_pub_ = rclcpp::create_publisher<visualization_msgs::msg::Marker>(
 		node_topics_interface,
-		"marker_undock_collision",
+		"marker_undock_collision_line",
+		rclcpp::QoS(1).reliable().transient_local()
+	);
+	marker_undock_collision_point_pub_ = rclcpp::create_publisher<visualization_msgs::msg::Marker>(
+		node_topics_interface,
+		"marker_undock_collision_point",
+		rclcpp::QoS(1).reliable().transient_local()
+	);
+	marker_undock_point_loop_pub_ = rclcpp::create_publisher<visualization_msgs::msg::Marker>(
+		node_topics_interface,
+		"marker_undock_point_loop",
 		rclcpp::QoS(1).reliable().transient_local()
 	);
 }
@@ -206,7 +217,7 @@ void reset()
 BehaviorsScheduler::optional_output_t get_velocity_for_position(
 	const tf2::Transform & current_pose, const tf2::Transform & robot_pose_map, const tf2::Transform & charger_pose_map, bool sees_dock, bool is_docked, bool bluetooth_connected,
 	nav_msgs::msg::Odometry odom_msg, std::string & state, std::string & infos, bool& b_timeout_current_state,
-	nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*>  collision_checker, std::vector<geometry_msgs::msg::Point> footprint_vec, rclcpp::Client<nav2_msgs::srv::ClearEntireCostmap>::SharedPtr client_clear_entire_local_costmap)
+	nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*>  collision_checker, nav2_costmap_2d::Costmap2D costmap, std::vector<geometry_msgs::msg::Point> footprint_vec, rclcpp::Client<nav2_msgs::srv::ClearEntireCostmap>::SharedPtr client_clear_entire_local_costmap)
 {
 	save_all_poses_infos(robot_pose_map, current_pose, charger_pose_map, sees_dock);
 
@@ -1309,7 +1320,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			double predict_time = std::min((current_state_timeout_ - delta_time_), double(params_ptr->collision_predict_time));
 			if (params_ptr->collision_check)
 			{
-				double cost_value = get_cost_value_undock(logger_,collision_checker, robot_pose_map, footprint_vec,  servo_vel->linear.x, 
+				double cost_value = get_cost_value_undock(logger_,collision_checker, costmap, robot_pose_map, footprint_vec,  servo_vel->linear.x, 
 				                                   predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
 				if (cost_value >= nav2_costmap_2d::LETHAL_OBSTACLE)
 				{
@@ -1432,7 +1443,7 @@ void bound_rotation(double & rotation_velocity, float min, float max)
 
 // undock时，不计算后边的碰撞检查了，因为undock时机器人和充电桩是有接触的，必然会有碰撞，没必要检查碰撞值了
 double get_cost_value_undock(rclcpp::Logger logger_, 
-					nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*>  collision_checker,
+					nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*>  collision_checker, nav2_costmap_2d::Costmap2D costmap,
                     tf2::Transform tf_robot,std::vector<geometry_msgs::msg::Point> footprint,
                     double linear, double predict_time, int hz, double scale)
 {	
@@ -1442,6 +1453,7 @@ double get_cost_value_undock(rclcpp::Logger logger_,
 	tf2::Transform tf_new;
 	tf_offset.setIdentity();
 	int counts_number = std::floor(predict_time * hz);
+	RCLCPP_DEBUG(logger_, "counts: %d, predict_time: %.2f, hz: %d", counts_number, predict_time, hz);
 	double vel_linear = linear * scale;	
 	double footprint_cost = 0.0;
 
@@ -1493,32 +1505,110 @@ double get_cost_value_undock(rclcpp::Logger logger_,
 				RCLCPP_DEBUG(logger_, "p2_transformed(%.2f, %.2f) can not coverted to map, return 255.", p2_transformed.x, p2_transformed.y);
 				return static_cast<double>(nav2_costmap_2d::NO_INFORMATION);
 			}
-			double cost_value_edge = collision_checker.lineCost(x0, y0, x1, y1);
+
+			double cost_value_edge = 0.0;
+			int collision_x = 0, collision_y = 0;
+			double collision_x_map = 0.0, collision_y_map = 0.0;
+			// cost_value_edge = collision_checker.lineCost(x0, y0, x1, y1);
+			{
+				double line_cost = 0.0;
+				double point_cost = -1.0;
+
+				for (nav2_util::LineIterator line(x0, y0, x1, y1); line.isValid(); line.advance()) 
+				{
+					point_cost = collision_checker.pointCost(line.getX(), line.getY());   // Score the current point
+					RCLCPP_DEBUG(logger_, "point => x: %d, y: %d, point_cost_value: %.0f", line.getX(), line.getY(), point_cost);
+
+					// pub /marker_undock_point_loop
+					visualization_msgs::msg::Marker marker_point;
+					marker_point.header.frame_id = "map";
+					marker_point.header.stamp = rclcpp::Clock().now();
+					marker_point.ns = "point_loop";
+					marker_point.id = 5;  
+					marker_point.type = visualization_msgs::msg::Marker::CUBE;
+					marker_point.action = visualization_msgs::msg::Marker::ADD;
+					marker_point.scale.x = 0.1;
+					marker_point.scale.y = 0.1;
+					marker_point.scale.z = 0.1;
+					marker_point.color.r = 1.0;
+					marker_point.color.g = 1.0;
+					marker_point.color.b = 0.0;
+					marker_point.color.a = 1.0;
+
+					double point_loop_x_map = 0.0, point_loop_y_map = 0.0;
+					costmap.mapToWorld(line.getX(), line.getY(), point_loop_x_map, point_loop_y_map);
+					marker_point.pose.position.x = point_loop_x_map;
+					marker_point.pose.position.y = point_loop_y_map;
+					RCLCPP_DEBUG(logger_, "publish topic /marker_undock_point_loop");				
+
+					marker_undock_point_loop_pub_->publish(marker_point);
+
+					// if in collision, no need to continue
+					if (point_cost == static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE)) 
+					{
+						line_cost = point_cost;
+						collision_x = line.getX();
+						collision_y = line.getY();
+						break;
+					}
+
+					if (line_cost < point_cost) 
+					{
+						line_cost = point_cost;
+					}
+				}
+				cost_value_edge = line_cost;
+			}
+
 			RCLCPP_DEBUG(logger_, "edge %zu cost_value: %.2f", j, cost_value_edge);
 			footprint_cost = std::max(footprint_cost, cost_value_edge);
 			if (footprint_cost >= static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE))
 			{
-				// pub /marker_undock_collision
-				visualization_msgs::msg::Marker marker;
-				marker.header.frame_id = "map";
-				marker.header.stamp = rclcpp::Clock().now();
-				marker.ns = "collision_edges";
-				marker.id = 3;  // 每次覆盖之前的碰撞边
-				marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
-				marker.action = visualization_msgs::msg::Marker::ADD;
+				// pub /marker_undock_collision_line
+				visualization_msgs::msg::Marker marker_line;
+				marker_line.header.frame_id = "map";
+				marker_line.header.stamp = rclcpp::Clock().now();
+				marker_line.ns = "collision_edges";
+				marker_line.id = 3;  
+				marker_line.type = visualization_msgs::msg::Marker::LINE_STRIP;
+				marker_line.action = visualization_msgs::msg::Marker::ADD;
 
 				// 设置线段的两点
-				marker.points.push_back(p1_transformed);
-				marker.points.push_back(p2_transformed);
+				marker_line.points.push_back(p1_transformed);
+				marker_line.points.push_back(p2_transformed);
 
 				// 设置线段属性
-				marker.scale.x = 0.05;  // 线宽
-				marker.color.r = 1.0;
-				marker.color.g = 0.0;
-				marker.color.b = 0.0;
-				marker.color.a = 1.0;
+				marker_line.scale.x = 0.05;  // 线宽
+				marker_line.color.r = 1.0;
+				marker_line.color.g = 0.0;
+				marker_line.color.b = 0.0;
+				marker_line.color.a = 1.0;
 
-				marker_undock_collision_pub_->publish(marker);
+				RCLCPP_INFO(logger_, "publish topic /marker_undock_collision_line");
+				marker_undock_collision_line_pub_->publish(marker_line);
+
+				// pub /marker_undock_collision_point
+				visualization_msgs::msg::Marker marker_point;
+				marker_point.header.frame_id = "map";
+				marker_point.header.stamp = rclcpp::Clock().now();
+				marker_point.ns = "collision_point";
+				marker_point.id = 4;  
+				marker_point.type = visualization_msgs::msg::Marker::CUBE;
+				marker_point.action = visualization_msgs::msg::Marker::ADD;
+				marker_point.scale.x = 0.2;
+				marker_point.scale.y = 0.2;
+				marker_point.scale.z = 0.2;
+				marker_point.color.r = 0.0;
+				marker_point.color.g = 1.0;
+				marker_point.color.b = 0.0;
+				marker_point.color.a = 1.0;
+
+				costmap.mapToWorld(collision_x, collision_y, collision_x_map, collision_y_map);
+				marker_point.pose.position.x = collision_x_map;
+				marker_point.pose.position.y = collision_y_map;
+				RCLCPP_INFO(logger_, "publish topic /marker_undock_collision_point");				
+
+				marker_undock_collision_point_pub_->publish(marker_point);
 
 				return footprint_cost;
 			}
@@ -1876,7 +1966,9 @@ bool marker_visible_{false};
 rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_charger_pose_agent_pub_;
 rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_charger_pose_apriltag_pub_;
 rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_buffer_point2_pub_;
-rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_undock_collision_pub_;
+rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_undock_collision_line_pub_;
+rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_undock_collision_point_pub_;
+rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_undock_point_loop_pub_;
 
 double buffer_point2_x_map, buffer_point2_y_map;
 
