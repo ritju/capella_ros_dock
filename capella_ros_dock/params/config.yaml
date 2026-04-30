@@ -41,6 +41,8 @@ motion_control:
     offset_low_speed: 0.30              # low_speed mode 距离
     offset_second_goal: 0.05            # 进入low_speed模式上一个目标点距其的距离
     offset_buffer_goal: 0.20            # 最终选取的中间点距second_goal的距离，最终中间点x坐标为上述四个参数之和，再取反
+    offset_buffer_goal2_x: 1.5          # 用于处理充电桩两侧狭窄，依赖机器人和充电桩map下位姿先到达充电桩正前方x坐标
+    offset_buffer_goal2_y: 0.0          # 用于处理充电桩两侧狭窄，依赖机器人和充电桩map下位姿先到达充电桩正前方y坐标
     
     # dock 速度相关参数
     min_rotation: 0.10                    # 最小旋转速度
@@ -68,7 +70,7 @@ motion_control:
     robot_rotate_radius: 1.25               # 机器人后退过程中看不到码时，判断机器人在原地能安全地通过旋转切换到ANGLE_TO_X_POSITIVE_ORIENTATION状态的最小半径
 
     # 相机和码参数
-    camera_horizontal_view: 60.0  # dabai深度相机（2bc5:0559）不使用D2C水平视角官方值是79度
+    camera_horizontal_view: 60.0  # 彩色相机(0c45:636b)1280*1024分辨率下水平视角
     camera_baselink_dis: 0.0      # 相机在baselink_dummy_optimize坐标系上x轴上的值，有正负之分
     marker_size: 0.12             # 码的整体尺寸，双码现在是每个码0.04，间距0.04，共计0.12
 
@@ -79,6 +81,7 @@ motion_control:
     odom_twist_scale: 0.99             # odom速度与实际发送速度的scale
     enable_clear_local_costmap: false  # 是否定时清除local_costmap,用于处理local_costmap长时间不更新的情况
     timout_clear_local_costmap: 3.0    # 清除local_costmap时的超时时间
+    garage_test: false                 # 用于测试充电桩两边空间狭窄的情况
     
     # motion control结点参数
     motion_control_log_level: 'info'  # motion_control 日志类型
@@ -99,7 +102,6 @@ motion_control:
     robot_versions: ["outdoor_robot_version", "outdoor_robot_qp", "outdoor_robot_qp_2", "new_g3_robot_version", "ad_robot_version", "indoor_robot_version"]
     footprint_factors: [0.9, 1.0, 0.9, 1.0, 1.0, 1.0]  # 与robot_versions一一对应的footprint缩放系数
 
-
 camera_point_cloud_process:
   ros__parameters:
     topic_name: '/camera3/depth/points'
@@ -114,7 +116,7 @@ camera_point_cloud_process:
 
 manual_dock:
   ros__parameters:
-    pose_x_min: -0.60
+    pose_x_min: -0.65
     pose_x_max: -0.15
     pose_y_min: -0.3
     pose_y_max: 0.3
