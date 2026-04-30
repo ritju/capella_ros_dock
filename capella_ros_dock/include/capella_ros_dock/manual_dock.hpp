@@ -121,7 +121,7 @@ public:
         std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
 
         float charger_pose_x, charger_pose_y, charger_pose_yaw;
-        float localization_score = 0.0;
+        float localization_score = 0.9;
 
         float robot_x_map_charging = 7700.0;
         float robot_y_map_charging= 7700.0;
