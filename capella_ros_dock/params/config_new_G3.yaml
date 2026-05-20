@@ -40,7 +40,7 @@ motion_control:
     offset_last_docked_distance: 0.30   # 上次对接上充电桩时的X坐标绝对值
     offset_low_speed: 0.30              # low_speed mode 距离
     offset_second_goal: 0.05            # 进入low_speed模式上一个目标点距其的距离
-    offset_buffer_goal: 0.40            # 最终选取的中间点距second_goal的距离，最终中间点x坐标为上述四个参数之和，再取反
+    offset_buffer_goal: 0.30            # 最终选取的中间点距second_goal的距离，最终中间点x坐标为上述四个参数之和，再取反
     offset_buffer_goal2_x: 1.5          # 用于处理充电桩两侧狭窄，依赖机器人和充电桩map下位姿先到达充电桩正前方x坐标
     offset_buffer_goal2_y: 0.0          # 用于处理充电桩两侧狭窄，依赖机器人和充电桩map下位姿先到达充电桩正前方y坐标
     
@@ -63,7 +63,7 @@ motion_control:
     tolerance_angle: 0.02      # LOOKUP_MARKER过程中判断角度冗余
     tolerance_r: 0.02          # MOVE_TO_BUFFER_POINT过程中判断到buffer_point的距离冗余
     dist_error_y_1: 0.05       # 判断能否切换到GO_TO_GOAL_POSITION的条件，机器人距目标点很近时，只要y坐标接近中轴线就切换状态到GO_TO_GOAL_POSITION
-    base_link_y_thr: 0.05      # 判断能否切换到ANGLE_TO_GOAL状态的条件二，机器人位姿左右偏差最大值(条件一是机器人坐标x,y到目标点的最大角度)
+    base_link_y_thr: 0.08      # 判断能否切换到ANGLE_TO_GOAL状态的条件二，机器人位姿左右偏差最大值(条件一是机器人坐标x,y到目标点的最大角度)
     deviate_second_goal_x: 0.1 # 判断能否切换到ANGLE_TO_GOAL状态的条件三，机器人位姿前后距second_goal偏差最大值
     go_to_goal_apply_rotation_angle: 0.01   # go_to_goal_position 过程中需要增加角速度调整的阀值  last_goal_angle_to_x_positive_dis: 0.05 # 机器人马上对接上时强制回正的阀值，距上次对接上时的x轴坐标的最大距离
     last_goal_angle_to_x_positive_y: 0.01   # 机器人马上对接上时强制回正的阀值，距上次对接上时的y轴坐标的最大距离
