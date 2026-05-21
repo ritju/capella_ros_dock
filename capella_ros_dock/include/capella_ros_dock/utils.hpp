@@ -74,6 +74,7 @@ struct motion_control_params
 	float footprint_zoom_factor;
 	std::vector<std::string> robot_versions;
 	std::vector<double> footprint_factors;
+	bool use_odom_for_control = true; // true: 使用 Odom (里程计)， false: 使用 Map (全局定位)
 };
 } // end namespace capella_ros_dock
 

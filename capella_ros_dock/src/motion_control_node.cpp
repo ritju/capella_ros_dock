@@ -134,13 +134,14 @@ void MotionControlNode::init_params()
 	this->declare_parameter<float>("timeout_angle_to_goal", 30.0);
 	this->declare_parameter<float>("timeout_go_to_goal_position", 30.0);
 	this->declare_parameter<float>("timeout_goal_angle", 30.0);
-	this->declare_parameter<bool>("garage_test", "false");
+	this->declare_parameter<bool>("garage_test", false);
 	this->declare_parameter<float>("offset_buffer_goal2_x", 1.5);
 	this->declare_parameter<float>("offset_buffer_goal2_y", 0.0);
     this->declare_parameter<std::string>("robot_version", "outdoor_robot_qp_2");
     this->declare_parameter<double>("footprint_zoom_factor", 1.0);
 	this->declare_parameter<std::vector<std::string>>("robot_versions", std::vector<std::string>{"outdoor_robot_version", "outdoor_robot_qp", "outdoor_robot_qp_2", "new_g3_robot_version", "ad_robot_version", "indoor_robot_version"});
 	this->declare_parameter<std::vector<double>>("footprint_factors", std::vector<double>{0.9, 1.0, 0.9, 1.0, 1.0, 1.0});
+	this->declare_parameter<bool>("use_odom_for_control", false);
 
 	params.min_rotation = this->get_parameter_or<float>("min_rotation", 0.15);
 	params.max_rotation = this->get_parameter_or<float>("max_rotation", 0.30);
@@ -209,6 +210,7 @@ void MotionControlNode::init_params()
 	params.footprint_zoom_factor = this->get_parameter("footprint_zoom_factor").get_value<float>();
 	params.robot_versions = this->get_parameter("robot_versions").get_value<std::vector<std::string>>();
 	params.footprint_factors = this->get_parameter("footprint_factors").get_value<std::vector<double>>();
+	params.use_odom_for_control = this->get_parameter("use_odom_for_control").get_value<bool>();
 
 	params.footprint_zoom_factor = 1.0;
 	for (size_t i = 0; i < params.robot_versions.size(); ++i) {

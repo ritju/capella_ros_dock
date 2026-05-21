@@ -56,6 +56,7 @@ def generate_launch_description():
     offset_buffer_goal2_x = get_environment_value("DOCK_OFFSET_BUFFER_POINT2_X", "1.5")
     offset_buffer_goal2_y = get_environment_value("DOCK_OFFSET_BUFFER_POINT2_Y", "0.0")    
     contacted_keep_move_time = get_environment_value("DOCK_CONTACTED_KEEP_MOVE_TIME", "0.3")
+    use_odom_for_control = get_environment_value("DOCK_USE_ODOM_FOR_CONTROL", "true")
     
     # 类型映射
     type_mapping = {
@@ -79,6 +80,7 @@ def generate_launch_description():
         "offset_buffer_goal2_x": str(offset_buffer_goal2_x),
         "offset_buffer_goal2_y": str(offset_buffer_goal2_y),
         "contacted_keep_move_time": str(contacted_keep_move_time),
+        "use_odom_for_control": str(use_odom_for_control).lower()  # 转换为小写字符串 "true" 或 "false"
     }    
     
     # 配置参数文件

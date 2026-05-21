@@ -40,6 +40,7 @@ def generate_launch_description():
     motion_control_log_level = get_environment_value("DOCK_MOTION_CONTROL_LOG_LEVEL", "info")
     goal_y_correction = get_environment_value("DOCK_GOAL_Y_CORRECTION", "0.0")
     garage_test = get_environment_value("DOCK_GARAGE_TEST", "false")
+    use_odom_for_control = get_environment_value("DOCK_USE_ODOM_FOR_CONTROL", "true")
     
     # 类型映射
     type_mapping = {
@@ -66,7 +67,8 @@ def generate_launch_description():
         "offset_last_docked_distance": str(last_docked_offset),
         "camera_baselink_dis": str(camera_baselink_distance),
         "goal_y_correction": str(goal_y_correction),
-        "garage_test": str(garage_test)
+        "garage_test": str(garage_test),
+        "use_odom_for_control": str(use_odom_for_control).lower()  # 转换为小写字符串 "true" 或 "false"
     }    
     
     # 配置参数文件

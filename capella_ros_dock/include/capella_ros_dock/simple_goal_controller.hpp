@@ -352,6 +352,13 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 
 		RCLCPP_INFO(logger_, "robot_x_map: %.2f, robot_y_map: %.2f", robot_x_map_, robot_y_map_);
 		RCLCPP_INFO(logger_, "charger_x_map: %.2f, charger_y_map: %.2f", charger_x_map_, charger_y_map_);
+
+		// 重置累计器，确保每次开始新的对接流程时状态都是干净的
+		odom_accumulator_.reset();
+		map_accumulator_.reset();
+		original_accumulated_angle_ = 0.0;
+		original_accumulated_distance_ = 0.0;
+		RCLCPP_INFO(logger_, "Reset all accumulators for new docking session");
 		
 		// pub agent发出的 /charger/pose位姿
 		visualization_msgs::msg::Marker msg_marker_charger_pose_agent;
@@ -425,6 +432,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 
 		break;
 	}
+
 	case NavigateStates::LOOKUP_MARKER:
 	{
 		print_current_state_debug(current_state_);
@@ -630,6 +638,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		}
 		break;
 	}
+
 	case NavigateStates::ANGLE_TO_BUFFER_POINT:
 	{
 		print_current_state_debug(current_state_);
@@ -639,22 +648,73 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		if (b_timeout_current_state)
 		{
 			change_state(current_state_, NavigateStates::INIT, clock_->now().seconds(), 1.0);
+			odom_accumulator_.reset();
+			map_accumulator_.reset();
 			return servo_vel;		
 		}
 
 		update_time_smart();
 
+		// 初始化累计器（只在第一次进入时）
+		if (!odom_accumulator_.initialized) {
+			odom_accumulator_.init(odom_msg);
+			map_accumulator_.init(robot_pose_map);
+			original_accumulated_angle_ = 0.0;
+			RCLCPP_INFO(logger_, "=== 初始化角度累计器 ===");
+			RCLCPP_INFO(logger_, "目标旋转角度: %.4f rad (%.1f deg)", 
+			            theta_angle_to_buffer_point, 
+			            theta_angle_to_buffer_point * 180.0 / M_PI);
+		}
+
+		// 更新累计值
+		odom_accumulator_.update(odom_msg);
+		map_accumulator_.update(robot_pose_map);
+		
+		// 原有的累计方式（速度积分）
+		original_accumulated_angle_ += odom_msg.twist.twist.angular.z * delta_time_;
+
+		// 获取三种方式的累计角度
+		double original_angle = original_accumulated_angle_;
+		double odom_angle = odom_accumulator_.get_rotated_angle();
+		double map_angle = map_accumulator_.get_rotated_angle();
+		double target_angle = theta_angle_to_buffer_point;
+
+		// 根据参数选择使用哪种方式判断结束条件
+		double remaining_angle;
+		if (params_ptr->use_odom_for_control) {
+			remaining_angle = target_angle - odom_angle;
+		} else {
+			remaining_angle = target_angle - map_angle;
+		}
+		remaining_angle = angles::normalize_angle(remaining_angle);
+
+		// 检查是否完成旋转
+		bool rotation_completed = std::abs(remaining_angle) < params_ptr->tolerance_angle;
+
+		// 打印对比信息
+		static int print_counter = 0;
+		if (rotation_completed || (++print_counter % 50 == 0)) {
+			print_accumulation_comparison("ANGLE_TO_BUFFER_POINT", 
+			                              "Rotation Progress",
+			                              target_angle,
+			                              original_angle,
+			                              odom_angle,
+			                              map_angle,
+			                              rotation_completed);
+			if (rotation_completed) print_counter = 0;
+		}
+
 		RCLCPP_DEBUG(logger_, "delta_time: %.2f", delta_time_);
 		RCLCPP_DEBUG(logger_, "angular.z: %.2f", odom_msg.twist.twist.angular.z);
-		RCLCPP_DEBUG(logger_, "delta_angular: %.2f", odom_msg.twist.twist.angular.z * delta_time_);
 		RCLCPP_DEBUG(logger_, "dist_buffer_point_yaw pre: %.2f", dist_buffer_point_yaw);
+		// 原有的累计方式继续用于速度控制
 		dist_buffer_point_yaw -= odom_msg.twist.twist.angular.z * delta_time_;
 		robot_current_yaw += odom_msg.twist.twist.angular.z * delta_time_;
 		RCLCPP_DEBUG(logger_, "dist_buffer_point_yaw now: %.2f", dist_buffer_point_yaw);
 		double angle_dist = dist_buffer_point_yaw;
 		RCLCPP_DEBUG(logger_, "angle_dist: %.2f", angle_dist);
 		RCLCPP_DEBUG(logger_, "robot_map_yaw: %.2f", tf2::getYaw(robot_pose_map.getRotation()));
-		if(std::abs(angle_dist) < params_ptr->tolerance_angle)
+		if (rotation_completed)
 		{
 			RCLCPP_DEBUG(logger_, "change state to move_to_buffer_point.");
 			tf_after_angle_to_buffer_point = robot_pose_map;
@@ -663,6 +723,11 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			change_state(current_state_, NavigateStates::MOVE_TO_BUFFER_POINT, clock_->now().seconds(), params_ptr->timeout_move_to_buffer_point);
 			state = std::string("ANGLE_TO_BUFFER_POINT");
 			infos = std::string("Reason: ANGLE_TO_BUFFER_POINT converged ==> change state to MOVE_TO_BUFFER_POINT");
+			
+			// 重置累计器，准备下一阶段
+			odom_accumulator_.reset();
+			map_accumulator_.reset();
+			original_accumulated_angle_ = 0.0;
 		}
 		else
 		{
@@ -690,9 +755,9 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 				RCLCPP_DEBUG(logger_, "collision_check: %s", params_ptr->collision_check ? "true":"false");
 			}
 
-
+			angle_dist = remaining_angle;
 			bound_rotation(angle_dist, params_ptr->min_rotation, params_ptr->max_rotation);
-			if(std::abs(angle_dist) < params_ptr->min_rotation)                  // 0.1 => 0.08 => raw_vel output 0
+			if(std::abs(angle_dist) < params_ptr->min_rotation)
 			{
 				angle_dist = std::copysign(params_ptr->min_rotation, angle_dist);
 			}
@@ -732,8 +797,9 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		}
 		break;
 	}
+
 	case NavigateStates::MOVE_TO_BUFFER_POINT:
-	{
+{
 		print_current_state_debug(current_state_);
 		servo_vel = geometry_msgs::msg::Twist();
 
@@ -741,19 +807,84 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		if (b_timeout_current_state)
 		{
 			change_state(current_state_, NavigateStates::INIT, clock_->now().seconds(), 1.0);
+			odom_accumulator_.reset();
+			map_accumulator_.reset();
 			return servo_vel;		
 		}
 
 		update_time_smart();
 
-		dist_buffer_point -= delta_time_ * std::abs(odom_msg.twist.twist.linear.x);
-		double dist_y = dist_buffer_point;
-		RCLCPP_DEBUG(logger_, "odom_msg.linear_x: %.2f", odom_msg.twist.twist.linear.x);
-		RCLCPP_DEBUG(logger_, "delta_time: %.2f", delta_time_);
-		RCLCPP_DEBUG(logger_, "dist_buffer_point now: %.2f", dist_buffer_point);
-		RCLCPP_DEBUG(logger_, "dist_y: %.2f", dist_y);
-		RCLCPP_DEBUG(logger_, "robot_map_x: %.2f, robot_map_y: %.2f", robot_pose_map.getOrigin().getX(), robot_pose_map.getOrigin().getY());
-		if (std::abs(dist_y) < params_ptr->tolerance_r)
+		// 初始化累计器（只在第一次进入时）
+		if (!odom_accumulator_.initialized) {
+			odom_accumulator_.init(odom_msg);
+			map_accumulator_.init(robot_pose_map);
+			RCLCPP_INFO(logger_, "=== 初始化移动累计器 ===");
+			RCLCPP_INFO(logger_, "目标移动距离: %.4f m", dist_buffer_point);
+			RCLCPP_INFO(logger_, "方向: %s", drive_back ? "后退" : "前进");
+		}
+
+		// 更新累计值
+		odom_accumulator_.update(odom_msg);
+		map_accumulator_.update(robot_pose_map);
+		
+		// 获取目标距离（使用已定义的变量）
+		double target_distance_local = dist_buffer_point;
+		
+		// 【核心】计算剩余距离（带符号），使用选中的累计器
+		double remaining_distance;
+		if (params_ptr->use_odom_for_control) {
+			remaining_distance = target_distance_local - odom_accumulator_.get_moved_distance();
+		} else {
+			remaining_distance = target_distance_local - map_accumulator_.get_moved_distance();
+		}
+		
+		// 后退模式：剩余距离应该是负数（表示还需要后退多少）
+		if (drive_back) {
+			remaining_distance = -remaining_distance;
+		}
+		
+		// 检查是否完成移动
+		bool movement_completed = false;
+		if (drive_back) {
+			// 后退：剩余距离 >= 0 表示已经后退到位或超过
+			movement_completed = remaining_distance >= 0;
+		} else {
+			// 前进：剩余距离 <= 0 表示已经前进到位或超过
+			movement_completed = remaining_distance <= 0;
+		}
+		
+		// 获取三种方式的累计距离用于调试对比
+		double odom_distance = odom_accumulator_.get_moved_distance();
+		double map_distance = map_accumulator_.get_moved_distance();
+		
+		// 打印对比信息
+		static int print_counter = 0;
+		if (movement_completed || (++print_counter % 50 == 0)) {
+			// 计算各种方式的剩余距离（用于对比）
+			double odom_remaining = target_distance_local - odom_distance;
+			if (drive_back) odom_remaining = -odom_remaining;
+			double map_remaining = target_distance_local - map_distance;
+			if (drive_back) map_remaining = -map_remaining;
+			
+			RCLCPP_INFO(logger_, "═══════════════════════════════════════════════════");
+			RCLCPP_INFO(logger_, "📍 [MOVE_TO_BUFFER_POINT] - Movement Progress");
+			RCLCPP_INFO(logger_, "═══════════════════════════════════════════════════");
+			RCLCPP_INFO(logger_, "🎯 Target Distance:  %.4f m", target_distance_local);
+			RCLCPP_INFO(logger_, "🔄 Direction:        %s", drive_back ? "BACKWARD" : "FORWARD");
+			RCLCPP_INFO(logger_, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+			RCLCPP_INFO(logger_, "📊 Odom (里程计):    moved=%.4f, remaining=%.4f, ratio=%.1f%%",
+						odom_distance, odom_remaining, (odom_distance / target_distance_local) * 100.0);
+			RCLCPP_INFO(logger_, "📊 Map (全局定位):  moved=%.4f, remaining=%.4f, ratio=%.1f%%",
+						map_distance, map_remaining, (map_distance / target_distance_local) * 100.0);
+			RCLCPP_INFO(logger_, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+			RCLCPP_INFO(logger_, "✅ Using:            %s", params_ptr->use_odom_for_control ? "ODOM" : "MAP");
+			RCLCPP_INFO(logger_, "✅ Remaining:        %.4f m", remaining_distance);
+			RCLCPP_INFO(logger_, "✅ Condition Met:    %s", movement_completed ? "TRUE" : "FALSE");
+			RCLCPP_INFO(logger_, "═══════════════════════════════════════════════════");
+			if (movement_completed) print_counter = 0;
+		}
+		
+		if (movement_completed)
 		{
 			RCLCPP_DEBUG(logger_, "change state to angle_to_x_positive_orientation");
 			tf_after_move_to_buffer_point = robot_pose_map;
@@ -761,27 +892,48 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			double dist_move_to_buffer_point_delta = std::hypot(tf_.getOrigin().getX(), tf_.getOrigin().getY());
 			RCLCPP_DEBUG(logger_, "dist_move_to_buffer_point: %.2f, dist_delta: %.2f", dist_move_to_buffer_point, dist_move_to_buffer_point_delta);
 
-			change_state(current_state_, NavigateStates::ANGLE_TO_X_POSITIVE_ORIENTATION, clock_->now().seconds(), params_ptr->timeout_angle_to_x_positive_orientation );
+			change_state(current_state_, NavigateStates::ANGLE_TO_X_POSITIVE_ORIENTATION, clock_->now().seconds(), params_ptr->timeout_angle_to_x_positive_orientation);
 			state = std::string("MOVE_TO_BUFFER_POINT");
 			infos = std::string("Reason: MOVE_TO_BUFFER_POINT converged ==> change state to ANGLE_TO_X_POSITIVE_ORIENTATION");
+			
+			// 重置累计器
+			odom_accumulator_.reset();
+			map_accumulator_.reset();
+			servo_vel->linear.x = 0.0;
 		}
 		else
 		{
-			double translate_velocity = dist_y;
-			if(drive_back || params_ptr->garage_test)
-			{
-				translate_velocity *= -1;
+			// 【核心】速度控制使用同一个 remaining_distance
+			double translate_velocity = remaining_distance;
+			
+			// 限制速度范围（带符号处理）
+			if (drive_back) {
+				// 后退：translate_velocity 是负数
+				if (std::abs(translate_velocity) > params_ptr->max_translation) {
+					translate_velocity = -params_ptr->max_translation;
+				} else if (std::abs(translate_velocity) < params_ptr->min_translation && 
+						std::abs(translate_velocity) > 0.001) {
+					translate_velocity = -params_ptr->min_translation;
+				} else if (std::abs(translate_velocity) < 0.001) {
+					translate_velocity = 0.0;
+				}
+			} else {
+				// 前进：translate_velocity 是正数
+				if (translate_velocity > params_ptr->max_translation) {
+					translate_velocity = params_ptr->max_translation;
+				} else if (translate_velocity < params_ptr->min_translation && 
+						translate_velocity > 0.001) {
+					translate_velocity = params_ptr->min_translation;
+				} else if (std::abs(translate_velocity) < 0.001) {
+					translate_velocity = 0.0;
+				}
 			}
-			if (std::abs(translate_velocity) > params_ptr->max_translation) {
-				translate_velocity = std::copysign(params_ptr->max_translation, translate_velocity);
-			}
-			if (std::abs(translate_velocity) < params_ptr->min_translation) {
-				translate_velocity = std::copysign(params_ptr->min_translation, translate_velocity);
-			}
+			
 			servo_vel->linear.x = translate_velocity;
-			RCLCPP_DEBUG(logger_, "linear.x: : %.2f", translate_velocity);
+			RCLCPP_DEBUG(logger_, "linear.x: %.2f", translate_velocity);
 
-			if (params_ptr->garage_test && dist_buffer_point > 0.2)
+			// garage_test 模式下的角度修正（可选）
+			if (params_ptr->garage_test && std::abs(remaining_distance) > 0.2)
 			{
 				auto theta_buffer_point2_to_robot_current = std::atan2(robot_y_map_ - buffer_point2_y_map, robot_x_map_ - buffer_point2_x_map);
 				auto dist_buffer_point_yaw_now = angles::shortest_angular_distance(robot_yaw_map_, theta_buffer_point2_to_robot_current);
@@ -789,19 +941,16 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 				servo_vel->angular.z = dist_buffer_point_yaw_now;
 			}
 
-			// before actually begin moving, collision_check first
-			// current state: MOVE_TO_BUFFER_POINT
+			// 碰撞检查
 			bool need_check_collision = true;
-			double x_c2r, yaw_c2r_abs;
+			double x_c2r = 0.0, yaw_c2r_abs = 0.0;
 			if (params_ptr->collision_check)
 			{
-				// 如果需要碰撞检查，只有当机器人和充电桩的距离< dock_valid_obstale_x,且朝向充电桩运动时不需要检查是否碰撞
-				// 因为马上就要对接上充电桩，机器人必然要和充电桩进行接触
 				auto tf_charger_to_robot = charger_pose_map.inverse() * robot_pose_map;
 				auto translation_charger_to_robot = tf_charger_to_robot.getOrigin();
 				x_c2r = std::abs(translation_charger_to_robot.getX());
-				auto orintation_charger_to_robot = tf_charger_to_robot.getRotation();
-				yaw_c2r_abs = std::abs(tf2::getYaw(orintation_charger_to_robot));
+				auto orientation_charger_to_robot = tf_charger_to_robot.getRotation();
+				yaw_c2r_abs = std::abs(tf2::getYaw(orientation_charger_to_robot));
 				RCLCPP_DEBUG(logger_, "x_charge_to_robot: %.2f, dock_valid_obstacle_x: %.2f", x_c2r, params_ptr->dock_valid_obstacle_x);
 				RCLCPP_DEBUG(logger_, "yaw_charger_to_robot: %.2f, throttle: %.2f", yaw_c2r_abs, M_PI * 0.5);
 				if ((yaw_c2r_abs < M_PI * 0.5) && (x_c2r < params_ptr->dock_valid_obstacle_x))
@@ -811,17 +960,17 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 				RCLCPP_DEBUG(logger_, "need_check_collision: %s", need_check_collision?"true":"false");
 			}
 
-			double remaining_time = std::abs(dist_buffer_point / servo_vel->linear.x);
-			double predict_time = std::min(double(params_ptr->collision_predict_time), remaining_time);
-			RCLCPP_DEBUG(logger_, "predict_time: %.2f", predict_time);
-			if (params_ptr->collision_check && need_check_collision)
+			if (params_ptr->collision_check && need_check_collision && std::abs(servo_vel->linear.x) > 0.001)
 			{
-				double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, false, servo_vel->linear.x, 0.0,
-				                                   predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
+				double remaining_time = std::abs(remaining_distance / servo_vel->linear.x);
+				double predict_time = std::min(double(params_ptr->collision_predict_time), remaining_time);
+				RCLCPP_DEBUG(logger_, "predict_time: %.2f", predict_time);
+				
+				double cost_value = get_cost_value(logger_, collision_checker, robot_pose_map, footprint_vec, false, servo_vel->linear.x, 0.0,
+												predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
 				if (cost_value >= nav2_costmap_2d::LETHAL_OBSTACLE)
 				{
-
-					RCLCPP_DEBUG(logger_, "cost value: %.2f >= %.2f", cost_value,  static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));
+					RCLCPP_DEBUG(logger_, "cost value: %.2f >= %.2f", cost_value, static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));
 					servo_vel->linear.x = 0.0;
 					RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "stop for collision check, when %s", magic_enum::enum_name(current_state_).data());
 
@@ -829,7 +978,6 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 					{
 						clear_local_costmap(client_clear_entire_local_costmap);
 					}
-
 					return servo_vel;
 				}
 			}
@@ -837,8 +985,6 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			{
 				RCLCPP_DEBUG(logger_, "collision_check: %s", params_ptr->collision_check ? "true":"false");
 				RCLCPP_DEBUG(logger_, "need_check_collision: %s", need_check_collision ? "true":"false");
-				RCLCPP_DEBUG(logger_, "yaw_c2r_abs: %.2f", yaw_c2r_abs);
-				RCLCPP_DEBUG(logger_, "x_c2r: %.2f, dock_valid_obstacle_x: %.2f", x_c2r, params_ptr->dock_valid_obstacle_x);
 			}
 
 			state = std::string("MOVE_TO_BUFFER_POINT");
@@ -846,6 +992,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		}
 		break;
 	}
+	
 	case NavigateStates::ANGLE_TO_X_POSITIVE_ORIENTATION:
 	{
 		print_current_state_debug(current_state_);
@@ -876,7 +1023,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 				float distance_tmp = params_ptr->offset_last_docked_distance
 									+ params_ptr->offset_low_speed
 									+ params_ptr->offset_second_goal;
-				double theta = std::atan2(std::abs(robot_y_charger_), std::abs(robot_x_charger_) - distance_tmp);
+				double theta = std::atan2(std::abs(robot_y_charger_), std::abs(robot_x_charger_));
 				RCLCPP_DEBUG(logger_, "robot_x_charger: %.2f", robot_x_charger_);
 				RCLCPP_DEBUG(logger_, "robot_y_charger: %.2f", robot_y_charger_);
 				RCLCPP_DEBUG(logger_, "robot_yaw_charger_: %.2f", robot_yaw_charger_);
@@ -1971,6 +2118,122 @@ rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_undock_coll
 rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_undock_point_loop_pub_;
 
 double buffer_point2_x_map, buffer_point2_y_map;
+
+// 新增旋转和平移累计值变量，odom累计器和全局定位累计器
+double original_accumulated_angle_ = 0.0;
+double original_accumulated_distance_ = 0.0;
+
+// Odom 累计器
+struct OdomAccumulator {
+    double init_x = 0.0;
+    double init_y = 0.0;
+    double init_angle = 0.0;
+    double current_angle = 0.0;
+    double current_x = 0.0;
+    double current_y = 0.0;
+    bool initialized = false;
+    
+    void reset() {
+        initialized = false;
+        init_x = init_y = init_angle = 0.0;
+        current_angle = current_x = current_y = 0.0;
+    }
+    
+    void init(const nav_msgs::msg::Odometry& odom_msg) {
+        init_x = odom_msg.pose.pose.position.x;
+        init_y = odom_msg.pose.pose.position.y;
+        init_angle = tf2::getYaw(odom_msg.pose.pose.orientation);
+        current_x = init_x;
+        current_y = init_y;
+        current_angle = init_angle;
+        initialized = true;
+    }
+    
+    void update(const nav_msgs::msg::Odometry& odom_msg) {
+        if (!initialized) return;
+        current_angle = tf2::getYaw(odom_msg.pose.pose.orientation);
+        current_x = odom_msg.pose.pose.position.x;
+        current_y = odom_msg.pose.pose.position.y;
+    }
+    
+    double get_rotated_angle() const {
+        if (!initialized) return 0.0;
+        return angles::shortest_angular_distance(init_angle, current_angle);
+    }
+    
+    double get_moved_distance() const {
+        if (!initialized) return 0.0;
+        double dx = current_x - init_x;
+        double dy = current_y - init_y;
+        return std::hypot(dx, dy);
+    }
+} odom_accumulator_;
+
+// 全局定位累计器（map）
+struct MapAccumulator {
+    tf2::Transform init_pose;
+    tf2::Transform current_pose;
+    bool initialized = false;
+    
+    void reset() {
+        initialized = false;
+    }
+    
+    void init(const tf2::Transform& pose) {
+        init_pose = pose;
+        current_pose = pose;
+        initialized = true;
+    }
+    
+    void update(const tf2::Transform& pose) {
+        if (!initialized) return;
+        current_pose = pose;
+    }
+    
+    double get_rotated_angle() const {
+        if (!initialized) return 0.0;
+        tf2::Transform delta = init_pose.inverse() * current_pose;
+        return tf2::getYaw(delta.getRotation());
+    }
+    
+    double get_moved_distance() const {
+        if (!initialized) return 0.0;
+        tf2::Transform delta = init_pose.inverse() * current_pose;
+        return std::hypot(delta.getOrigin().getX(), delta.getOrigin().getY());
+    }
+} map_accumulator_;
+
+// 打印对比信息的辅助函数
+void print_accumulation_comparison(const std::string& state_name, 
+                                   const std::string& condition_name,
+                                   double target_value,
+                                   double original_value,
+                                   double odom_value,
+                                   double map_value,
+                                   bool condition_met)
+{
+    RCLCPP_INFO(logger_, "═══════════════════════════════════════════════════");
+    RCLCPP_INFO(logger_, "📍 [%s] - %s", state_name.c_str(), condition_name.c_str());
+    RCLCPP_INFO(logger_, "═══════════════════════════════════════════════════");
+    RCLCPP_INFO(logger_, "🎯 Target Value:     %.4f", target_value);
+    RCLCPP_INFO(logger_, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    RCLCPP_INFO(logger_, "📊 Original (Vel积分): %.4f  (误差: %.4f, 完成比例: %.1f%%)",
+                original_value,
+                target_value - original_value,
+                (original_value / target_value) * 100.0);
+    RCLCPP_INFO(logger_, "📊 Odom (里程计):     %.4f  (误差: %.4f, 完成比例: %.1f%%)",
+                odom_value,
+                target_value - odom_value,
+                (odom_value / target_value) * 100.0);
+    RCLCPP_INFO(logger_, "📊 Map (全局定位):   %.4f  (误差: %.4f, 完成比例: %.1f%%)",
+                map_value,
+                target_value - map_value,
+                (map_value / target_value) * 100.0);
+    RCLCPP_INFO(logger_, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    RCLCPP_INFO(logger_, "✅ Condition Met:    %s", condition_met ? "TRUE" : "FALSE");
+    RCLCPP_INFO(logger_, "🔧 Control Source:   %s", params_ptr->use_odom_for_control ? "ODOM" : "MAP");
+    RCLCPP_INFO(logger_, "═══════════════════════════════════════════════════");
+}
 
 }; // end of class SimpleGoalController
 
