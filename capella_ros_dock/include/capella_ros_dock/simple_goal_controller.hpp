@@ -799,7 +799,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 	}
 
 	case NavigateStates::MOVE_TO_BUFFER_POINT:
-{
+	{
 		print_current_state_debug(current_state_);
 		servo_vel = geometry_msgs::msg::Twist();
 

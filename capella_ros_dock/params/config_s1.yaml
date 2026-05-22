@@ -82,6 +82,7 @@ motion_control:
     enable_clear_local_costmap: false  # 是否定时清除local_costmap,用于处理local_costmap长时间不更新的情况
     timout_clear_local_costmap: 3.0    # 清除local_costmap时的超时时间
     garage_test: false                 # 用于测试充电桩两边空间狭窄的情况
+    use_odom_for_control: true         # 是否使用里程计数据进行控制，false则完全依赖全局定位，true则里程计控制
     
     # motion control结点参数
     motion_control_log_level: 'info'  # motion_control 日志类型
