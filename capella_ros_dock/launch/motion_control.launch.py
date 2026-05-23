@@ -41,6 +41,7 @@ def generate_launch_description():
     goal_y_correction = get_environment_value("DOCK_GOAL_Y_CORRECTION", "0.0")
     garage_test = get_environment_value("DOCK_GARAGE_TEST", "false")
     use_odom_for_control = get_environment_value("DOCK_USE_ODOM_FOR_CONTROL", "true")
+    base_link_dummy_dis = get_environment_value("BASE_LINK_DUMMY_TRANSFORM_X", 0.477)
     
     # 类型映射
     type_mapping = {
@@ -68,7 +69,8 @@ def generate_launch_description():
         "camera_baselink_dis": str(camera_baselink_distance),
         "goal_y_correction": str(goal_y_correction),
         "garage_test": str(garage_test),
-        "use_odom_for_control": str(use_odom_for_control).lower()  # 转换为小写字符串 "true" 或 "false"
+        "use_odom_for_control": str(use_odom_for_control).lower(),
+        "base_link_dummy_dis": str(base_link_dummy_dis),
     }    
     
     # 配置参数文件

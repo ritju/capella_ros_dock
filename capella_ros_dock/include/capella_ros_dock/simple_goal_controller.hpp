@@ -686,14 +686,17 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		} else {
 			remaining_angle = target_angle - map_angle;
 		}
+
+		RCLCPP_DEBUG(logger_, "remaining_angle before nomalize: %.4f", remaining_angle);
 		remaining_angle = angles::normalize_angle(remaining_angle);
+		RCLCPP_DEBUG(logger_, "remaining_angle after  nomalize: %.4f", remaining_angle);
 
 		// 检查是否完成旋转
 		bool rotation_completed = std::abs(remaining_angle) < params_ptr->tolerance_angle;
 
 		// 打印对比信息
 		static int print_counter = 0;
-		if (rotation_completed || (++print_counter % 50 == 0)) {
+		if (rotation_completed || (++print_counter % 10 == 0)) {
 			print_accumulation_comparison("ANGLE_TO_BUFFER_POINT", 
 			                              "Rotation Progress",
 			                              target_angle,
@@ -705,7 +708,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		}
 
 		RCLCPP_DEBUG(logger_, "delta_time: %.2f", delta_time_);
-		RCLCPP_DEBUG(logger_, "angular.z: %.2f", odom_msg.twist.twist.angular.z);
+		RCLCPP_DEBUG(logger_, "odom angular.z: %.2f", odom_msg.twist.twist.angular.z);
 		RCLCPP_DEBUG(logger_, "dist_buffer_point_yaw pre: %.2f", dist_buffer_point_yaw);
 		// 原有的累计方式继续用于速度控制
 		dist_buffer_point_yaw -= odom_msg.twist.twist.angular.z * delta_time_;
@@ -745,13 +748,13 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			}
 			if ((cost >= static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE)) && params_ptr->collision_check)
 			{
-				RCLCPP_DEBUG(logger_, "cost value: %.2f >= %.2f", cost, static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));
+				RCLCPP_DEBUG(logger_, "before rotation, footprint colide, cost value: %.2f >= %.2f", cost, static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));
 				servo_vel->angular.z = 0.0;
 				return servo_vel;
 			}
 			else
 			{
-				RCLCPP_DEBUG(logger_, "cost value: %.2f, go on ......", cost);
+				RCLCPP_DEBUG(logger_, "before rotation, footprint free, cost value: %.2f, go on ......", cost);
 				RCLCPP_DEBUG(logger_, "collision_check: %s", params_ptr->collision_check ? "true":"false");
 			}
 
@@ -762,13 +765,14 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 				angle_dist = std::copysign(params_ptr->min_rotation, angle_dist);
 			}
 			servo_vel->angular.z = angle_dist;
-			RCLCPP_DEBUG(logger_, "angular.z: %.2f", angle_dist);
+			RCLCPP_DEBUG(logger_, "pub angular.z: %.2f", angle_dist);
 
 			// before actually begin rotation, collision_check first
 			// current state: ANGLE_TO_BUFFER_POINT
-			double remaining_rotation_time = std::abs(dist_buffer_point_yaw / servo_vel->angular.z);
+			double remaining_rotation_time = std::abs(remaining_angle / servo_vel->angular.z);
 			double predict_time = std::min(double(params_ptr->collision_predict_time), remaining_rotation_time);
 			RCLCPP_DEBUG(logger_, "predict_time: %.2f", predict_time);
+			RCLCPP_DEBUG(logger_, "collision_check: %s", params_ptr->collision_check ? "true":"false");
 			if (params_ptr->collision_check)
 			{
 				double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, true, 0.0, servo_vel->angular.z,
@@ -789,11 +793,12 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			}
 			else
 			{
-				RCLCPP_DEBUG(logger_, "collision_check: %s", params_ptr->collision_check ? "true":"false");
+				
 			}
 
 			state = std::string("ANGLE_TO_BUFFER_POINT");
 			infos = std::string("Reason: ANGLE_TO_BUFFER_POINT not converged ==> keep on rotating robot");
+			RCLCPP_DEBUG(logger_, "before break, servo_vel->angular.z: %.2f", servo_vel->angular.z);
 		}
 		break;
 	}
@@ -818,8 +823,9 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		if (!odom_accumulator_.initialized) {
 			odom_accumulator_.init(odom_msg);
 			map_accumulator_.init(robot_pose_map);
+			original_accumulated_distance_ = 0.0;
 			RCLCPP_INFO(logger_, "=== 初始化移动累计器 ===");
-			RCLCPP_INFO(logger_, "目标移动距离: %.4f m", dist_buffer_point);
+			RCLCPP_INFO(logger_, "目标移动距离: %.4f m", dist_move_to_buffer_point);
 			RCLCPP_INFO(logger_, "方向: %s", drive_back ? "后退" : "前进");
 		}
 
@@ -828,7 +834,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		map_accumulator_.update(robot_pose_map);
 		
 		// 获取目标距离（使用已定义的变量）
-		double target_distance_local = dist_buffer_point;
+		double target_distance_local = dist_move_to_buffer_point;
 		
 		// 【核心】计算剩余距离（带符号），使用选中的累计器
 		double remaining_distance;
@@ -852,19 +858,28 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			// 前进：剩余距离 <= 0 表示已经前进到位或超过
 			movement_completed = remaining_distance <= 0;
 		}
+
+		// 原有的累计方式（速度积分）
+		original_accumulated_distance_ += std::abs(odom_msg.twist.twist.linear.x * delta_time_);
 		
 		// 获取三种方式的累计距离用于调试对比
+		double original_distance = original_accumulated_distance_;
 		double odom_distance = odom_accumulator_.get_moved_distance();
 		double map_distance = map_accumulator_.get_moved_distance();
 		
 		// 打印对比信息
 		static int print_counter = 0;
-		if (movement_completed || (++print_counter % 50 == 0)) {
+		if (movement_completed || (++print_counter % 10 == 0)) {
 			// 计算各种方式的剩余距离（用于对比）
-			double odom_remaining = target_distance_local - odom_distance;
-			if (drive_back) odom_remaining = -odom_remaining;
-			double map_remaining = target_distance_local - map_distance;
-			if (drive_back) map_remaining = -map_remaining;
+			double original_remaining = target_distance_local - original_distance;
+			double odom_remaining =   target_distance_local - odom_distance;
+			double map_remaining =    target_distance_local - map_distance;
+			if(drive_back)
+			{
+				original_remaining = -original_remaining;
+				odom_remaining = -odom_remaining;
+				map_remaining = -map_remaining;
+			}
 			
 			RCLCPP_INFO(logger_, "═══════════════════════════════════════════════════");
 			RCLCPP_INFO(logger_, "📍 [MOVE_TO_BUFFER_POINT] - Movement Progress");
@@ -872,6 +887,8 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			RCLCPP_INFO(logger_, "🎯 Target Distance:  %.4f m", target_distance_local);
 			RCLCPP_INFO(logger_, "🔄 Direction:        %s", drive_back ? "BACKWARD" : "FORWARD");
 			RCLCPP_INFO(logger_, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+			RCLCPP_INFO(logger_, "📊 Original (Vel积分): moved=%.4f  (remaining=%.4f, ratio=%.1f%%)",
+						original_distance, original_remaining, (original_distance / target_distance_local) * 100.0);
 			RCLCPP_INFO(logger_, "📊 Odom (里程计):    moved=%.4f, remaining=%.4f, ratio=%.1f%%",
 						odom_distance, odom_remaining, (odom_distance / target_distance_local) * 100.0);
 			RCLCPP_INFO(logger_, "📊 Map (全局定位):  moved=%.4f, remaining=%.4f, ratio=%.1f%%",
@@ -899,6 +916,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			// 重置累计器
 			odom_accumulator_.reset();
 			map_accumulator_.reset();
+			original_accumulated_distance_ = 0.0;
 			servo_vel->linear.x = 0.0;
 		}
 		else
@@ -930,7 +948,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			}
 			
 			servo_vel->linear.x = translate_velocity;
-			RCLCPP_DEBUG(logger_, "linear.x: %.2f", translate_velocity);
+			RCLCPP_DEBUG(logger_, "pub linear.x: %.2f", translate_velocity);
 
 			// garage_test 模式下的角度修正（可选）
 			if (params_ptr->garage_test && std::abs(remaining_distance) > 0.2)
@@ -1498,6 +1516,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 	time_end = std::chrono::high_resolution_clock::now();
 	time_cost = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
 	RCLCPP_DEBUG(logger_, "cost %d ms.", (int)time_cost);
+	RCLCPP_DEBUG(logger_, "servo_vel->linear.x: %.2f , servo_vel->angular.z: %.2f", servo_vel->linear.x, servo_vel->angular.z);
 	return servo_vel;
 }
 
@@ -2031,6 +2050,7 @@ std::chrono::high_resolution_clock::time_point time_start;
 std::chrono::high_resolution_clock::time_point time_end;
 int64_t time_cost;
 
+// for origin vel method
 double dist_buffer_point;
 double dist_buffer_point_yaw;
 
@@ -2069,9 +2089,10 @@ double undock_dis_moved_ = 0.0;
 bool pose_x_init_recoreded_{false};
 double pose_x_init_;
 
-// angle_to_buffer_point and move_to_buffer_point 参数
+// angle_to_buffer_point and move_to_buffer_point 参数, for odom/map method
 double theta_angle_to_buffer_point;
 double dist_move_to_buffer_point;
+
 tf2::Transform tf_before_angle_to_buffer_point;
 tf2::Transform tf_after_angle_to_buffer_point;
 tf2::Transform tf_after_move_to_buffer_point;

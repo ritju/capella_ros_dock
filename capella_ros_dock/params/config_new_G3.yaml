@@ -40,7 +40,7 @@ motion_control:
     offset_last_docked_distance: 0.30   # 上次对接上充电桩时的X坐标绝对值
     offset_low_speed: 0.30              # low_speed mode 距离
     offset_second_goal: 0.05            # 进入low_speed模式上一个目标点距其的距离
-    offset_buffer_goal: 0.30            # 最终选取的中间点距second_goal的距离，最终中间点x坐标为上述四个参数之和，再取反
+    offset_buffer_goal: 0.20            # 最终选取的中间点距second_goal的距离，最终中间点x坐标为上述四个参数之和，再取反
     offset_buffer_goal2_x: 1.5          # 用于处理充电桩两侧狭窄，依赖机器人和充电桩map下位姿先到达充电桩正前方x坐标
     offset_buffer_goal2_y: 0.0          # 用于处理充电桩两侧狭窄，依赖机器人和充电桩map下位姿先到达充电桩正前方y坐标
     
@@ -82,6 +82,7 @@ motion_control:
     enable_clear_local_costmap: false  # 是否定时清除local_costmap,用于处理local_costmap长时间不更新的情况
     timout_clear_local_costmap: 3.0    # 清除local_costmap时的超时时间
     garage_test: false                 # 用于测试充电桩两边空间狭窄的情况
+    use_odom_for_control: true         # 是否使用里程计数据进行控制，false则完全依赖全局定位，true则里程计控制
     
     # motion control结点参数
     motion_control_log_level: 'info'  # motion_control 日志类型
