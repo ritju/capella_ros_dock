@@ -42,6 +42,7 @@ def generate_launch_description():
     garage_test = get_environment_value("DOCK_GARAGE_TEST", "false")
     use_odom_for_control = get_environment_value("DOCK_USE_ODOM_FOR_CONTROL", "true")
     base_link_dummy_dis = get_environment_value("BASE_LINK_DUMMY_TRANSFORM_X", 0.477)
+    low_speed_mode_y_thr = get_environment_value("DOCK_LOW_SPEED_MODE_Y_THR", 0.025)
     
     # 类型映射
     type_mapping = {
@@ -71,6 +72,7 @@ def generate_launch_description():
         "garage_test": str(garage_test),
         "use_odom_for_control": str(use_odom_for_control).lower(),
         "base_link_dummy_dis": str(base_link_dummy_dis),
+        "low_speed_mode_y_thr": str(low_speed_mode_y_thr),
     }    
     
     # 配置参数文件
