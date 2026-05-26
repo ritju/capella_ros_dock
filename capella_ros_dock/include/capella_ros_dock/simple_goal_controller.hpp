@@ -1282,10 +1282,12 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 				if (robot_y_charger_ > params_ptr->low_speed_mode_y_thr)
 				{
 					low_speed_mode_y_threshold_count_++;
+					RCLCPP_INFO(logger_, "y value: %.4f > low_speed_mode_y_thr: %.4f", robot_y_charger_,  params_ptr->low_speed_mode_y_thr);
+					RCLCPP_INFO(logger_, " To re-execute ANGLE_TO_BUFFER_POINT, change state to LOOKUP_MARKER");
 					if (low_speed_mode_y_threshold_count_ >= params_ptr->low_speed_mode_y_threshold_count)
-					{
-						RCLCPP_INFO(logger_, "y value: %.4f > low_speed_mode_y_thr: %.4f", robot_y_charger_,  params_ptr->low_speed_mode_y_thr);
-						RCLCPP_INFO(logger_, " To re-execute ANGLE_TO_BUFFER_POINT, change state to LOOKUP_MARKER");
+					{						
+						RCLCPP_INFO(logger_, " ******** change to state LOOKUP_MARKER ******** ");
+						RCLCPP_INFO(logger_, "low_speed_mode_y_threshold_count_: %d, params_ptr->low_speed_mode_y_threshold_count: %d", low_speed_mode_y_threshold_count_, params_ptr->low_speed_mode_y_threshold_count);
 						change_state(current_state_, NavigateStates::LOOKUP_MARKER, clock_->now().seconds(), params_ptr->timeout_lookup_marker );
 						state = std::string("LOW_SPEED_MODE => LOOKUP_MARKER");
 						infos = std::string("Reason: LOW_SPEED_MODE not converged ==> change state to LOOKUP_MARKER");
