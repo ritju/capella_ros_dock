@@ -358,6 +358,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		map_accumulator_.reset();
 		original_accumulated_angle_ = 0.0;
 		original_accumulated_distance_ = 0.0;
+		low_speed_mode_y_threshold_count_ = 0;
 		RCLCPP_INFO(logger_, "Reset all accumulators for new docking session");
 		
 		// pub agent发出的 /charger/pose位姿
@@ -1279,14 +1280,25 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			{
 				RCLCPP_DEBUG(logger_, "low speed mode ");
 				if (robot_y_charger_ > params_ptr->low_speed_mode_y_thr)
-				{				
-					RCLCPP_INFO(logger_, "y value: %.4f > low_speed_mode_y_thr: %.4f", robot_y_charger_,  params_ptr->low_speed_mode_y_thr);
-					RCLCPP_INFO(logger_, " To re-execute ANGLE_TO_BUFFER_POINT, change state to LOOKUP_MARKER");
-					change_state(current_state_, NavigateStates::LOOKUP_MARKER, clock_->now().seconds(), params_ptr->timeout_lookup_marker );
-					state = std::string("LOW_SPEED_MODE => LOOKUP_MARKER");
-					infos = std::string("Reason: LOW_SPEED_MODE not converged ==> change state to LOOKUP_MARKER");
-					break;
+				{
+					low_speed_mode_y_threshold_count_++;
+					if (low_speed_mode_y_threshold_count_ >= params_ptr->low_speed_mode_y_threshold_count)
+					{
+						RCLCPP_INFO(logger_, "y value: %.4f > low_speed_mode_y_thr: %.4f", robot_y_charger_,  params_ptr->low_speed_mode_y_thr);
+						RCLCPP_INFO(logger_, " To re-execute ANGLE_TO_BUFFER_POINT, change state to LOOKUP_MARKER");
+						change_state(current_state_, NavigateStates::LOOKUP_MARKER, clock_->now().seconds(), params_ptr->timeout_lookup_marker );
+						state = std::string("LOW_SPEED_MODE => LOOKUP_MARKER");
+						infos = std::string("Reason: LOW_SPEED_MODE not converged ==> change state to LOOKUP_MARKER");
+						low_speed_mode_y_threshold_count_ = 0;
+						break;
+					}				
+					
 				}
+				else
+				{
+					low_speed_mode_y_threshold_count_ = 0;
+				}
+
 				if (!bluetooth_connected)
 				{
 					RCLCPP_INFO_THROTTLE(logger_, *clock_, 2000, "bluetooth disconnected, waiting ......");
@@ -2152,6 +2164,9 @@ double buffer_point2_x_map, buffer_point2_y_map;
 // 新增旋转和平移累计值变量，odom累计器和全局定位累计器
 double original_accumulated_angle_ = 0.0;
 double original_accumulated_distance_ = 0.0;
+
+// low speed mode时连续N次，robot_y_charger_ > low_speed_mode_y_threshold_，才真正确认y值偏离过大，进入look_up_marker状态
+int low_speed_mode_y_threshold_count_ = 0;
 
 // Odom 累计器
 struct OdomAccumulator {

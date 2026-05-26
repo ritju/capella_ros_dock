@@ -76,6 +76,7 @@ struct motion_control_params
 	std::vector<double> footprint_factors;
 	bool use_odom_for_control = true; // true: 使用 Odom (里程计)， false: 使用 Map (全局定位)
 	float low_speed_mode_y_thr;
+	int low_speed_mode_y_threshold_count;
 };
 } // end namespace capella_ros_dock
 

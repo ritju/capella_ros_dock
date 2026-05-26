@@ -143,6 +143,7 @@ void MotionControlNode::init_params()
 	this->declare_parameter<std::vector<double>>("footprint_factors", std::vector<double>{0.9, 1.0, 0.9, 1.0, 1.0, 1.0});
 	this->declare_parameter<bool>("use_odom_for_control", false);
 	this->declare_parameter<float>("low_speed_mode_y_thr", 0.025);
+	this->declare_parameter<int>("low_speed_mode_y_threshold_count", 3);
 
 	params.min_rotation = this->get_parameter_or<float>("min_rotation", 0.15);
 	params.max_rotation = this->get_parameter_or<float>("max_rotation", 0.30);
@@ -213,6 +214,7 @@ void MotionControlNode::init_params()
 	params.footprint_factors = this->get_parameter("footprint_factors").get_value<std::vector<double>>();
 	params.use_odom_for_control = this->get_parameter("use_odom_for_control").get_value<bool>();
 	params.low_speed_mode_y_thr = this->get_parameter("low_speed_mode_y_thr").get_value<float>();
+	params.low_speed_mode_y_threshold_count = this->get_parameter("low_speed_mode_y_threshold_count").get_value<int>();
 
 	params.footprint_zoom_factor = 1.0;
 	for (size_t i = 0; i < params.robot_versions.size(); ++i) {

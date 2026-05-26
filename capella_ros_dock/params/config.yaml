@@ -68,6 +68,8 @@ motion_control:
     go_to_goal_apply_rotation_angle: 0.01   # go_to_goal_position 过程中需要增加角速度调整的阀值  last_goal_angle_to_x_positive_dis: 0.05 # 机器人马上对接上时强制回正的阀值，距上次对接上时的x轴坐标的最大距离
     last_goal_angle_to_x_positive_y: 0.01   # 机器人马上对接上时强制回正的阀值，距上次对接上时的y轴坐标的最大距离
     robot_rotate_radius: 1.25               # 机器人后退过程中看不到码时，判断机器人在原地能安全地通过旋转切换到ANGLE_TO_X_POSITIVE_ORIENTATION状态的最小半径
+    low_speed_mode_y_thr: 0.025             # 进入到low_speed_mode阶段后，y值允许的最大偏差
+    low_speed_mode_y_threshold_count: 3     # low_speed_mode_y_thr连续满足的次数阈值，超过这个阈值才真正进入look_up_marker状态
 
     # 相机和码参数
     camera_horizontal_view: 60.0  # 彩色相机(0c45:636b)1280*1024分辨率下水平视角
