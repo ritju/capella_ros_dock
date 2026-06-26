@@ -125,8 +125,8 @@ namespace capella_ros_dock
                         sub_ops9
                 );
 
-                std::thread thread1(std::bind(&ManualDock::manual_dock_check_callback, this));
-                thread1.detach();
+                // std::thread thread1(std::bind(&ManualDock::manual_dock_check_callback, this));
+                // thread1.detach();
                 // auto cb_group_check_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
                 // auto charger_position_timer_ = this->create_wall_timer(std::chrono::seconds(10), std::bind(&ManualDock::manual_dock_check_callback, this));
 
