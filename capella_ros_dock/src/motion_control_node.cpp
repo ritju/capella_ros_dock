@@ -141,6 +141,7 @@ void MotionControlNode::init_params()
     this->declare_parameter<double>("footprint_zoom_factor", 1.0);
 	this->declare_parameter<std::vector<std::string>>("robot_versions", std::vector<std::string>{"outdoor_robot_version", "outdoor_robot_qp", "outdoor_robot_qp_2", "new_g3_robot_version", "ad_robot_version", "indoor_robot_version"});
 	this->declare_parameter<std::vector<double>>("footprint_factors", std::vector<double>{0.9, 1.0, 0.9, 1.0, 1.0, 1.0});
+	this->declare_parameter<bool>("undock_collision_check_front_only", false);
 
 	params.min_rotation = this->get_parameter_or<float>("min_rotation", 0.15);
 	params.max_rotation = this->get_parameter_or<float>("max_rotation", 0.30);
@@ -209,6 +210,7 @@ void MotionControlNode::init_params()
 	params.footprint_zoom_factor = this->get_parameter("footprint_zoom_factor").get_value<float>();
 	params.robot_versions = this->get_parameter("robot_versions").get_value<std::vector<std::string>>();
 	params.footprint_factors = this->get_parameter("footprint_factors").get_value<std::vector<double>>();
+	params.undock_collision_check_front_only = this->get_parameter("undock_collision_check_front_only").get_value<bool>();
 
 	params.footprint_zoom_factor = 1.0;
 	for (size_t i = 0; i < params.robot_versions.size(); ++i) {

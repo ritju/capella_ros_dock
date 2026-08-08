@@ -74,6 +74,7 @@ struct motion_control_params
 	float footprint_zoom_factor;
 	std::vector<std::string> robot_versions;
 	std::vector<double> footprint_factors;
+	bool undock_collision_check_front_only;
 };
 } // end namespace capella_ros_dock
 

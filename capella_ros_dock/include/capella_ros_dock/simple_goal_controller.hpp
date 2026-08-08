@@ -1463,12 +1463,24 @@ double get_cost_value_undock(rclcpp::Logger logger_,
 	{
 		auto p1 = footprint[i];
 		auto p2 = footprint[(i + 1) % footprint.size()];
-		double midX = (p1.x + p2.x) / 2.0;
-		if (midX > 0) // 只保留机器人前边的边，去掉后边的边
+		if (params_ptr->undock_collision_check_front_only)
 		{
-			otherEdges.push_back(std::make_pair(p1, p2));
-			RCLCPP_DEBUG(logger_, "edge %zu: Point(%.2f, %.2f) to Point(%.2f, %.2f)", i, p1.x, p1.y, p2.x, p2.y);
+			// 只保留机器人footprint中前边的边
+			if(p1.x > 0 && p2.x > 0)
+			{
+				otherEdges.push_back(std::make_pair(p1, p2));
+				RCLCPP_DEBUG(logger_, "edge %zu: Point(%.2f, %.2f) to Point(%.2f, %.2f)", i, p1.x, p1.y, p2.x, p2.y);
+			}
 		}
+		else
+		{
+			double midX = (p1.x + p2.x) / 2.0;
+			if (midX > 0) // 只保留机器人前边的边，前左右，去掉后边的边
+			{
+				otherEdges.push_back(std::make_pair(p1, p2));
+				RCLCPP_DEBUG(logger_, "edge %zu: Point(%.2f, %.2f) to Point(%.2f, %.2f)", i, p1.x, p1.y, p2.x, p2.y);
+			}
+		}		
 	}
 
 	for (int i = 0; i < counts_number; i++)
@@ -1584,7 +1596,7 @@ double get_cost_value_undock(rclcpp::Logger logger_,
 				marker_line.color.b = 0.0;
 				marker_line.color.a = 1.0;
 
-				RCLCPP_INFO(logger_, "publish topic /marker_undock_collision_line");
+				RCLCPP_DEBUG(logger_, "publish topic /marker_undock_collision_line");
 				marker_undock_collision_line_pub_->publish(marker_line);
 
 				// pub /marker_undock_collision_point
@@ -1606,7 +1618,7 @@ double get_cost_value_undock(rclcpp::Logger logger_,
 				costmap.mapToWorld(collision_x, collision_y, collision_x_map, collision_y_map);
 				marker_point.pose.position.x = collision_x_map;
 				marker_point.pose.position.y = collision_y_map;
-				RCLCPP_INFO(logger_, "publish topic /marker_undock_collision_point");				
+				RCLCPP_DEBUG(logger_, "publish topic /marker_undock_collision_point");				
 
 				marker_undock_collision_point_pub_->publish(marker_point);
 

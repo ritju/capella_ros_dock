@@ -56,6 +56,7 @@ def generate_launch_description():
     offset_buffer_goal2_x = get_environment_value("DOCK_OFFSET_BUFFER_POINT2_X", "1.5")
     offset_buffer_goal2_y = get_environment_value("DOCK_OFFSET_BUFFER_POINT2_Y", "0.0")    
     contacted_keep_move_time = get_environment_value("DOCK_CONTACTED_KEEP_MOVE_TIME", "0.3")
+    undock_collision_check_front_only = get_environment_value("DOCK_UNDOCK_COLLISION_CHECK_FRONT_ONLY", "false")
     
     # 类型映射
     type_mapping = {
@@ -79,6 +80,7 @@ def generate_launch_description():
         "offset_buffer_goal2_x": str(offset_buffer_goal2_x),
         "offset_buffer_goal2_y": str(offset_buffer_goal2_y),
         "contacted_keep_move_time": str(contacted_keep_move_time),
+        "undock_collision_check_front_only": str(undock_collision_check_front_only)
     }    
     
     # 配置参数文件
@@ -99,7 +101,7 @@ def generate_launch_description():
         default_value=apriltag_double_log_level, 
         description='define motion_control node log level'
     )
-    
+
     robot_version_arg = DeclareLaunchArgument(
         'robot_version',
         default_value='capella',
