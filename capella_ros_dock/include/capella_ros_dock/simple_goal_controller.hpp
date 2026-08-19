@@ -378,6 +378,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		if (params_ptr->garage_test && dist_robot_to_charger > 2.5)
 		{			
 			RCLCPP_INFO(logger_, "garage_test mode trigger");
+			drive_back = true;
 			tf2::Transform tf_charger_to_buffer_point2;
 			tf_charger_to_buffer_point2.setIdentity();
 			tf_charger_to_buffer_point2.setOrigin(tf2::Vector3(params_ptr->offset_buffer_goal2_x, params_ptr->offset_buffer_goal2_y, 0.0));
@@ -768,7 +769,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 		else
 		{
 			double translate_velocity = dist_y;
-			if(drive_back || params_ptr->garage_test)
+			if(drive_back)
 			{
 				translate_velocity *= -1;
 			}
