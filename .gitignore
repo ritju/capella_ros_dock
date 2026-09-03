@@ -4,3 +4,5 @@ log/*
 capella_msgs/*
 cyclonedds.log
 .vscode/
+.env
+NCOLCON_IGNORE
