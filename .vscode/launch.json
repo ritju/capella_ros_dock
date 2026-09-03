@@ -1,281 +1,41 @@
 {
-  // Use IntelliSense to learn about possible attributes.
-  // Hover to view descriptions of existing attributes.
-  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-  "version": "0.2.0",
-  "configurations": [
-    // Example launch of a python file
-    {
-      "name": "Python: Current File",
-      "type": "python",
-      "request": "launch",
-      "program": "${file}",
-      "console": "integratedTerminal",
-      "justMyCode": false,
-      "purpose": ["debug-in-terminal"]
-
-    },
-    // Example gdb launch of a ros executable
-    {
-      "name": "(gdb) Launch",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/install/lib/${input:package}/${input:program}",
-      "args": [],
-      "preLaunchTask": "build",
-      "stopAtEntry": true,
-      "cwd": "${workspaceFolder}",
-      "externalConsole": false,
-      "MIMode": "gdb",
-      "setupCommands": [
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
         {
-          "description": "Enable pretty-printing for gdb",
-          "text": "-enable-pretty-printing",
-          "ignoreFailures": true
+            "name": "(gdb) Launch dock",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/../../install/lib/capella_ros_dock/motion_control",
+            "args": [
+                "--ros-args",
+                "-r",
+                "__node:=motion_control",
+                "-p",
+                "use_sim_time:=true",
+                "--params-file",
+                "${workspaceFolder}/capella_ros_dock/params/config_s1.yaml"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/../..",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "envFile": "${workspaceFolder}/.env",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
         }
-      ]
-    },
-    {
-      "name": "(gdb) Launch Serial Node",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/install/lib/capella_ros_serial/serial_port_node",
-      "args": [],
-      "preLaunchTask": "debug",
-      "stopAtEntry": true,
-      "cwd": "${workspaceFolder}",
-      "externalConsole": false,
-      "MIMode": "gdb",
-      "setupCommands": [
-        {
-          "description": "Enable pretty-printing for gdb",
-          "text": "-enable-pretty-printing",
-          "ignoreFailures": true
-        }
-      ]
-    },
-    {
-      "name": "(gdb) Launch base Node",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/install/lib/capella_ros_launcher/dsf_base_node",
-      "args": [],
-      "preLaunchTask": "debug",
-      "stopAtEntry": true,
-      "cwd": "${workspaceFolder}",
-      "externalConsole": false,
-      "MIMode": "gdb",
-      "setupCommands": [
-        {
-          "description": "Enable pretty-printing for gdb",
-          "text": "-enable-pretty-printing",
-          "ignoreFailures": true
-        }
-      ]
-    },
-    {
-      "name": "(gdb) Launch apply calib Node",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/install/lib/capella_ros_imu_calib/apply_calib",
-      "args": [],
-      "preLaunchTask": "debug",
-      "stopAtEntry": true,
-      "cwd": "${workspaceFolder}",
-      "externalConsole": false,
-      "MIMode": "gdb",
-      "setupCommands": [
-        {
-          "description": "Enable pretty-printing for gdb",
-          "text": "-enable-pretty-printing",
-          "ignoreFailures": true
-        }
-      ]
-    },
-    {
-      "name": "(gdb) Launch apply calib linear Node",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/install/lib/capella_ros_calib/calibrate_linear_node",
-      "args": [],
-      "preLaunchTask": "debug",
-      "stopAtEntry": true,
-      "cwd": "${workspaceFolder}",
-      "externalConsole": false,
-      "MIMode": "gdb",
-      "setupCommands": [
-        {
-          "description": "Enable pretty-printing for gdb",
-          "text": "-enable-pretty-printing",
-          "ignoreFailures": true
-        }
-      ]
-    },
-    {
-      "name": "(gdb) Launch apply calib angle Node",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/install/lib/capella_ros_calib/calibrate_angular_node",
-      "args": [],
-      "preLaunchTask": "debug",
-      "stopAtEntry": true,
-      "cwd": "${workspaceFolder}",
-      "externalConsole": false,
-      "MIMode": "gdb",
-      "setupCommands": [
-        {
-          "description": "Enable pretty-printing for gdb",
-          "text": "-enable-pretty-printing",
-          "ignoreFailures": true
-        }
-      ]
-    },
-    {
-      "name": "(gdb) Launch apply imu filter Node",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/install/lib/capella_ros_imu_filter/imu_filter_node",
-      "args": [],
-      "preLaunchTask": "debug",
-      "stopAtEntry": true,
-      "cwd": "${workspaceFolder}",
-      "externalConsole": false,
-      "MIMode": "gdb",
-      "setupCommands": [
-        {
-          "description": "Enable pretty-printing for gdb",
-          "text": "-enable-pretty-printing",
-          "ignoreFailures": true
-        }
-      ]
-    },
-    {
-      "name": "(gdb) Launch apply lidar correct Node",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/install/lib/capella_ros_lidar_correction/lidar_correct_node",
-      "args": [],
-      "preLaunchTask": "debug",
-      "stopAtEntry": true,
-      "cwd": "${workspaceFolder}",
-      "externalConsole": false,
-      "MIMode": "gdb",
-      "setupCommands": [
-        {
-          "description": "Enable pretty-printing for gdb",
-          "text": "-enable-pretty-printing",
-          "ignoreFailures": true
-        }
-      ]
-    },
-    {
-      "name": "(gdb) Launch apply scan odom Node",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/install/lib/capella_ros_scan_odom/plicp_odom_node",
-      "args": [],
-      "preLaunchTask": "debug",
-      "stopAtEntry": true,
-      "cwd": "${workspaceFolder}",
-      "externalConsole": false,
-      "MIMode": "gdb",
-      "setupCommands": [
-        {
-          "description": "Enable pretty-printing for gdb",
-          "text": "-enable-pretty-printing",
-          "ignoreFailures": true
-        }
-      ]
-    },
-    {
-      "name": "(gdb) Launch apply charge ctrl Node",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/install/lib/capella_ros_auto_charge_ctrl/charge_ctrl_node",
-      "args": [],
-      "preLaunchTask": "debug",
-      "stopAtEntry": true,
-      "cwd": "${workspaceFolder}",
-      "externalConsole": false,
-      "MIMode": "gdb",
-      "setupCommands": [
-        {
-          "description": "Enable pretty-printing for gdb",
-          "text": "-enable-pretty-printing",
-          "ignoreFailures": true
-        }
-      ]
-    },
-    {
-      "name": "(gdb) Launch LIDAR",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/install/lib/wj_716n_lidar/wj_716n_lidar",
-      "args": [],
-      //"preLaunchTask": "debug",
-      "stopAtEntry": true,
-      "cwd": "${workspaceFolder}",
-      "externalConsole": false,
-      "MIMode": "gdb",
-      "setupCommands": [
-        {
-          "description": "Enable pretty-printing for gdb",
-          "text": "-enable-pretty-printing",
-          "ignoreFailures": true
-        }
-      ]
-    },
-    {
-      "name": "(gdb) Launch LIDAR(wr_ls_udp_high)",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/install/lib/wr_ls_udp_high/wr_ls_udp_high",
-      "args": [],
-      "preLaunchTask": "debug",
-      "stopAtEntry": true,
-      "cwd": "${workspaceFolder}",
-      "externalConsole": false,
-      "MIMode": "gdb",
-      "setupCommands": [
-        {
-          "description": "Enable pretty-printing for gdb",
-          "text": "-enable-pretty-printing",
-          "ignoreFailures": true
-        }
-      ]
-    },
-    {
-      "name": "(gdb) imls_icp_odom_node",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/install/lib/capella_ros_scan_odom/imls_icp_odom_node",
-      "args": [],
-      "preLaunchTask": "debug",
-      "stopAtEntry": true,
-      "cwd": "${workspaceFolder}",
-      "externalConsole": false,
-      "MIMode": "gdb",
-      "setupCommands": [
-        {
-          "description": "Enable pretty-printing for gdb",
-          "text": "-enable-pretty-printing",
-          "ignoreFailures": true
-        }
-      ]
-    }
-  ],
-  "inputs": [
-    {
-      "id": "package",
-      "type": "promptString",
-      "description": "Package name",
-      "default": "examples_rclcpp_minimal_publisher"
-    },
-    {
-      "id": "program",
-      "type": "promptString",
-      "description": "Program name",
-      "default": "publisher_member_function"
-    }
-  ]
+    ],
 }

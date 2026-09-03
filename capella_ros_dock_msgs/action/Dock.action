@@ -6,6 +6,7 @@ geometry_msgs/Pose delta
 ---
 # Result
 bool is_docked
+uint16 code
 ---
 # Feedback
 bool sees_dock
