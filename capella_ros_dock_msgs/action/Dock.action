@@ -1,5 +1,8 @@
 # Request
 string mac
+string marker
+string protocol
+geometry_msgs/Pose delta
 ---
 # Result
 bool is_docked
