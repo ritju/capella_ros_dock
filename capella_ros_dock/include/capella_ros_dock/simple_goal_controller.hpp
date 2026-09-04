@@ -125,48 +125,6 @@ void init(motion_control_params* params_ptr)
 	thre_angle_diff = beta_plus_theta - beta;
 	RCLCPP_INFO(rclcpp::get_logger("simple_goal_controller"), "r: %.2f, x1: %.2f, x2: %.2f, beta_plus_theta: %.2f, beta: %.2f", r, x1, x2, beta_plus_theta, beta);
 	RCLCPP_INFO(rclcpp::get_logger("simple_goal_controller"), "thre_angle_diff: %.2f", thre_angle_diff);
-
-	// 计算 marker是否在相机的视野范围内，不再使用该方法，已经计算了机器人朝向目标点的方向的最大允许角度thre_angle_diff
-	// 	if (sees_dock)
-	// 	{
-	// 		auto robot_pose = current_pose.getOrigin();
-	// 		float x, y, theta;
-	// 		x = robot_pose[0], y = robot_pose[1];
-	// 		theta = tf2::getYaw(current_pose.getRotation());
-	// 		float goal_x, goal_y;
-	// 		goal_x = -goal_dis_x;
-	// 		goal_y = 0;
-	// 		float theta_to_goal;
-	// 		theta_to_goal = std::atan2(goal_y - y, goal_x - x);
-	// 		if (camera_horizontal_view * 0.5 < std::abs(theta_to_goal))
-	// 		{
-	// 			RCLCPP_INFO(logger_, "************failed************");
-	// 			RCLCPP_INFO(logger_, "x: %.2f, y: %.2f, theta: %.2f, theta_to_goal: %.2f", x, y, theta, theta_to_goal);
-	// 			RCLCPP_INFO(logger_, "camera_horizontal_view/2: %.2f< theta_to_goal: %.2f",
-	// 				camera_horizontal_view * 0.5, std::abs(theta_to_goal));
-	// 		}
-	// 		else
-	// 		{
-	// 			float y_coord = camera_horizontal_view_y_coord(std::abs(theta_to_goal), camera_horizontal_view, camera_baselink_dis, goal_dis_x);
-	// 			if (y_coord > marker_size * 0.5)
-	// 			{
-	// 				RCLCPP_INFO(logger_, "============success============");
-	// 				RCLCPP_INFO(logger_, "x: %.2f, y: %.2f, theta: %.2f, theta_to_goal: %.2f", x, y, theta, theta_to_goal);
-	// 				RCLCPP_INFO(logger_, "y_coord: %.2f", y_coord);
-	// 			}
-	// 			else
-	// 			{
-	// 				RCLCPP_INFO(logger_, "************failed************");
-	// 				RCLCPP_INFO(logger_, "x: %.2f, y: %.2f, theta: %.2f, theta_to_goal: %.2f", x, y, theta, theta_to_goal);
-	// 				RCLCPP_INFO(logger_, "y_coord: %.2f", y_coord);
-	// 			}
-	// 		}
-
-	// 	}
-	// 	else
-	// 	{
-	// 		RCLCPP_INFO(logger_, "can not see marker.");
-	// 	}
 }
 
 /// \brief Structure to keep information for each point in commanded path
@@ -185,7 +143,7 @@ struct CmdPathPoint
 using CmdPath = std::vector<CmdPathPoint>;
 
 /// \brief Set goal path for controller along with max rotation and translation speed
-void initialize_goal(const CmdPath & cmd_path)
+void initialize_goal(const CmdPath & cmd_path, const tf2::Transform& delta)
 {
 	RCLCPP_INFO(logger_, "初始化cmd_path, 初始化当前state为: %s", magic_enum::enum_name(current_state_).data());
 	const std::lock_guard<std::mutex> lock(mutex_);
@@ -201,6 +159,7 @@ void initialize_goal(const CmdPath & cmd_path)
 		gp.radius = cmd_path[i].radius;
 		gp.drive_backwards = cmd_path[i].drive_backwards;
 	}
+	delta_offset_ = delta;
 	current_state_ = NavigateStates::INIT;
 }
 
@@ -1969,6 +1928,7 @@ double robot_y_charger_;
 double robot_yaw_charger_;
 // map下充电桩的位姿
 tf2::Transform tf_charger_map_;
+tf2::Transform delta_offset_;
 double charger_x_map_;
 double charger_y_map_;
 double charger_yaw_map_;

@@ -2,9 +2,8 @@ cmake_minimum_required(VERSION 3.8)
 project(capella_ros_dock)
 
 # Default to C++14
-if(NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 17)
-endif()
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
@@ -76,15 +75,6 @@ rclcpp_components_register_node(hazards_publisher_lib
     PLUGIN "capella_ros_dock::HazardsVectorPublisher"
     EXECUTABLE hazards_vector_publisher)
 
-# Robot status publisher
-# add_library(robot_state_lib SHARED)
-# target_sources(robot_state_lib PRIVATE src/robot_state.cpp)
-# target_include_directories(robot_state_lib PUBLIC include)
-# ament_target_dependencies(robot_state_lib ${dependencies})
-# rclcpp_components_register_node(robot_state_lib
-#     PLUGIN "capella_ros_dock::RobotState"
-#     EXECUTABLE robot_state)
-
 #Motion control node
 add_library(motion_control_lib SHARED)
 target_sources(
@@ -92,6 +82,7 @@ target_sources(
   PRIVATE
   src/motion_control_node.cpp
   src/docking_behavior.cpp
+  src/state_goal_controller.cpp
   # src/reflex_behavior.cpp
   # src/drive_goal_behaviors.cpp
   # src/wall_follow_behavior.cpp

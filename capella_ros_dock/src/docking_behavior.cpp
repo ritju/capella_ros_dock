@@ -147,21 +147,6 @@ DockingBehavior::DockingBehavior(
 	action_start_time_ = clock_->now();
 
 	this->footprint_collision_checker_ =  nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*>();
-
-	// delete , get footprint_base from topic
-	// if (nav2_costmap_2d::makeFootprintFromString(params_ptr->footprint, footprint_base_))
-	// {
-	// 	RCLCPP_INFO(logger_, "get base footprint.");
-	// 	for (size_t i = 0; i < footprint_base_.size(); i++)
-	// 	{
-	// 		auto point = footprint_base_[i];
-	// 		RCLCPP_INFO(logger_, "Point(%f, %f)", point.x, point.y);
-	// 	}
-	// }
-	// else
-	// {
-	// 	RCLCPP_ERROR(logger_, "Invalid footprint_base.");
-	// }
 }
 
 void DockingBehavior::local_costmap_sub_callback_(const nav_msgs::msg::OccupancyGrid & msg)
@@ -323,13 +308,32 @@ void DockingBehavior::handle_dock_servo_accepted(
 
 	const auto goal = goal_handle->get_goal();
 	charger_id_ = goal->mac;
-	RCLCPP_INFO(logger_, "Dock goal => request.mac: %s", charger_id_.c_str());
+	protocol_ = goal->protocol;
+	tf2::convert(goal->delta, delta_offset_);
 
-	for(size_t i = 0; i < marker_and_mac_vector.marker_and_mac_vector.size(); i++)
-	{
-		if(charger_id_.compare(marker_and_mac_vector.marker_and_mac_vector[i].bluetooth_mac) == 0)
+	RCLCPP_INFO(logger_, "Dock goal => request.mac: %s, marker: %s, protocol: %s, delta: %f, %f, %f",
+		charger_id_.c_str(), goal->marker.c_str(), goal->protocol.c_str(), 
+		delta_offset_.getOrigin().getX(), delta_offset_.getOrigin().getY(), tf2::getYaw(delta_offset_.getRotation()));
+
+	// marker_id_ from goal marker string when provided, else fall back to mac lookup
+	marker_id_ = -1;
+	if (!goal->marker.empty()) {
+		try {
+			marker_id_ = std::stoi(goal->marker);
+			RCLCPP_INFO(logger_, "Dock goal marker: %s -> marker_id_: %d", goal->marker.c_str(), marker_id_);
+		} catch (const std::exception & e) {
+			RCLCPP_WARN(logger_, "parse Dock goal marker '%s' failed: %s, fallback to mac lookup",
+				goal->marker.c_str(), e.what());
+		}
+	}
+	if (marker_id_ < 0) {
+		for(size_t i = 0; i < marker_and_mac_vector.marker_and_mac_vector.size(); i++)
 		{
-			marker_id_ = marker_and_mac_vector.marker_and_mac_vector[i].marker_id;
+			if(charger_id_.compare(marker_and_mac_vector.marker_and_mac_vector[i].bluetooth_mac) == 0)
+			{
+				marker_id_ = marker_and_mac_vector.marker_and_mac_vector[i].marker_id;
+				RCLCPP_INFO(logger_, "mac lookup => marker_id_: %d", marker_id_);
+			}
 		}
 	}
 
@@ -362,13 +366,14 @@ void DockingBehavior::handle_dock_servo_accepted(
 	{
 		float x_coord = start_point_x + dx * i;
 		RCLCPP_INFO(logger_, "goal_x: %f", x_coord);
-		dock_rotation.setRPY(0, 0, 0);
-		dock_offset.setOrigin(tf2::Vector3(x_coord, params_ptr->goal_y_correction, 0));
+		dock_rotation.setRPY(0, 0, tf2::getYaw(delta_offset_.getRotation()));
+		dock_offset.setOrigin(tf2::Vector3(x_coord + delta_offset_.getOrigin().getX(), 
+			params_ptr->goal_y_correction + delta_offset_.getOrigin().getY(), 0));
 		dock_offset.setRotation(dock_rotation);
 		dock_path.emplace_back(dock_pose * dock_offset, 0.01, true); 
 	}
 
-	goal_controller_->initialize_goal(dock_path);
+	goal_controller_->initialize_goal(dock_path, delta_offset_);
 	// Setup behavior to override other commanded motion
 	BehaviorsScheduler::BehaviorsData data;
 	data.run_func = std::bind(&DockingBehavior::execute_dock_servo, this, goal_handle, _1);
@@ -383,6 +388,7 @@ void DockingBehavior::handle_dock_servo_accepted(
 		RCLCPP_WARN(logger_, "Dock Servo behavior failed to start");
 		auto result = std::make_shared<capella_ros_dock_msgs::action::Dock::Result>();
 		result->is_docked = is_docked_;
+		result->code = 40;  // unknown failure
 		goal_handle->abort(result);
 		running_dock_action_ = false;
 	}
@@ -401,6 +407,7 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_dock_servo(
 		RCLCPP_INFO(logger_, "Cancelling the goal.");
 		auto result = std::make_shared<capella_ros_dock_msgs::action::Dock::Result>();
 		result->is_docked = is_docked_;
+		result->code = 5;  // cancelled
 		goal_handle->canceled(result);
 		goal_controller_->reset();
 		running_dock_action_ = false;
@@ -444,6 +451,7 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_dock_servo(
 		RCLCPP_INFO(logger_, "Dock Goal timout at state %s, infos: %s", state.c_str(), infos.c_str());
 		auto result = std::make_shared<capella_ros_dock_msgs::action::Dock::Result>();
 		result->is_docked = is_docked_;
+		result->code = 40;  // timeout change pose / unknown failure
 		goal_handle->abort(result);
 
 		goal_controller_->reset();
@@ -457,10 +465,12 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_dock_servo(
 			auto result = std::make_shared<capella_ros_dock_msgs::action::Dock::Result>();
 			if (is_docked_) {
 				result->is_docked = true;
+				result->code = 0;  // success
 				RCLCPP_INFO(logger_, "Dock Servo Goal Succeeded\n");
 				goal_handle->succeed(result);
 			} else {
 				result->is_docked = false;
+				result->code = 40;  // unknown failure
 				RCLCPP_INFO(logger_, "Dock Servo Goal Aborted\n");
 				goal_handle->abort(result);
 			}
@@ -531,7 +541,7 @@ void DockingBehavior::handle_undock_accepted(
 	face_away_dock.setRotation(undock_rotation);
 	tf2::Transform undocked_goal = undock_offset * face_away_dock;
 	undock_path.emplace_back(undocked_goal, 0.05, false);
-	goal_controller_->initialize_goal(undock_path);
+	goal_controller_->initialize_goal(undock_path, delta_offset_);
 
 	BehaviorsScheduler::BehaviorsData data;
 	data.run_func = std::bind(&DockingBehavior::execute_undock, this, goal_handle, _1);

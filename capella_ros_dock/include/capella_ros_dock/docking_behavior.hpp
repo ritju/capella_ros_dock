@@ -168,6 +168,8 @@ void marker_and_mac_callback(aruco_msgs::msg::MarkerAndMacVector);
 
 int marker_id_;
 std::string charger_id_;
+std::string protocol_;  // bluetooth protocol version from Dock goal (informational)
+tf2::Transform delta_offset_;
 aruco_msgs::msg::MarkerAndMacVector marker_and_mac_vector;
 bool bluetooth_connected{false};
 
