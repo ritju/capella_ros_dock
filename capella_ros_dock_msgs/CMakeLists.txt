@@ -39,6 +39,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/WheelStatus.msg"
   "msg/WheelVels.msg"
   "msg/ChargerContactConditionType.msg"
+  "msg/ChargeErrorCode.msg"
+  "msg/ChargeErrorInfo.msg"
   "srv/EStop.srv"
   "srv/RobotPower.srv"
   "action/Dock.action"

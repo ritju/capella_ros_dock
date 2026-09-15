@@ -33,6 +33,8 @@
 #include "std_msgs/msg/string.hpp"
 #include "aruco_msgs/msg/marker_and_mac_vector.hpp"
 #include "capella_ros_dock_msgs/msg/charger_contact_condition_type.hpp"
+#include "capella_ros_dock_msgs/msg/charge_error_info.hpp"
+#include "capella_ros_dock_msgs/msg/charge_error_code.hpp"
 
 #include "std_msgs/msg/bool.hpp"
 
@@ -159,6 +161,15 @@ motion_control_params *params_ptr;
 
 rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr undock_state_pub_;
 rclcpp::Publisher<capella_ros_dock_msgs::msg::ChargerContactConditionType>::SharedPtr charger_contact_condition_type_pub_;
+
+// /charge/error_info: dock 侧首个不可重试错误的上报(每次 dock 流程最多一条)
+rclcpp::Publisher<capella_ros_dock_msgs::msg::ChargeErrorInfo>::SharedPtr charge_error_info_pub_;
+std::string session_id_;
+bool charge_error_reported_ {false};
+uint16_t reported_charge_error_code_ {0};
+
+/// 上报不可重试错误, 返回本次流程生效的错误码(已上报过则返回首个码)
+uint16_t report_charge_error(uint16_t code, const std::string & message);
 
 void raw_vel_sub_callback(capella_ros_msg::msg::Velocities);
 void odom_sub_callback(nav_msgs::msg::Odometry);

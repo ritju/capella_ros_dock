@@ -3,6 +3,8 @@ string mac
 string marker
 string protocol
 geometry_msgs/Pose delta
+# 回充流程标识, 由 /charger/start_docking2 生成并透传; 其他入口传空串
+string session_id
 ---
 # Result
 bool is_docked

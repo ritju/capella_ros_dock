@@ -35,6 +35,7 @@
 #include <chrono>
 #include <magic_enum.hpp>
 #include "visualization_msgs/msg/marker.hpp"
+#include "capella_ros_dock_msgs/msg/charge_error_code.hpp"
 
 
 using namespace std;
@@ -43,6 +44,11 @@ using namespace chrono_literals;
 namespace capella_ros_dock
 {
 
+
+// 碰撞预测检查(定义在文件末尾), 这里前置声明以复用为成员包装 collision_cost()
+double get_cost_value(rclcpp::Logger logger_, nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*>  collision_checker,
+                      tf2::Transform tf_robot,std::vector<geometry_msgs::msg::Point> footprint, bool rotation,
+                      double linear, double angular, double predict_time, int hz, double scale);
 
 /**
  * @brief This class provides an API to give velocity commands given a goal and robot position.
@@ -161,6 +167,9 @@ void initialize_goal(const CmdPath & cmd_path, const tf2::Transform& delta)
 	}
 	delta_offset_ = delta;
 	current_state_ = NavigateStates::INIT;
+	bluetooth_lost_since_ = -1.0;
+	collision_blocked_accum_ = 0.0;
+	last_collision_blocked_time_ = -1.0;
 }
 
 /// \brief Clear goal
@@ -168,6 +177,62 @@ void reset()
 {
 	const std::lock_guard<std::mutex> lock(mutex_);
 	goal_points_.clear();
+	bluetooth_lost_since_ = -1.0;
+	collision_blocked_accum_ = 0.0;
+	last_collision_blocked_time_ = -1.0;
+}
+
+// ---- /charge/error_info: dock 侧不可重试错误的判定与上报 ----
+// 由 DockingBehavior 注入: 只负责上报, 是否停止/收尾由上层(charge_manager/stop)决定
+std::function<void(uint16_t, const std::string &)> charge_error_callback_;
+// 蓝牙丢失起始时间(秒), <0 表示当前未丢失
+double bluetooth_lost_since_ = -1.0;
+// 碰撞阻塞累计时长(秒)与上次阻塞时刻(秒), 用于判定"持续被障碍物挡住"
+double collision_blocked_accum_ = 0.0;
+double last_collision_blocked_time_ = -1.0;
+static constexpr double bluetooth_lost_report_delay_ = 10.0;
+static constexpr double collision_blocked_report_delay_ = 5.0;
+
+void set_charge_error_callback(std::function<void(uint16_t, const std::string &)> cb)
+{
+	charge_error_callback_ = std::move(cb);
+}
+
+void report_charge_error(uint16_t code, const std::string & message)
+{
+	if (charge_error_callback_) {
+		charge_error_callback_(code, message);
+	}
+}
+
+void note_collision_blocked()
+{
+	const double now = clock_->now().seconds();
+	if (last_collision_blocked_time_ >= 0.0) {
+		const double dt = now - last_collision_blocked_time_;
+		// 两次碰撞判定相隔超过 1s 视为不连续, 重新累计
+		collision_blocked_accum_ = (dt <= 1.0) ? (collision_blocked_accum_ + dt) : 0.0;
+	}
+	last_collision_blocked_time_ = now;
+	if (collision_blocked_accum_ >= collision_blocked_report_delay_) {
+		report_charge_error(
+			capella_ros_dock_msgs::msg::ChargeErrorCode::OBSTACLE,
+			"obstacle: collision blocked for more than " + std::to_string(static_cast<int>(collision_blocked_report_delay_)) +
+			"s, state: " + std::string(magic_enum::enum_name(current_state_).data()));
+	}
+}
+
+// D4: 复用碰撞检查入口, 记录"被障碍物挡住"的累计时长并上报 obstacle
+double collision_cost(nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*> collision_checker,
+                      tf2::Transform tf_robot, std::vector<geometry_msgs::msg::Point> footprint, bool rotation,
+                      double linear, double angular, double predict_time, int hz, double scale)
+{
+	const double cost_value = get_cost_value(logger_, collision_checker, tf_robot, footprint, rotation,
+		linear, angular, predict_time, hz, scale);
+	if (cost_value >= static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE)) {
+		note_collision_blocked();
+	}
+	return cost_value;
 }
 
 // \brief Generate velocity based on current position and next goal point looking for convergence
@@ -282,6 +347,11 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			// RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "stop until can see dock.");
 			if (std::abs(current_position.getX()) > params_ptr->robot_rotate_radius)
 			{
+				// D1: 超过 time_sleep 仍看不到标靶且已在旋转半径外, 判定标靶不可见
+				report_charge_error(
+					capella_ros_dock_msgs::msg::ChargeErrorCode::MARKER_NOT_VISIBLE,
+					"marker not visible: cannot see marker more than time_sleep and robot.x > robot_rotate_radius, state: " +
+					std::string(magic_enum::enum_name(current_state_).data()));
 				change_state(current_state_, NavigateStates::ANGLE_TO_X_POSITIVE_ORIENTATION, clock_->now().seconds(), params_ptr->timeout_angle_to_x_positive_orientation);
 				servo_vel = geometry_msgs::msg::Twist();
 				state = std::string(" > ANGLE_TO_X_POSITIVE_ORIENTATION");
@@ -442,7 +512,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			RCLCPP_DEBUG(logger_, "predict_time: %.2f", predict_time);
 			if (params_ptr->collision_check)
 			{
-				double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, true, 0.0, servo_vel->angular.z,
+				double cost_value = collision_cost(collision_checker, robot_pose_map, footprint_vec, true, 0.0, servo_vel->angular.z,
 													predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
 				if (cost_value >= nav2_costmap_2d::LETHAL_OBSTACLE)
 				{
@@ -640,6 +710,8 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			}
 			if ((cost >= static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE)) && params_ptr->collision_check)
 			{
+				// D4: 记录碰撞阻塞时长
+				note_collision_blocked();
 				RCLCPP_DEBUG(logger_, "cost value: %.2f >= %.2f", cost, static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE));
 				servo_vel->angular.z = 0.0;
 				return servo_vel;
@@ -666,7 +738,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			RCLCPP_DEBUG(logger_, "predict_time: %.2f", predict_time);
 			if (params_ptr->collision_check)
 			{
-				double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, true, 0.0, servo_vel->angular.z,
+				double cost_value = collision_cost(collision_checker, robot_pose_map, footprint_vec, true, 0.0, servo_vel->angular.z,
 				                                   predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
 				if (cost_value >= nav2_costmap_2d::LETHAL_OBSTACLE)
 				{
@@ -776,7 +848,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			RCLCPP_DEBUG(logger_, "predict_time: %.2f", predict_time);
 			if (params_ptr->collision_check && need_check_collision)
 			{
-				double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, false, servo_vel->linear.x, 0.0,
+				double cost_value = collision_cost(collision_checker, robot_pose_map, footprint_vec, false, servo_vel->linear.x, 0.0,
 				                                   predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
 				if (cost_value >= nav2_costmap_2d::LETHAL_OBSTACLE)
 				{
@@ -892,7 +964,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 			RCLCPP_DEBUG(logger_, "predict_time: %.2f", predict_time);
 			if (params_ptr->collision_check)
 			{
-				double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, true, 0.0, servo_vel->angular.z,
+				double cost_value = collision_cost(collision_checker, robot_pose_map, footprint_vec, true, 0.0, servo_vel->angular.z,
 				                                   predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
 				if (cost_value >= nav2_costmap_2d::LETHAL_OBSTACLE)
 				{
@@ -1075,12 +1147,22 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 				RCLCPP_DEBUG(logger_, "low speed mode ");
 				if (!bluetooth_connected)
 				{
+					// D3: 低速近桩阶段蓝牙丢失持续超过阈值, 判定蓝牙连接失败
+					if (bluetooth_lost_since_ < 0.0) {
+						bluetooth_lost_since_ = clock_->now().seconds();
+					} else if (clock_->now().seconds() - bluetooth_lost_since_ >= bluetooth_lost_report_delay_) {
+						report_charge_error(
+							capella_ros_dock_msgs::msg::ChargeErrorCode::BLUETOOTH_CONNECT_ERROR,
+							"bluetooth connect error: bluetooth disconnected more than " +
+							std::to_string(static_cast<int>(bluetooth_lost_report_delay_)) + "s in low speed mode");
+					}
 					RCLCPP_INFO_THROTTLE(logger_, *clock_, 2000, "bluetooth disconnected, waiting ......");
 					RCLCPP_DEBUG(logger_, "bluetooth disconnected, waiting ......");
 					state = std::string("GO_TO_GOAL_POSITION");
 					infos = std::string("Reason: bluetooth disconnected ==> stop");
 					break;
 				}
+				bluetooth_lost_since_ = -1.0;
 
 				servo_vel->linear.x = translate_velocity;
 
@@ -1175,7 +1257,7 @@ BehaviorsScheduler::optional_output_t get_velocity_for_position(
 
 			if (params_ptr->collision_check && need_check_collision)
 			{
-				double cost_value = get_cost_value(logger_,collision_checker, robot_pose_map, footprint_vec, false, servo_vel->linear.x, 0.0,
+				double cost_value = collision_cost(collision_checker, robot_pose_map, footprint_vec, false, servo_vel->linear.x, 0.0,
 				                                   predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
 				if (cost_value >= nav2_costmap_2d::LETHAL_OBSTACLE)
 				{

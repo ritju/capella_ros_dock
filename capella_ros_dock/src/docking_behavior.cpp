@@ -29,6 +29,16 @@ DockingBehavior::DockingBehavior(
 	this->params_ptr = params_ptr;
 	goal_controller_ = std::make_shared<SimpleGoalController>(node_base_interface, node_clock_interface, node_logging_interface, node_topics_interface, params_ptr);
 
+	// /charge/error_info: 只上报不可重试的错误码, 停止/收尾由上层(charge_manager 下发 stop)触发
+	charge_error_info_pub_ = rclcpp::create_publisher<capella_ros_dock_msgs::msg::ChargeErrorInfo>(
+		node_topics_interface,
+		"/charge/error_info",
+		rclcpp::QoS(rclcpp::KeepLast(1)).reliable().durability_volatile()
+	);
+	// 控制器里判定的错误(标靶不可见/蓝牙丢失/障碍物)统一由本节点带 session 上报
+	goal_controller_->set_charge_error_callback(
+		[this](uint16_t code, const std::string & message) { this->report_charge_error(code, message); });
+
 	undock_state_pub_ = rclcpp::create_publisher<std_msgs::msg::Bool>(
 		node_topics_interface,
 		"is_undocking_state",
@@ -147,6 +157,26 @@ DockingBehavior::DockingBehavior(
 	action_start_time_ = clock_->now();
 
 	this->footprint_collision_checker_ =  nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*>();
+}
+
+uint16_t DockingBehavior::report_charge_error(uint16_t code, const std::string & message)
+{
+	// 每次 dock 流程只上报首个不可重试错误, 之后返回同一个码, 保证 topic 与 action result 一致
+	if (charge_error_reported_) {
+		return reported_charge_error_code_;
+	}
+	charge_error_reported_ = true;
+	reported_charge_error_code_ = code;
+
+	capella_ros_dock_msgs::msg::ChargeErrorInfo msg;
+	msg.session_id = session_id_;
+	msg.code = code;
+	msg.message = message;
+	msg.source = "dock";
+	charge_error_info_pub_->publish(msg);
+	RCLCPP_INFO(logger_, "publish /charge/error_info: session=%s, code=%u, message=%s, source=dock",
+		session_id_.empty() ? "<empty>" : session_id_.c_str(), code, message.c_str());
+	return code;
 }
 
 void DockingBehavior::local_costmap_sub_callback_(const nav_msgs::msg::OccupancyGrid & msg)
@@ -309,6 +339,10 @@ void DockingBehavior::handle_dock_servo_accepted(
 	const auto goal = goal_handle->get_goal();
 	charger_id_ = goal->mac;
 	protocol_ = goal->protocol;
+	// 本次回充流程的 session(start_docking2 生成, 经 Charge.Goal/Dock.Goal 透传), 并重置错误上报状态
+	session_id_ = goal->session_id;
+	charge_error_reported_ = false;
+	reported_charge_error_code_ = 0;
 	tf2::convert(goal->delta, delta_offset_);
 
 	RCLCPP_INFO(logger_, "Dock goal => request.mac: %s, marker: %s, protocol: %s, delta: %f, %f, %f",
@@ -388,7 +422,9 @@ void DockingBehavior::handle_dock_servo_accepted(
 		RCLCPP_WARN(logger_, "Dock Servo behavior failed to start");
 		auto result = std::make_shared<capella_ros_dock_msgs::action::Dock::Result>();
 		result->is_docked = is_docked_;
-		result->code = 40;  // unknown failure
+		result->code = report_charge_error(
+			capella_ros_dock_msgs::msg::ChargeErrorCode::INTERFACE_FAILED,
+			"dock failed: dock servo behavior failed to start");
 		goal_handle->abort(result);
 		running_dock_action_ = false;
 	}
@@ -407,7 +443,7 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_dock_servo(
 		RCLCPP_INFO(logger_, "Cancelling the goal.");
 		auto result = std::make_shared<capella_ros_dock_msgs::action::Dock::Result>();
 		result->is_docked = is_docked_;
-		result->code = 5;  // cancelled
+		result->code = capella_ros_dock_msgs::msg::ChargeErrorCode::CANCELLED;
 		goal_handle->canceled(result);
 		goal_controller_->reset();
 		running_dock_action_ = false;
@@ -451,7 +487,9 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_dock_servo(
 		RCLCPP_INFO(logger_, "Dock Goal timout at state %s, infos: %s", state.c_str(), infos.c_str());
 		auto result = std::make_shared<capella_ros_dock_msgs::action::Dock::Result>();
 		result->is_docked = is_docked_;
-		result->code = 40;  // timeout change pose / unknown failure
+		result->code = report_charge_error(
+			capella_ros_dock_msgs::msg::ChargeErrorCode::TIMEOUT_CHANGE_POSE,
+			"timeout change pose: dock goal timeout at state " + state);
 		goal_handle->abort(result);
 
 		goal_controller_->reset();
@@ -465,12 +503,20 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_dock_servo(
 			auto result = std::make_shared<capella_ros_dock_msgs::action::Dock::Result>();
 			if (is_docked_) {
 				result->is_docked = true;
-				result->code = 0;  // success
+				result->code = capella_ros_dock_msgs::msg::ChargeErrorCode::SUCCESS;
 				RCLCPP_INFO(logger_, "Dock Servo Goal Succeeded\n");
 				goal_handle->succeed(result);
 			} else {
 				result->is_docked = false;
-				result->code = 40;  // unknown failure
+				if (exceeded_runtime) {
+					result->code = report_charge_error(
+						capella_ros_dock_msgs::msg::ChargeErrorCode::EXCEED_RUNTIME,
+						"exceed runtime: dock action exceeded runtime without being docked");
+				} else {
+					result->code = report_charge_error(
+						capella_ros_dock_msgs::msg::ChargeErrorCode::NOT_IN_POSITION,
+						"not in position: dock action finished without charger contact");
+				}
 				RCLCPP_INFO(logger_, "Dock Servo Goal Aborted\n");
 				goal_handle->abort(result);
 			}
