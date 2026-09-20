@@ -35,7 +35,7 @@ public:
 SimpleGoalController(rclcpp::node_interfaces::NodeBaseInterface::SharedPtr node,
                      rclcpp::node_interfaces::NodeClockInterface::SharedPtr node_clock_interface,
                      rclcpp::node_interfaces::NodeLoggingInterface::SharedPtr node_logging_interface,
-					 rclcpp::node_interfaces::NodeTopicsInterface::SharedPtr node_topics_interface,
+                     rclcpp::node_interfaces::NodeTopicsInterface::SharedPtr node_topics_interface,
                      motion_control_params *params_ptr);
 
 void init(motion_control_params* params_ptr);
@@ -46,12 +46,12 @@ void init(motion_control_params* params_ptr);
 //  drive_backwards whether the robot should drive backwards towards the point (for docking)
 struct CmdPathPoint
 {
-	CmdPathPoint(tf2::Transform p, float r, bool db)
-		: pose(p), radius(r), drive_backwards(db) {
-	}
-	tf2::Transform pose;
-	float radius;
-	bool drive_backwards;
+    CmdPathPoint(tf2::Transform p, float r, bool db)
+        : pose(p), radius(r), drive_backwards(db) {
+    }
+    tf2::Transform pose;
+    float radius;
+    bool drive_backwards;
 };
 using CmdPath = std::vector<CmdPathPoint>;
 
@@ -87,23 +87,23 @@ double collision_cost(nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d
 // with goal point based on radius.
 // \return empty optional if no goal or velocity command to get to next goal point
 BehaviorsScheduler::optional_output_t get_velocity_for_position(
-	const tf2::Transform & current_pose, const tf2::Transform & robot_pose_map, const tf2::Transform & charger_pose_map, bool sees_dock, bool is_docked, bool bluetooth_connected,
-	const nav_msgs::msg::Odometry & odom_msg, std::string & state, std::string & infos, bool& b_timeout_current_state,
-	nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*> & collision_checker, const nav2_costmap_2d::Costmap2D & costmap, const std::vector<geometry_msgs::msg::Point> & footprint_vec, const rclcpp::Client<nav2_msgs::srv::ClearEntireCostmap>::SharedPtr & client_clear_entire_local_costmap);
+    const tf2::Transform & current_pose, const tf2::Transform & robot_pose_map, const tf2::Transform & charger_pose_map, bool sees_dock, bool is_docked, bool bluetooth_connected,
+    const nav_msgs::msg::Odometry & odom_msg, std::string & state, std::string & infos, bool& b_timeout_current_state,
+    nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*> & collision_checker, const nav2_costmap_2d::Costmap2D & costmap, const std::vector<geometry_msgs::msg::Point> & footprint_vec, const rclcpp::Client<nav2_msgs::srv::ClearEntireCostmap>::SharedPtr & client_clear_entire_local_costmap);
 
 
 private:
 enum class NavigateStates
 {
-	INIT,
-	LOOKUP_MARKER,
-	ANGLE_TO_BUFFER_POINT,
-	MOVE_TO_BUFFER_POINT,
-	ANGLE_TO_X_POSITIVE_ORIENTATION,
-	ANGLE_TO_GOAL,
-	GO_TO_GOAL_POSITION,
-	GOAL_ANGLE,
-	UNDOCK
+    INIT,
+    LOOKUP_MARKER,
+    ANGLE_TO_BUFFER_POINT,
+    MOVE_TO_BUFFER_POINT,
+    ANGLE_TO_X_POSITIVE_ORIENTATION,
+    ANGLE_TO_GOAL,
+    GO_TO_GOAL_POSITION,
+    GOAL_ANGLE,
+    UNDOCK
 };
 
 /// @brief 更新当前state
@@ -116,44 +116,44 @@ bool check_current_state_timeout();
 
 struct GoalPoint
 {
-	double x;
-	double y;
-	double theta;
-	float radius;
-	bool drive_backwards;
+    double x;
+    double y;
+    double theta;
+    float radius;
+    bool drive_backwards;
 };
 
 // 机器人的位姿信息
 struct RobotPose
 {
-	double x;
-	double y;
-	double theta;
+    double x;
+    double y;
+    double theta;
 };
 
 // 机器人的速度信息
 struct CmdVel
 {
-	double linear_x;
-	double angular_z;
+    double linear_x;
+    double angular_z;
 };
 
 // 机器人的信息，包括map和充电桩下的位姿，速度，当前对接阶段及该阶段开始的时间、最大可持续时间
 struct RobotInfo
 {
-	RobotPose robot_map;
-	bool marker_visible;
-	RobotPose robot_marker;
-	CmdVel cmd_vel;
-	double start_time;
-	double time_out;
+    RobotPose robot_map;
+    bool marker_visible;
+    RobotPose robot_marker;
+    CmdVel cmd_vel;
+    double start_time;
+    double time_out;
 };
 
 void bound_rotation(double & rotation_velocity, float min, float max);
 
 // undock时，不计算后边的碰撞检查了，因为undock时机器人和充电桩是有接触的，必然会有碰撞，没必要检查碰撞值了
-double get_cost_value_undock(rclcpp::Logger logger_, 
-					nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*> & collision_checker, const nav2_costmap_2d::Costmap2D & costmap,
+double get_cost_value_undock(rclcpp::Logger logger_,
+                    nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*> & collision_checker, const nav2_costmap_2d::Costmap2D & costmap,
                     tf2::Transform tf_robot, const std::vector<geometry_msgs::msg::Point> & footprint,
                     double linear, double predict_time, int hz, double scale);
 
