@@ -6,3 +6,4 @@ cyclonedds.log
 .vscode/
 .env
 NCOLCON_IGNORE
+.qwen

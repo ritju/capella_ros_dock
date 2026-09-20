@@ -190,8 +190,8 @@ double bluetooth_lost_since_ = -1.0;
 // 碰撞阻塞累计时长(秒)与上次阻塞时刻(秒), 用于判定"持续被障碍物挡住"
 double collision_blocked_accum_ = 0.0;
 double last_collision_blocked_time_ = -1.0;
-static constexpr double bluetooth_lost_report_delay_ = 50.0;
-static constexpr double collision_blocked_report_delay_ = 60.0;
+static constexpr double bluetooth_lost_report_delay_ = 40.0;
+static constexpr double collision_blocked_report_delay_ = 40.0;
 
 void set_charge_error_callback(std::function<void(uint16_t, const std::string &)> cb)
 {
