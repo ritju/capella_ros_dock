@@ -3,48 +3,28 @@
 #ifndef CAPELLA_ROS_DOCK__SIMPLE_GOAL_CONTROLLER_HPP_
 #define CAPELLA_ROS_DOCK__SIMPLE_GOAL_CONTROLLER_HPP_
 
+#include <chrono>
+#include <cstdint>
 #include <deque>
 #include <functional>
 #include <mutex>
+#include <string>
 #include <vector>
 
-#include "angles/angles.h"
-#include "boost/optional.hpp"
-#include "geometry_msgs/msg/twist.hpp"
 #include "capella_ros_dock/behaviors_scheduler.hpp"
-#include "capella_ros_dock/behaviors_scheduler.hpp"
-#include "tf2/utils.h"
-#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
-#include <chrono>
-#include <time.h>
-#include <rclcpp/time.hpp>
-#include <capella_ros_msg/msg/velocities.hpp>
-#include "rclcpp/rclcpp.hpp"
 #include "capella_ros_dock/utils.hpp"
-#include <inttypes.h>
-#include <nav_msgs/msg/odometry.hpp>
-#include "nav2_costmap_2d/footprint_collision_checker.hpp"
-#include "nav2_util/line_iterator.hpp"
-#include "nav_msgs/msg/occupancy_grid.hpp"
-#include "geometry_msgs/msg/polygon_stamped.hpp"
 #include "geometry_msgs/msg/point.hpp"
-#include "nav2_costmap_2d/cost_values.hpp"
+#include "nav_msgs/msg/odometry.hpp"
 #include "nav2_costmap_2d/costmap_2d.hpp"
-#include "nav2_costmap_2d/footprint.hpp"
+#include "nav2_costmap_2d/footprint_collision_checker.hpp"
 #include "nav2_msgs/srv/clear_entire_costmap.hpp"
-#include <chrono>
-#include <magic_enum.hpp>
+#include "rclcpp/rclcpp.hpp"
+#include "rclcpp/time.hpp"
+#include "tf2/utils.h"
 #include "visualization_msgs/msg/marker.hpp"
-#include "capella_ros_dock_msgs/msg/charge_error_code.hpp"
-
-
-using namespace std;
-using namespace chrono_literals;
 
 namespace capella_ros_dock
 {
-
-
 
 /**
  * @brief This class provides an API to give velocity commands given a goal and robot position.
@@ -99,8 +79,8 @@ void report_charge_error(uint16_t code, const std::string & message);
 void note_collision_blocked();
 
 // D4: 复用碰撞检查入口, 记录"被障碍物挡住"的累计时长并上报 obstacle
-double collision_cost(nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*> collision_checker,
-                      tf2::Transform tf_robot, std::vector<geometry_msgs::msg::Point> footprint, bool rotation,
+double collision_cost(nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*> & collision_checker,
+                      tf2::Transform tf_robot, const std::vector<geometry_msgs::msg::Point> & footprint, bool rotation,
                       double linear, double angular, double predict_time, int hz, double scale);
 
 // \brief Generate velocity based on current position and next goal point looking for convergence
@@ -108,8 +88,8 @@ double collision_cost(nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d
 // \return empty optional if no goal or velocity command to get to next goal point
 BehaviorsScheduler::optional_output_t get_velocity_for_position(
 	const tf2::Transform & current_pose, const tf2::Transform & robot_pose_map, const tf2::Transform & charger_pose_map, bool sees_dock, bool is_docked, bool bluetooth_connected,
-	nav_msgs::msg::Odometry odom_msg, std::string & state, std::string & infos, bool& b_timeout_current_state,
-	nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*>  collision_checker, nav2_costmap_2d::Costmap2D costmap, std::vector<geometry_msgs::msg::Point> footprint_vec, rclcpp::Client<nav2_msgs::srv::ClearEntireCostmap>::SharedPtr client_clear_entire_local_costmap);
+	const nav_msgs::msg::Odometry & odom_msg, std::string & state, std::string & infos, bool& b_timeout_current_state,
+	nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*> & collision_checker, const nav2_costmap_2d::Costmap2D & costmap, const std::vector<geometry_msgs::msg::Point> & footprint_vec, const rclcpp::Client<nav2_msgs::srv::ClearEntireCostmap>::SharedPtr & client_clear_entire_local_costmap);
 
 
 private:
@@ -173,8 +153,8 @@ void bound_rotation(double & rotation_velocity, float min, float max);
 
 // undock时，不计算后边的碰撞检查了，因为undock时机器人和充电桩是有接触的，必然会有碰撞，没必要检查碰撞值了
 double get_cost_value_undock(rclcpp::Logger logger_, 
-					nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*>  collision_checker, nav2_costmap_2d::Costmap2D costmap,
-                    tf2::Transform tf_robot,std::vector<geometry_msgs::msg::Point> footprint,
+					nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*> & collision_checker, const nav2_costmap_2d::Costmap2D & costmap,
+                    tf2::Transform tf_robot, const std::vector<geometry_msgs::msg::Point> & footprint,
                     double linear, double predict_time, int hz, double scale);
 
 float degree_to_radian(float degree);

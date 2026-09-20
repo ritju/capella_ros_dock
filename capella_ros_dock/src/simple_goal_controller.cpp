@@ -1,11 +1,29 @@
 #include "capella_ros_dock/simple_goal_controller.hpp"
 
+#include <algorithm>
+#include <chrono>
+#include <cmath>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "angles/angles.h"
+#include "capella_ros_dock_msgs/msg/charge_error_code.hpp"
+#include "nav2_costmap_2d/cost_values.hpp"
+#include "nav2_costmap_2d/footprint.hpp"
+#include "nav2_util/line_iterator.hpp"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
+#include <magic_enum.hpp>
+
+using namespace std;
+using namespace chrono_literals;
+
 namespace capella_ros_dock
 {
 
 // 碰撞预测检查: 不接触成员状态, 实现成本文件内部的自由函数, 供 collision_cost() 复用
-static double get_cost_value(rclcpp::Logger logger_, nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*>  collision_checker,
-                      tf2::Transform tf_robot,std::vector<geometry_msgs::msg::Point> footprint, bool rotation,
+static double get_cost_value(nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*> & collision_checker,
+                      tf2::Transform tf_robot, const std::vector<geometry_msgs::msg::Point> & footprint, bool rotation,
                       double linear, double angular, double predict_time, int hz, double scale);
 
 SimpleGoalController::SimpleGoalController(rclcpp::node_interfaces::NodeBaseInterface::SharedPtr node,
@@ -139,11 +157,11 @@ void SimpleGoalController::note_collision_blocked()
 			"s, state: " + std::string(magic_enum::enum_name(current_state_).data()));
 	}
 }
-double SimpleGoalController::collision_cost(nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*> collision_checker,
-                      tf2::Transform tf_robot, std::vector<geometry_msgs::msg::Point> footprint, bool rotation,
+double SimpleGoalController::collision_cost(nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*> & collision_checker,
+                      tf2::Transform tf_robot, const std::vector<geometry_msgs::msg::Point> & footprint, bool rotation,
                       double linear, double angular, double predict_time, int hz, double scale)
 {
-	const double cost_value = get_cost_value(logger_, collision_checker, tf_robot, footprint, rotation,
+	const double cost_value = get_cost_value(collision_checker, tf_robot, footprint, rotation,
 		linear, angular, predict_time, hz, scale);
 	if (cost_value >= static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE)) {
 		note_collision_blocked();
@@ -152,8 +170,8 @@ double SimpleGoalController::collision_cost(nav2_costmap_2d::FootprintCollisionC
 }
 BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_position(
 	const tf2::Transform & current_pose, const tf2::Transform & robot_pose_map, const tf2::Transform & charger_pose_map, bool sees_dock, bool is_docked, bool bluetooth_connected,
-	nav_msgs::msg::Odometry odom_msg, std::string & state, std::string & infos, bool& b_timeout_current_state,
-	nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*>  collision_checker, nav2_costmap_2d::Costmap2D costmap, std::vector<geometry_msgs::msg::Point> footprint_vec, rclcpp::Client<nav2_msgs::srv::ClearEntireCostmap>::SharedPtr client_clear_entire_local_costmap)
+	const nav_msgs::msg::Odometry & odom_msg, std::string & state, std::string & infos, bool& b_timeout_current_state,
+	nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*> & collision_checker, const nav2_costmap_2d::Costmap2D & costmap, const std::vector<geometry_msgs::msg::Point> & footprint_vec, const rclcpp::Client<nav2_msgs::srv::ClearEntireCostmap>::SharedPtr & client_clear_entire_local_costmap)
 {
 	save_all_poses_infos(robot_pose_map, current_pose, charger_pose_map, sees_dock);
 
@@ -1338,8 +1356,8 @@ void SimpleGoalController::bound_rotation(double & rotation_velocity, float min,
 	}
 }
 double SimpleGoalController::get_cost_value_undock(rclcpp::Logger logger_, 
-					nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*>  collision_checker, nav2_costmap_2d::Costmap2D costmap,
-                    tf2::Transform tf_robot,std::vector<geometry_msgs::msg::Point> footprint,
+					nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*> & collision_checker, const nav2_costmap_2d::Costmap2D & costmap,
+                    tf2::Transform tf_robot, const std::vector<geometry_msgs::msg::Point> & footprint,
                     double linear, double predict_time, int hz, double scale)
 {	
 	(void) logger_;
@@ -1523,11 +1541,10 @@ double SimpleGoalController::get_cost_value_undock(rclcpp::Logger logger_,
 	}
 	return footprint_cost;
 }
-double get_cost_value(rclcpp::Logger logger_, nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*>  collision_checker,
-                      tf2::Transform tf_robot,std::vector<geometry_msgs::msg::Point> footprint, bool rotation,
+double get_cost_value(nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*> & collision_checker,
+                      tf2::Transform tf_robot, const std::vector<geometry_msgs::msg::Point> & footprint, bool rotation,
                       double linear, double angular, double predict_time, int hz, double scale)
 {
-	(void) logger_;
 	double cost_value = 0.0;
 	double x,y,theta;
 	tf2::Transform tf_offset;
