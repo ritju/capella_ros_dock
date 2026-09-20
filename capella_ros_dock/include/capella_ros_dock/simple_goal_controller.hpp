@@ -178,22 +178,21 @@ void update_time_smart();
 void print_current_state_debug(const NavigateStates& state);
 
 // ---- 调试输出 helper: 收敛重复的调试打印, 便于阅读与统一修改 ----
-void log_collision_blocked(double cost_value) const;
 /// @brief 碰撞预测命中致命障碍时收尾: 记录日志, 置零速度轴, 必要时清理 local costmap
 /// @param zero_rotation true 置零 angular.z, false 置零 linear.x
 /// @return true 表示已阻塞, 调用方应立即 return servo_vel
 bool stop_for_collision(double cost_value, BehaviorsScheduler::optional_output_t & servo_vel, bool zero_rotation,
                         const rclcpp::Client<nav2_msgs::srv::ClearEntireCostmap>::SharedPtr & client_clear_entire_local_costmap);
-void log_collision_check_disabled() const;
-void log_need_check_collision(bool need_check_collision) const;
 void log_charger_relative_for_collision(double x_c2r, double yaw_c2r_abs) const;
-void log_predict_time(double predict_time) const;
-void log_motion_cmd(double linear_x, double angular_z) const;
-void log_delta_time() const;
-void log_robot_in_charger_frame() const;
+void log_robot_in_charger_frame(double x, double y, double yaw) const;
 void log_converged_3cond(double theta, double base_link_y, double distance_tmp) const;
 void log_goal_and_robot(const GoalPoint & gp, const tf2::Vector3 & position, double angle) const;
 void log_footprint_points(const std::vector<geometry_msgs::msg::Point> & footprint, double x, double y, double theta) const;
+void log_robot_charger_pose_in_map(double robot_x, double robot_y, double charger_x, double charger_y) const;
+void log_angle_to_charger_direction(double angle_robot, double angle_charger_to_robot, double dist_angle) const;
+void log_base_link_offset(double base_link_x, double base_link_y) const;
+void log_move_to_buffer_progress(double odom_linear_x, double dist_buffer_point, double dist_y, double robot_map_x, double robot_map_y) const;
+void log_angle_to_x_progress(double robot_yaw_map, double theta_charger_to_robot, double dist_yaw_map) const;
 
 // 保存充电桩在map下的位姿信息和机器人在map和充电桩下的位姿信息
 void save_all_poses_infos(tf2::Transform tf_robot_map, tf2::Transform tf_robot_charger, tf2::Transform tf_charger_map, bool sees_dock);
