@@ -333,7 +333,6 @@ void DockingBehavior::handle_dock_servo_accepted(
 	// Create new Docking state machine
 	running_dock_action_ = true;
 	running_undock_action_ = false;
-	b_timeout_current_state = false;
 	action_start_time_ = clock_->now();
 
 	const auto goal = goal_handle->get_goal();
@@ -462,6 +461,10 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_dock_servo(
 		robot_pose = last_robot_pose_;
 	}
 	// auto hazards = current_state.hazards;
+	// 状态机每 tick 输出的当前阶段与原因, 只在本次调用内使用
+	std::string state;
+	std::string infos;
+	bool b_timeout_current_state = false;
 	servo_cmd = goal_controller_->get_velocity_for_position(robot_pose, current_state.pose, current_state.charger_pose, sees_dock_, is_docked_,
 							bluetooth_connected,  odom_msg,  state, infos, b_timeout_current_state, 
 							footprint_collision_checker_, costmap2d_, footprint_base_, client_clear_entire_local_costmap_);
@@ -556,7 +559,6 @@ void DockingBehavior::handle_undock_accepted(
 		rclcpp_action::ServerGoalHandle<capella_ros_service_interfaces::action::Undock> > goal_handle)
 {
 	// Create new Docking Action
-	b_timeout_current_state = false;
 	running_undock_action_ = true;
 	running_dock_action_ = false;
 	action_start_time_ = clock_->now();
@@ -635,6 +637,10 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_undock(
 		robot_pose = last_robot_pose_;
 	}
 	// auto hazards = current_state.hazards;
+	// 状态机每 tick 输出的当前阶段与原因, 只在本次调用内使用
+	std::string state;
+	std::string infos;
+	bool b_timeout_current_state = false;
 	servo_cmd = goal_controller_->get_velocity_for_position(robot_pose, current_state.pose, current_state.charger_pose, sees_dock_,
 	                                                        is_docked_, bluetooth_connected, odom_msg,
 								state, infos, b_timeout_current_state, footprint_collision_checker_, costmap2d_,

@@ -182,11 +182,7 @@ std::string charger_id_;
 std::string protocol_;  // bluetooth protocol version from Dock goal (informational)
 tf2::Transform delta_offset_;
 aruco_msgs::msg::MarkerAndMacVector marker_and_mac_vector;
-bool bluetooth_connected{false};
-
-std::string state;
-std::string infos;
-bool b_timeout_current_state = false;
+std::atomic<bool> bluetooth_connected {false};
 
 int charger_contact_condition_type = 0; // default 0 => only use bluetooth data
 
