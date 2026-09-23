@@ -142,7 +142,10 @@ void SimpleGoalController::note_collision_blocked()
     if (last_collision_blocked_time_ >= 0.0) {
         const double dt = now - last_collision_blocked_time_;
         // 两次碰撞判定相隔超过 1s 视为不连续, 重新累计
-        collision_blocked_accum_ = (dt <= 1.0) ? (collision_blocked_accum_ + dt) : 0.0;
+        collision_blocked_accum_ = (dt <= 1.5) ? (collision_blocked_accum_ + dt) : 0.0;
+        if(dt <= 1.5) {
+            RCLCPP_INFO_THROTTLE(logger_, *clock_, 500, "collision block time ignored : %f", dt);
+        }
     }
     last_collision_blocked_time_ = now;
     if (collision_blocked_accum_ >= collision_blocked_report_delay_) {
@@ -221,9 +224,6 @@ double SimpleGoalController::collision_cost(nav2_costmap_2d::FootprintCollisionC
         cost_value = vel_linear;
     }
 
-    if (cost_value >= static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE)) {
-        note_collision_blocked();
-    }
     return cost_value;
 }
 
@@ -1670,6 +1670,7 @@ bool SimpleGoalController::stop_for_collision(double cost_value, BehaviorsSchedu
     {
         clear_local_costmap(client_clear_entire_local_costmap);
     }
+    note_collision_blocked();
     return true;
 }
 
