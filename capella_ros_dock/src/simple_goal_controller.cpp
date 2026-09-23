@@ -761,7 +761,8 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
             servo_vel->linear.x = translate_velocity;
             RCLCPP_DEBUG(logger_, "linear_x: %.2f, angular.z: %.2f", servo_vel->linear.x, servo_vel->angular.z);
 
-            if (params_ptr->garage_test && dist_buffer_point > 0.2)
+            //if (params_ptr->garage_test && dist_buffer_point > 0.2)
+            if (dist_buffer_point > 0.2)
             {
                 auto theta_buffer_point2_to_robot_current = std::atan2(robot_y_map_ - buffer_point2_y_map, robot_x_map_ - buffer_point2_x_map);
                 auto dist_buffer_point_yaw_now = angles::shortest_angular_distance(robot_yaw_map_, theta_buffer_point2_to_robot_current);
