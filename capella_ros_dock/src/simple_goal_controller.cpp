@@ -21,11 +21,6 @@ using namespace chrono_literals;
 namespace capella_ros_dock
 {
 
-// 碰撞预测检查: 不接触成员状态, 实现成本文件内部的自由函数, 供 collision_cost() 复用
-static double get_cost_value(nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*> & collision_checker,
-                      tf2::Transform tf_robot, const std::vector<geometry_msgs::msg::Point> & footprint, bool rotation,
-                      double linear, double angular, double predict_time, int hz, double scale);
-
 SimpleGoalController::SimpleGoalController(rclcpp::node_interfaces::NodeBaseInterface::SharedPtr node,
                      rclcpp::node_interfaces::NodeClockInterface::SharedPtr node_clock_interface,
                      rclcpp::node_interfaces::NodeLoggingInterface::SharedPtr node_logging_interface,
@@ -157,17 +152,81 @@ void SimpleGoalController::note_collision_blocked()
             "s, state: " + std::string(magic_enum::enum_name(current_state_).data()));
     }
 }
+
 double SimpleGoalController::collision_cost(nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*> & collision_checker,
                       tf2::Transform tf_robot, const std::vector<geometry_msgs::msg::Point> & footprint, bool rotation,
                       double linear, double angular, double predict_time, int hz, double scale)
 {
-    const double cost_value = get_cost_value(collision_checker, tf_robot, footprint, rotation,
-        linear, angular, predict_time, hz, scale);
+    double cost_value = 0.0;
+    double x,y,theta;
+    tf2::Transform tf_offset;
+    tf2::Transform tf_new;
+    tf_offset.setIdentity();
+    int counts_number = std::floor(predict_time * hz);
+
+    if (rotation)
+    {
+        double vel_angular = angular * scale;
+        tf2::Quaternion q;
+        for (int i = 0; i < counts_number; i++)
+        {
+            tf_offset.setOrigin(tf2::Vector3(0,0,0));
+            double yaw = 1.0 / hz * vel_angular * i;
+            q.setRPY(0, 0, yaw);
+            tf_offset.setRotation(q);
+            tf_new = tf_robot * tf_offset;
+            x = tf_new.getOrigin().getX();
+            y = tf_new.getOrigin().getY();
+            theta = tf2::getYaw(tf_new.getRotation());
+            // RCLCPP_DEBUG(logger_, "x: %.2f, y: %.2f, theta: %.2f", x, y, theta);
+            // RCLCPP_DEBUG(logger_,"base footprint");
+            // RCLCPP_DEBUG(logger_, "Point(%.2f, %.2f)", footprint[0].x, footprint[0].y);
+            // RCLCPP_DEBUG(logger_, "Point(%.2f, %.2f)", footprint[1].x, footprint[1].y);
+            // RCLCPP_DEBUG(logger_, "Point(%.2f, %.2f)", footprint[2].x, footprint[2].y);
+            // RCLCPP_DEBUG(logger_, "Point(%.2f, %.2f)", footprint[3].x, footprint[3].y);
+            double cost_value_tmp = collision_checker.footprintCostAtPose(x, y, theta, footprint);
+            // RCLCPP_DEBUG(logger_, "predict number %d cost_value: %.2f", i, cost_value_tmp);
+            cost_value = std::max(cost_value, cost_value_tmp);
+            if (cost_value >= static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE))
+            {
+                return cost_value;
+            }
+        }
+    }
+    else
+    {
+        double vel_linear = linear * scale;
+
+        for (int i = 0; i < counts_number; i++)
+        {
+            tf_offset.setOrigin(tf2::Vector3(1.0 / hz * vel_linear * i, 0.0, 0.0));
+            tf_new = tf_robot * tf_offset;
+            x = tf_new.getOrigin().getX();
+            y = tf_new.getOrigin().getY();
+            theta = tf2::getYaw(tf_new.getRotation());
+            // RCLCPP_DEBUG(logger_, "x: %.2f, y: %.2f, theta: %.2f", x, y, theta);
+            // RCLCPP_DEBUG(logger_,"base footprint");
+            // RCLCPP_DEBUG(logger_, "Point(%.2f, %.2f)", footprint[0].x, footprint[0].y);
+            // RCLCPP_DEBUG(logger_, "Point(%.2f, %.2f)", footprint[1].x, footprint[1].y);
+            // RCLCPP_DEBUG(logger_, "Point(%.2f, %.2f)", footprint[2].x, footprint[2].y);
+            // RCLCPP_DEBUG(logger_, "Point(%.2f, %.2f)", footprint[3].x, footprint[3].y);
+            double cost_value_tmp = collision_checker.footprintCostAtPose(x, y, theta, footprint);
+            // RCLCPP_DEBUG(logger_, "predict number %d cost_value: %.2f", i, cost_value_tmp);
+            cost_value = std::max(cost_value, cost_value_tmp);
+            if (cost_value >= static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE))
+            {
+                return cost_value;
+            }
+        }
+        cost_value = vel_linear;
+    }
+
     if (cost_value >= static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE)) {
         note_collision_blocked();
     }
     return cost_value;
 }
+
 BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_position(
     const tf2::Transform & current_pose, const tf2::Transform & robot_pose_map, const tf2::Transform & charger_pose_map, bool sees_dock, bool is_docked, bool bluetooth_connected,
     const nav_msgs::msg::Odometry & odom_msg, std::string & state, std::string & infos, bool& b_timeout_current_state,
@@ -780,6 +839,7 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
         {
             if (marker_visible_) // marker_visible: true
             {
+                marker_unseen_times = 0;
                 float distance_tmp = params_ptr->offset_last_docked_distance
                                     + params_ptr->offset_low_speed
                                     + params_ptr->offset_second_goal;
@@ -811,7 +871,16 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
             }
             else // marker_visible: false
             {
+                ++marker_unseen_times;
                 RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "current_ state: %s, can not see the marker, just waiting ...", magic_enum::enum_name(current_state_).data());
+                if (marker_unseen_times > 10)
+                {
+                    marker_unseen_times = 0;
+                    report_charge_error(
+                    capella_ros_dock_msgs::msg::ChargeErrorCode::MARKER_NOT_VISIBLE,
+                    "marker not visible: cannot see marker more than 10 times, state: " +
+                    std::string(magic_enum::enum_name(current_state_).data()));
+                }
                 return servo_vel;
             }
         }
@@ -1430,76 +1499,7 @@ double SimpleGoalController::get_cost_value_undock(rclcpp::Logger logger_,
     }
     return footprint_cost;
 }
-double get_cost_value(nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*> & collision_checker,
-                      tf2::Transform tf_robot, const std::vector<geometry_msgs::msg::Point> & footprint, bool rotation,
-                      double linear, double angular, double predict_time, int hz, double scale)
-{
-    double cost_value = 0.0;
-    double x,y,theta;
-    tf2::Transform tf_offset;
-    tf2::Transform tf_new;
-    tf_offset.setIdentity();
-    int counts_number = std::floor(predict_time * hz);
 
-    if (rotation)
-    {
-        double vel_angular = angular * scale;
-        tf2::Quaternion q;
-        for (int i = 0; i < counts_number; i++)
-        {
-            tf_offset.setOrigin(tf2::Vector3(0,0,0));
-            double yaw = 1.0 / hz * vel_angular * i;
-            q.setRPY(0, 0, yaw);
-            tf_offset.setRotation(q);
-            tf_new = tf_robot * tf_offset;
-            x = tf_new.getOrigin().getX();
-            y = tf_new.getOrigin().getY();
-            theta = tf2::getYaw(tf_new.getRotation());
-            // RCLCPP_DEBUG(logger_, "x: %.2f, y: %.2f, theta: %.2f", x, y, theta);
-            // RCLCPP_DEBUG(logger_,"base footprint");
-            // RCLCPP_DEBUG(logger_, "Point(%.2f, %.2f)", footprint[0].x, footprint[0].y);
-            // RCLCPP_DEBUG(logger_, "Point(%.2f, %.2f)", footprint[1].x, footprint[1].y);
-            // RCLCPP_DEBUG(logger_, "Point(%.2f, %.2f)", footprint[2].x, footprint[2].y);
-            // RCLCPP_DEBUG(logger_, "Point(%.2f, %.2f)", footprint[3].x, footprint[3].y);
-            double cost_value_tmp = collision_checker.footprintCostAtPose(x, y, theta, footprint);
-            // RCLCPP_DEBUG(logger_, "predict number %d cost_value: %.2f", i, cost_value_tmp);
-            cost_value = std::max(cost_value, cost_value_tmp);
-            if (cost_value >= static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE))
-            {
-                return cost_value;
-            }
-        }
-    }
-    else
-    {
-        double vel_linear = linear * scale;
-
-        for (int i = 0; i < counts_number; i++)
-        {
-            tf_offset.setOrigin(tf2::Vector3(1.0 / hz * vel_linear * i, 0.0, 0.0));
-            tf_new = tf_robot * tf_offset;
-            x = tf_new.getOrigin().getX();
-            y = tf_new.getOrigin().getY();
-            theta = tf2::getYaw(tf_new.getRotation());
-            // RCLCPP_DEBUG(logger_, "x: %.2f, y: %.2f, theta: %.2f", x, y, theta);
-            // RCLCPP_DEBUG(logger_,"base footprint");
-            // RCLCPP_DEBUG(logger_, "Point(%.2f, %.2f)", footprint[0].x, footprint[0].y);
-            // RCLCPP_DEBUG(logger_, "Point(%.2f, %.2f)", footprint[1].x, footprint[1].y);
-            // RCLCPP_DEBUG(logger_, "Point(%.2f, %.2f)", footprint[2].x, footprint[2].y);
-            // RCLCPP_DEBUG(logger_, "Point(%.2f, %.2f)", footprint[3].x, footprint[3].y);
-            double cost_value_tmp = collision_checker.footprintCostAtPose(x, y, theta, footprint);
-            // RCLCPP_DEBUG(logger_, "predict number %d cost_value: %.2f", i, cost_value_tmp);
-            cost_value = std::max(cost_value, cost_value_tmp);
-            if (cost_value >= static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE))
-            {
-                return cost_value;
-            }
-        }
-        cost_value = vel_linear;
-    }
-
-    return cost_value;
-}
 float SimpleGoalController::degree_to_radian(float degree)
 {
     return degree / 180.0 * M_PI;

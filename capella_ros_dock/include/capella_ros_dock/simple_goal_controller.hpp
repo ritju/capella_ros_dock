@@ -301,6 +301,8 @@ rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_undock_poin
 
 double buffer_point2_x_map, buffer_point2_y_map;
 
+int marker_unseen_times = 0;
+
 }; // end of class SimpleGoalController
 
 
