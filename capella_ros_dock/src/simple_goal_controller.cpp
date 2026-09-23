@@ -873,7 +873,7 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
             {
                 ++marker_unseen_times;
                 RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "current_ state: %s, can not see the marker, just waiting ...", magic_enum::enum_name(current_state_).data());
-                if (marker_unseen_times > 10)
+                if (marker_unseen_times > 180)
                 {
                     marker_unseen_times = 0;
                     report_charge_error(
