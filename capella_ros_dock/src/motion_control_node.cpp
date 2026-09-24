@@ -98,6 +98,8 @@ void MotionControlNode::init_params()
 	this->declare_parameter<float>("dock_valid_obstacle_x", 0.4);
 	this->declare_parameter<float>("time_sleep", 3.0);
 	this->declare_parameter<float>("marker_unseen_timeout", 18.0);
+	this->declare_parameter<float>("bluetooth_lost_report_delay", 15.0);
+	this->declare_parameter<float>("collision_blocked_report_delay", 30.0);
 	this->declare_parameter<float>("go_to_goal_rotation_min", 0.05);
 	this->declare_parameter<float>("go_to_goal_rotation_max", 0.10);
 	this->declare_parameter<float>("speed_rotation_acceleration", 0.20);
@@ -167,6 +169,8 @@ void MotionControlNode::init_params()
 	params.dock_valid_obstacle_x = this->get_parameter("dock_valid_obstacle_x").get_value<float>();
 	params.time_sleep = this->get_parameter("time_sleep").get_value<float>();
 	params.marker_unseen_timeout = this->get_parameter("marker_unseen_timeout").get_value<float>();
+	params.bluetooth_lost_report_delay = this->get_parameter("bluetooth_lost_report_delay").get_value<float>();
+	params.collision_blocked_report_delay = this->get_parameter("collision_blocked_report_delay").get_value<float>();
 	params.go_to_goal_rotation_min = this->get_parameter("go_to_goal_rotation_min").get_value<float>();
 	params.go_to_goal_rotation_max = this->get_parameter("go_to_goal_rotation_max").get_value<float>();
 	params.speed_rotation_acceleration = this->get_parameter("speed_rotation_acceleration").get_value<float>();

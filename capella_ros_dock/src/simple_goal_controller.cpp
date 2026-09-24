@@ -148,10 +148,10 @@ void SimpleGoalController::note_collision_blocked()
         }
     }
     last_collision_blocked_time_ = now;
-    if (collision_blocked_accum_ >= collision_blocked_report_delay_) {
+    if (collision_blocked_accum_ >= params_ptr->collision_blocked_report_delay) {
         report_charge_error(
             capella_ros_dock_msgs::msg::ChargeErrorCode::OBSTACLE,
-            "obstacle: collision blocked for more than " + std::to_string(static_cast<int>(collision_blocked_report_delay_)) +
+            "obstacle: collision blocked for more than " + std::to_string(static_cast<int>(params_ptr->collision_blocked_report_delay)) +
             "s, state: " + std::string(magic_enum::enum_name(current_state_).data()));
     }
 }
@@ -1070,11 +1070,11 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
                     // D3: 低速近桩阶段蓝牙丢失持续超过阈值, 判定蓝牙连接失败
                     if (bluetooth_lost_since_ < 0.0) {
                         bluetooth_lost_since_ = clock_->now().seconds();
-                    } else if (clock_->now().seconds() - bluetooth_lost_since_ >= bluetooth_lost_report_delay_) {
+                    } else if (clock_->now().seconds() - bluetooth_lost_since_ >= params_ptr->bluetooth_lost_report_delay) {
                         report_charge_error(
                             capella_ros_dock_msgs::msg::ChargeErrorCode::BLUETOOTH_CONNECT_ERROR,
                             "bluetooth connect error: bluetooth disconnected more than " +
-                            std::to_string(static_cast<int>(bluetooth_lost_report_delay_)) + "s in low speed mode");
+                            std::to_string(static_cast<int>(params_ptr->bluetooth_lost_report_delay)) + "s in low speed mode");
                     }
                     RCLCPP_INFO_THROTTLE(logger_, *clock_, 2000, "bluetooth disconnected, waiting ......");
                     RCLCPP_DEBUG(logger_, "bluetooth disconnected, waiting ......");
