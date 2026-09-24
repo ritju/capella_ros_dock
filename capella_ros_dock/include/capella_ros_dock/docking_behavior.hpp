@@ -155,6 +155,8 @@ double MAX_DOCK_INTERMEDIATE_GOAL_OFFSET {0.6};   // 0.5 + 0.1
 double UNDOCK_GOAL_OFFSET {0.5};
 rclcpp::Time last_feedback_time_;
 const rclcpp::Duration report_feedback_interval_ {std::chrono::seconds(1)};
+// 状态机停止输出速度指令的起始时刻(秒), <0 表示当前有指令; 用于收尾宽限期判定
+double no_servo_cmd_since_ {-1.0};
 capella_ros_msg::msg::Velocities raw_vel_msg;
 nav_msgs::msg::Odometry odom_msg;
 motion_control_params *params_ptr;

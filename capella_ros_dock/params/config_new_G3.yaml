@@ -36,6 +36,7 @@ motion_control:
     marker_unseen_timeout: 18.0      # 连续看不到码超过该秒数即上报 MARKER_NOT_VISIBLE (原 180 帧 @10Hz ≈ 18s)
     bluetooth_lost_report_delay: 15.0    # 低速近桩阶段蓝牙持续丢失超过该秒数即上报 BLUETOOTH_CONNECT_ERROR
     collision_blocked_report_delay: 30.0 # 持续被障碍物挡住超过该秒数即上报 OBSTACLE
+    abort_grace_time: 3.0                # 状态机停止输出速度指令后仍未被判定 docked 时的收尾宽限期(秒), 避免接触上报滞后被误判 NOT_IN_POSITION
     contacted_keep_move_time: 0.3    # 收到contact=true时，继续后退的时间，防止立马停下后contact状态变回false
     localization_converged_time: 3.0 # 首次识别到码坐标后，继续等待的时间，用于选择最优的坐标值  
 

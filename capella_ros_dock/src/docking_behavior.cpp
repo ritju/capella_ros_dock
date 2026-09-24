@@ -333,6 +333,7 @@ void DockingBehavior::handle_dock_servo_accepted(
 	// Create new Docking state machine
 	running_dock_action_ = true;
 	running_undock_action_ = false;
+	no_servo_cmd_since_ = -1.0;
 	action_start_time_ = clock_->now();
 
 	const auto goal = goal_handle->get_goal();
@@ -468,6 +469,14 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_dock_servo(
 	servo_cmd = goal_controller_->get_velocity_for_position(robot_pose, current_state.pose, current_state.charger_pose, sees_dock_, is_docked_,
 							bluetooth_connected,  odom_msg,  state, infos, b_timeout_current_state, 
 							footprint_collision_checker_, costmap2d_, footprint_base_, client_clear_entire_local_costmap_);
+	// 状态机首次停止输出速度指令的时刻, 供收尾宽限期判定
+	if (!servo_cmd) {
+		if (no_servo_cmd_since_ < 0.0) {
+			no_servo_cmd_since_ = clock_->now().seconds();
+		}
+	} else {
+		no_servo_cmd_since_ = -1.0;
+	}
 	if(this->is_docked_)
 	{
 		RCLCPP_DEBUG(logger_, "zero cmd time => sec: %f", this->clock_.get()->now().seconds());
@@ -503,6 +512,13 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_dock_servo(
 	{
 		if (!servo_cmd || exceeded_runtime) 
 		{
+			// 状态机已收尾但接触上报(is_docked_)可能尚未更新: 未超时且仍未判定 docked 时,
+			// 按宽限期继续等待(机器人保持停止), 避免本应成功的对接被误判为 NOT_IN_POSITION
+			if (!exceeded_runtime && !is_docked_ && no_servo_cmd_since_ >= 0.0 &&
+			    clock_->now().seconds() - no_servo_cmd_since_ < params_ptr->abort_grace_time)
+			{
+				return servo_cmd;
+			}
 			auto result = std::make_shared<capella_ros_dock_msgs::action::Dock::Result>();
 			if (is_docked_) {
 				result->is_docked = true;

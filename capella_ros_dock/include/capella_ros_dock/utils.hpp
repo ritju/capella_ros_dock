@@ -33,6 +33,7 @@ struct motion_control_params
 	float marker_unseen_timeout;
 	float bluetooth_lost_report_delay;
 	float collision_blocked_report_delay;
+	float abort_grace_time;
 	float go_to_goal_rotation_min;
 	float go_to_goal_rotation_max;
 	float speed_rotation_acceleration;
