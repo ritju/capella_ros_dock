@@ -301,7 +301,8 @@ rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_undock_poin
 
 double buffer_point2_x_map, buffer_point2_y_map;
 
-int marker_unseen_times = 0;
+// 连续看不到码的起始时刻(秒), <0 表示当前看得到码
+double marker_unseen_since_ = -1.0;
 
 }; // end of class SimpleGoalController
 

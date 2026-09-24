@@ -840,7 +840,7 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
         {
             if (marker_visible_) // marker_visible: true
             {
-                marker_unseen_times = 0;
+                marker_unseen_since_ = -1.0;
                 float distance_tmp = params_ptr->offset_last_docked_distance
                                     + params_ptr->offset_low_speed
                                     + params_ptr->offset_second_goal;
@@ -872,14 +872,18 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
             }
             else // marker_visible: false
             {
-                ++marker_unseen_times;
                 RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "current_ state: %s, can not see the marker, just waiting ...", magic_enum::enum_name(current_state_).data());
-                if (marker_unseen_times > 180)
+                if (marker_unseen_since_ < 0.0)
                 {
-                    marker_unseen_times = 0;
+                    marker_unseen_since_ = clock_->now().seconds();
+                }
+                else if (clock_->now().seconds() - marker_unseen_since_ >= params_ptr->marker_unseen_timeout)
+                {
+                    marker_unseen_since_ = -1.0;
                     report_charge_error(
                     capella_ros_dock_msgs::msg::ChargeErrorCode::MARKER_NOT_VISIBLE,
-                    "marker not visible: cannot see marker more than 10 times, state: " +
+                    "marker not visible: cannot see marker more than " +
+                    std::to_string(static_cast<int>(params_ptr->marker_unseen_timeout)) + "s, state: " +
                     std::string(magic_enum::enum_name(current_state_).data()));
                 }
                 return servo_vel;

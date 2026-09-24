@@ -30,6 +30,7 @@ struct motion_control_params
 	float marker_size;
 	float dock_valid_obstacle_x;
 	float time_sleep;
+	float marker_unseen_timeout;
 	float go_to_goal_rotation_min;
 	float go_to_goal_rotation_max;
 	float speed_rotation_acceleration;
