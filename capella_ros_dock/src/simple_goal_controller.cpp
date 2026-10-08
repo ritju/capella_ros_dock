@@ -114,10 +114,14 @@ void SimpleGoalController::initialize_goal(const CmdPath & cmd_path, const tf2::
     }
     delta_offset_ = delta;
     current_state_ = NavigateStates::INIT;
+    reset_run_state();
+}
+void SimpleGoalController::reset_run_state()
+{
     bluetooth_lost_since_ = -1.0;
     collision_blocked_accum_ = 0.0;
     last_collision_blocked_time_ = -1.0;
-    // 近桩蓝牙断开后重新 dock 时, 不能沿用上一次的运动/接触状态
+    // 近桩蓝牙断开后重新 dock 时, 不能沿用上一次的运动/接触/脱困状态
     pose_x_init_recoreded_ = false;
     pose_x_init_ = 0.0;
     drive_back = false;
@@ -138,20 +142,7 @@ void SimpleGoalController::reset()
 {
     const std::lock_guard<std::mutex> lock(mutex_);
     goal_points_.clear();
-    bluetooth_lost_since_ = -1.0;
-    collision_blocked_accum_ = 0.0;
-    last_collision_blocked_time_ = -1.0;
-    pose_x_init_recoreded_ = false;
-    pose_x_init_ = 0.0;
-    drive_back = false;
-    first_contacted = true;
-    first_cannot_see_dock = true;
-    need_get_outof_charger_range = false;
-    get_out_of_charger_range_completed = true;
-    marker_unseen_since_ = -1.0;
-    undocking = false;
-    undock_dis_moved_ = 0.0;
-    start_time_recorded = false;
+    reset_run_state();
 }
 void SimpleGoalController::set_charge_error_callback(std::function<void(uint16_t, const std::string &)> cb)
 {
@@ -319,16 +310,24 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
     if (sees_dock)
     {
         first_cannot_see_dock = true;
+        // 重新看到码则取消脱困, 避免已经能定位还在往外退
+        if (need_get_outof_charger_range)
+        {
+            need_get_outof_charger_range = false;
+            get_out_of_charger_range_completed = true;
+        }
     }
 
 
-    if ((current_state_ > NavigateStates::ANGLE_TO_X_POSITIVE_ORIENTATION) && need_get_outof_charger_range && (clock_->now().seconds() - last_time_cannot_see_dock.seconds()) < (params_ptr->time_sleep + 2))
+    // 脱困不限制 state: 近桩重启后 INIT/LOOKUP_MARKER 也可能需要脱困
+    if (need_get_outof_charger_range && (clock_->now().seconds() - last_time_cannot_see_dock.seconds()) < (params_ptr->time_sleep + 2))
     {
         servo_vel = geometry_msgs::msg::Twist();
-        servo_vel->linear.x = 0.15;
+        // 远离充电桩(充电枪在 x=0, 机器人多在 -x 侧): 背向桩时 +0.15, 面向桩时 -0.15
+        servo_vel->linear.x = -0.15 * std::copysign(1.0, std::cos(robot_yaw_charger_));
         state = std::string("get_outof_charger_range");
         infos = std::string("Reason: get_outof_charger_range executing ......");
-        RCLCPP_INFO_THROTTLE(logger_, *clock_, 400, "get_outof_charger_range executing");
+        RCLCPP_INFO_THROTTLE(logger_, *clock_, 400, "get_outof_charger_range executing, linear.x: %.2f", servo_vel->linear.x);
         return servo_vel;
     }
     if (((clock_->now().seconds() - last_time_cannot_see_dock.seconds()) > (params_ptr->time_sleep + 2)) && (!get_out_of_charger_range_completed))
@@ -501,6 +500,34 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
             log_angle_to_charger_direction(angle_robot, angle_charger_to_robot, dist_angle);
 
             start_time_recorded = false;
+
+            // 近桩重启/过近: 原地旋转既不安全也找不到码, 走脱困逻辑(与 state > ANGLE_TO_X 丢失码共用)
+            if (std::abs(current_position.getX()) < params_ptr->robot_rotate_radius)
+            {
+                if (first_cannot_see_dock)
+                {
+                    last_time_cannot_see_dock = clock_->now();
+                    first_cannot_see_dock = false;
+                }
+                now_time_cannot_see_dock = clock_->now();
+                if ((now_time_cannot_see_dock.seconds() - last_time_cannot_see_dock.seconds()) < params_ptr->time_sleep)
+                {
+                    servo_vel = geometry_msgs::msg::Twist();
+                    state = std::string("LOOKUP_MARKER");
+                    infos = std::string("Reason: cannot see marker and too close to charger, wait before get_outof_charger_range");
+                    return servo_vel;
+                }
+                need_get_outof_charger_range = true;
+                get_out_of_charger_range_completed = false;
+                RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000,
+                    "LOOKUP_MARKER: too close to charger (x=%.2f) and no marker, try get_outof_charger_range",
+                    current_position.getX());
+                servo_vel = geometry_msgs::msg::Twist();
+                state = std::string("LOOKUP_MARKER");
+                infos = std::string("Reason: cannot see marker and too close to charger ==> get_outof_charger_range");
+                return servo_vel;
+            }
+
             RCLCPP_DEBUG(logger_, "Need rotate robot for it can see the marker.");
 
             if (std::abs(dist_angle) > params_ptr->tolerance_angle)

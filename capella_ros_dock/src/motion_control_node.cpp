@@ -95,7 +95,7 @@ void MotionControlNode::init_params()
 	this->declare_parameter<std::string>("motion_control_log_level", "info");
 	this->declare_parameter<int>("cmd_vel_hz", 10);
 	this->declare_parameter<float>("marker_size", 0.2);
-	this->declare_parameter<float>("dock_valid_obstacle_x", 0.5);
+	this->declare_parameter<float>("dock_valid_obstacle_x", 0.4);
 	this->declare_parameter<float>("time_sleep", 3.0);
 	this->declare_parameter<float>("marker_unseen_timeout", 18.0);
 	this->declare_parameter<float>("bluetooth_lost_report_delay", 15.0);

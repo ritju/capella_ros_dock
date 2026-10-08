@@ -61,6 +61,9 @@ void initialize_goal(const CmdPath & cmd_path, const tf2::Transform& delta);
 /// \brief Clear goal
 void reset();
 
+/// \brief 清理单次 run 的运动/接触/脱困/平滑状态, initialize_goal 与 reset 共用
+void reset_run_state();
+
 // ---- /charge/error_info: dock 侧不可重试错误的判定与上报 ----
 // 由 DockingBehavior 注入: 只负责上报, 是否停止/收尾由上层(charge_manager/stop)决定
 std::function<void(uint16_t, const std::string &)> charge_error_callback_;
