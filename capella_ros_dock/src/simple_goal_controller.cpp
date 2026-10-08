@@ -318,7 +318,8 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
         }
     }
 
-    if (step_get_outof_charger_range(servo_vel, state, infos))
+    if (step_get_outof_charger_range(servo_vel, state, infos, robot_pose_map,
+                                     collision_checker, footprint_vec, client_clear_entire_local_costmap))
     {
         return servo_vel;
     }
@@ -1705,7 +1706,11 @@ void SimpleGoalController::print_current_state_debug(const NavigateStates& state
 }
 
 bool SimpleGoalController::step_get_outof_charger_range(
-    BehaviorsScheduler::optional_output_t & servo_vel, std::string & state, std::string & infos)
+    BehaviorsScheduler::optional_output_t & servo_vel, std::string & state, std::string & infos,
+    const tf2::Transform & robot_pose_map,
+    nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*> & collision_checker,
+    const std::vector<geometry_msgs::msg::Point> & footprint_vec,
+    const rclcpp::Client<nav2_msgs::srv::ClearEntireCostmap>::SharedPtr & client_clear_entire_local_costmap)
 {
     const double now = clock_->now().seconds();
     const double elapsed = now - last_time_cannot_see_dock.seconds();
@@ -1714,6 +1719,19 @@ bool SimpleGoalController::step_get_outof_charger_range(
         servo_vel = geometry_msgs::msg::Twist();
         // 远离充电桩(桩在 x=0, 机器人多在 -x 侧): 背向桩时 +0.15, 面向桩时 -0.15
         servo_vel->linear.x = -0.15 * std::copysign(1.0, std::cos(robot_yaw_charger_));
+        // 脱困前先做碰撞预测, 命中致命障碍则停车等待
+        if (params_ptr->collision_check)
+        {
+            const double cost_value = collision_cost(
+                collision_checker, robot_pose_map, footprint_vec, false, servo_vel->linear.x, 0.0,
+                params_ptr->collision_predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
+            if (stop_for_collision(cost_value, servo_vel, false, client_clear_entire_local_costmap))
+            {
+                state = std::string("get_outof_charger_range");
+                infos = std::string("Reason: get_outof_charger_range blocked by obstacle ==> stop");
+                return true;
+            }
+        }
         state = std::string("get_outof_charger_range");
         infos = std::string("Reason: get_outof_charger_range executing ......");
         RCLCPP_INFO_THROTTLE(logger_, *clock_, 400, "get_outof_charger_range executing, linear.x: %.2f", servo_vel->linear.x);

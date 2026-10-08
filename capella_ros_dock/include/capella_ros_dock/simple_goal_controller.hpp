@@ -179,10 +179,14 @@ void update_time_smart();
 void print_current_state_debug(const NavigateStates& state);
 
 // ---- 脱困(get_outof_charger_range) ----
-/// @brief 脱困执行与收尾(每 tick 入口处调用)
+/// @brief 脱困执行与收尾(每 tick 入口处调用), 输出速度前做碰撞预测
 /// @return true 表示已输出 servo_vel 或完成状态切换, 调用方应 return
 bool step_get_outof_charger_range(BehaviorsScheduler::optional_output_t & servo_vel,
-                                  std::string & state, std::string & infos);
+                                  std::string & state, std::string & infos,
+                                  const tf2::Transform & robot_pose_map,
+                                  nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*> & collision_checker,
+                                  const std::vector<geometry_msgs::msg::Point> & footprint_vec,
+                                  const rclcpp::Client<nav2_msgs::srv::ClearEntireCostmap>::SharedPtr & client_clear_entire_local_costmap);
 
 /// @brief 看不到码且离桩过近时的脱困启动: 维护等待计时, 超时后置位 need_get_outof
 /// @return true 表示已输出 servo_vel(等待中或已启动), 调用方应 return
