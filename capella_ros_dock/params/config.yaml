@@ -94,7 +94,7 @@ motion_control:
     # 碰撞参数
     collision_check: true        # 是否开启碰撞检测
     collision_predict_time: 5.0  # 碰撞检测预测时间
-    dock_valid_obstacle_x: 1.2   # 机器人距充电桩x距离（码坐标系下）小于这个阀值时不再进行碰撞检测
+    dock_valid_obstacle_x: 0.5   # 机器人距充电桩x距离（码坐标系下）小于该值才跳过碰撞检测(即将接触)。勿放大到 buffer/低速区, 否则近桩重启误动作无碰撞保护
 
     # undock参数
     undock_speed: 0.15     # undock的线速度

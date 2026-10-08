@@ -302,10 +302,11 @@ rclcpp_action::GoalResponse DockingBehavior::handle_dock_servo_goal(
 {
 	RCLCPP_INFO(logger_, "Received new dock servo goal");
 
-	// if (!docking_behavior_is_done()) {
-	// 	RCLCPP_WARN(logger_, "A docking behavior is already running, reject");
-	// 	return rclcpp_action::GoalResponse::REJECT;
-	// }
+	// cancel 已在 handle_dock_servo_cancel 立即清 running 标志, 因此 cancel→restart 不会被误拒
+	if (running_dock_action_ || running_undock_action_) {
+		RCLCPP_WARN(logger_, "A dock/undock behavior is already running, reject");
+		return rclcpp_action::GoalResponse::REJECT;
+	}
 
 	if (is_docked_) {
 		RCLCPP_WARN(logger_, "Robot already docked, reject");
@@ -320,9 +321,13 @@ rclcpp_action::GoalResponse DockingBehavior::handle_dock_servo_goal(
 
 rclcpp_action::CancelResponse DockingBehavior::handle_dock_servo_cancel(
 	const std::shared_ptr<
-		rclcpp_action::ServerGoalHandle<capella_ros_dock_msgs::action::Dock> >/*goal_handle*/)
+		rclcpp_action::ServerGoalHandle<capella_ros_dock_msgs::action::Dock> > /*goal_handle*/)
 {
 	RCLCPP_INFO(logger_, "Received request to cancel dock servo goal");
+	// Humble 下本回调在 _cancel_goal() 之前触发, 此处 is_canceling() 恒为 false, 不能在这里 canceled()。
+	// 只释放 running 标志: 1) cancel→restart 不被 overlap 守卫误拒
+	// 2) 真正的 canceled() 由 execute_dock_servo 下一 tick 或 cleanup_func(被替换时)完成
+	running_dock_action_ = false;
 	return rclcpp_action::CancelResponse::ACCEPT;
 }
 
@@ -412,6 +417,21 @@ void DockingBehavior::handle_dock_servo_accepted(
 	BehaviorsScheduler::BehaviorsData data;
 	data.run_func = std::bind(&DockingBehavior::execute_dock_servo, this, goal_handle, _1);
 	data.is_done_func = std::bind(&DockingBehavior::docking_behavior_is_done, this);
+	data.cleanup_func = [this, goal_handle]() {
+		// 只终结被替换的旧 goal, 不要动 goal_controller_/running 标志
+		// (新 goal 的 handle_accepted 已经写好这些状态, 在这里 reset 会把新 goal 打成 zombie)
+		if (goal_handle->is_canceling()) {
+			auto result = std::make_shared<capella_ros_dock_msgs::action::Dock::Result>();
+			result->is_docked = is_docked_;
+			result->code = capella_ros_dock_msgs::msg::ChargeErrorCode::CANCELLED;
+			goal_handle->canceled(result);
+		} else if (goal_handle->is_active()) {
+			auto result = std::make_shared<capella_ros_dock_msgs::action::Dock::Result>();
+			result->is_docked = is_docked_;
+			result->code = capella_ros_dock_msgs::msg::ChargeErrorCode::CANCELLED;
+			goal_handle->abort(result);
+		}
+	};
 	data.stop_on_new_behavior = true;
 	data.apply_backup_limits = false;
 
@@ -438,6 +458,11 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_dock_servo(
 {
 	this->tf_robot_map = current_state.pose;
 	BehaviorsScheduler::optional_output_t servo_cmd;
+	// goal 已在 cancel 回调里终结(或已被替换): 不要再 succeed/abort
+	if (!goal_handle->is_active()) {
+		running_dock_action_ = false;
+		return servo_cmd;
+	}
 	// Handle if goal is cancelling
 	if (goal_handle->is_canceling()) {
 		RCLCPP_INFO(logger_, "Cancelling the goal.");
@@ -554,8 +579,8 @@ rclcpp_action::GoalResponse DockingBehavior::handle_undock_goal(
 {
 	RCLCPP_INFO(logger_, "Received new undock goal");
 
-	if (!undocking_behavior_is_done()) {
-		RCLCPP_WARN(logger_, "An un_docking behavior is already running, reject");
+	if (running_dock_action_ || running_undock_action_) {
+		RCLCPP_WARN(logger_, "A dock/undock behavior is already running, reject");
 		return rclcpp_action::GoalResponse::REJECT;
 	}
 
@@ -564,9 +589,11 @@ rclcpp_action::GoalResponse DockingBehavior::handle_undock_goal(
 
 rclcpp_action::CancelResponse DockingBehavior::handle_undock_cancel(
 	const std::shared_ptr<
-		rclcpp_action::ServerGoalHandle<capella_ros_service_interfaces::action::Undock> >/*goal_handle*/)
+		rclcpp_action::ServerGoalHandle<capella_ros_service_interfaces::action::Undock> > /*goal_handle*/)
 {
 	RCLCPP_INFO(logger_, "Received request to cancel undock goal");
+	// 同 dock: 回调在 _cancel_goal() 前触发, 只释放标志, canceled() 由 execute/cleanup 完成
+	running_undock_action_ = false;
 	return rclcpp_action::CancelResponse::ACCEPT;
 }
 
@@ -610,6 +637,22 @@ void DockingBehavior::handle_undock_accepted(
 	BehaviorsScheduler::BehaviorsData data;
 	data.run_func = std::bind(&DockingBehavior::execute_undock, this, goal_handle, _1);
 	data.is_done_func = std::bind(&DockingBehavior::undocking_behavior_is_done, this);
+	data.cleanup_func = [this, goal_handle]() {
+		// 只终结被替换的旧 goal, 不碰新 goal 已写入的 controller/running 状态
+		if (goal_handle->is_canceling()) {
+			auto result = std::make_shared<capella_ros_service_interfaces::action::Undock::Result>();
+			result->is_docked = is_docked_;
+			result->sees_charger = sees_dock_;
+			result->success = false;
+			goal_handle->canceled(result);
+		} else if (goal_handle->is_active()) {
+			auto result = std::make_shared<capella_ros_service_interfaces::action::Undock::Result>();
+			result->is_docked = is_docked_;
+			result->sees_charger = sees_dock_;
+			result->success = false;
+			goal_handle->abort(result);
+		}
+	};
 	data.stop_on_new_behavior = true;
 	data.apply_backup_limits = false;
 
@@ -635,6 +678,10 @@ BehaviorsScheduler::optional_output_t DockingBehavior::execute_undock(
 {
 	this->tf_robot_map = current_state.pose;
 	BehaviorsScheduler::optional_output_t servo_cmd;
+	if (!goal_handle->is_active()) {
+		running_undock_action_ = false;
+		return BehaviorsScheduler::optional_output_t();
+	}
 	// Handle if goal is cancelling
 	if (goal_handle->is_canceling()) {
 		auto result = std::make_shared<capella_ros_service_interfaces::action::Undock::Result>();

@@ -117,6 +117,22 @@ void SimpleGoalController::initialize_goal(const CmdPath & cmd_path, const tf2::
     bluetooth_lost_since_ = -1.0;
     collision_blocked_accum_ = 0.0;
     last_collision_blocked_time_ = -1.0;
+    // 近桩蓝牙断开后重新 dock 时, 不能沿用上一次的运动/接触状态
+    pose_x_init_recoreded_ = false;
+    pose_x_init_ = 0.0;
+    drive_back = false;
+    first_contacted = true;
+    first_contacted_time = 0.0;
+    first_cannot_see_dock = true;
+    need_get_outof_charger_range = false;
+    get_out_of_charger_range_completed = true;
+    marker_unseen_since_ = -1.0;
+    undocking = false;
+    undock_dis_moved_ = 0.0;
+    start_time_recorded = false;
+    last_rotation_speed_ = 0.0f;
+    last_rotation_speed_time_ = 0.0;
+    first_pub_rotation_speed = true;
 }
 void SimpleGoalController::reset()
 {
@@ -125,6 +141,17 @@ void SimpleGoalController::reset()
     bluetooth_lost_since_ = -1.0;
     collision_blocked_accum_ = 0.0;
     last_collision_blocked_time_ = -1.0;
+    pose_x_init_recoreded_ = false;
+    pose_x_init_ = 0.0;
+    drive_back = false;
+    first_contacted = true;
+    first_cannot_see_dock = true;
+    need_get_outof_charger_range = false;
+    get_out_of_charger_range_completed = true;
+    marker_unseen_since_ = -1.0;
+    undocking = false;
+    undock_dis_moved_ = 0.0;
+    start_time_recorded = false;
 }
 void SimpleGoalController::set_charge_error_callback(std::function<void(uint16_t, const std::string &)> cb)
 {
@@ -560,14 +587,25 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
 
                     log_converged_3cond(theta, base_link_y, distance_tmp);
 
+                    // 已在 second_goal 以内(近桩重启/蓝牙断开后重进): 不要再走去 buffer 的回头路, 直接进 ANGLE_TO_GOAL
+                    const bool already_near_dock =
+                        std::abs(robot_x_charger_) <= (distance_tmp + params_ptr->deviate_second_goal_x);
+
                     if (theta < thre_angle_diff // 角度小于阀值
                         && std::abs(base_link_y) < params_ptr->base_link_y_thr // y坐标(左右)小于阀值
-                        && std::abs(robot_x_charger_) > (distance_tmp + params_ptr->deviate_second_goal_x))// x坐标(前后) > （second_goal + 阀值）                                                                                                                                                                                   // 0.7 <= 0.5 + 0.2(x_error)
+                        && !already_near_dock) // x坐标(前后) > （second_goal + 阀值）
                     {
                         RCLCPP_DEBUG(logger_, "robot change state to angle_to_goal");
                         change_state(current_state_, NavigateStates::ANGLE_TO_GOAL, clock_->now().seconds(), params_ptr->timeout_angle_to_goal);
                         state = std::string("LOOKUP_MARKER");
                         infos = std::string("Reason: robot's position converged ==> directly change state to ANGLE_TO_GOAL");
+                    }
+                    else if (already_near_dock)
+                    {
+                        RCLCPP_INFO(logger_, "robot already near dock (x=%.2f), skip buffer, go to ANGLE_TO_GOAL", robot_x_charger_);
+                        change_state(current_state_, NavigateStates::ANGLE_TO_GOAL, clock_->now().seconds(), params_ptr->timeout_angle_to_goal);
+                        state = std::string("LOOKUP_MARKER");
+                        infos = std::string("Reason: robot already near dock ==> skip buffer, change state to ANGLE_TO_GOAL");
                     }
                     else
                     {
@@ -576,8 +614,12 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
 
                         tf_before_angle_to_buffer_point = robot_pose_map;
 
-                        double buffer_goal_point_x_base_link = buffer_goal_point_x - params_ptr->base_link_dummy_dis;
-                        double buffer_goal_point_y_base_link = buffer_goal_point_y;
+                        // buffer 点与 base_link 使用同一套 yaw 约定, 避免 yaw≈π 时距离/角度算错
+                        const double yaw_c = robot_yaw_charger_;
+                        const double buffer_goal_point_x_base_link =
+                            buffer_goal_point_x - params_ptr->base_link_dummy_dis * std::cos(yaw_c);
+                        const double buffer_goal_point_y_base_link =
+                            buffer_goal_point_y - params_ptr->base_link_dummy_dis * std::sin(yaw_c);
                         RCLCPP_DEBUG(logger_, "buffer_goal_point_x_base_link: %.2f, buffer_goal_point_y_base_link: %.2f",
                             buffer_goal_point_x_base_link, buffer_goal_point_y_base_link);
 
@@ -590,6 +632,8 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
                                                                         buffer_goal_point_x_base_link - base_link_x);
 
                         // decide drive back or not
+                        // theta_positive: 倒车有效朝向(yaw+π)到 buffer 的角误差; theta_negative: 前进有效朝向(yaw)到 buffer 的角误差
+                        // 哪个误差小就用哪种行驶方式
                         robot_current_yaw = robot_yaw_charger_;
                         theta_positive = angles::shortest_angular_distance(
                             angles::normalize_angle(robot_current_yaw + M_PI),
@@ -598,12 +642,12 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
                                                                             robot_angle_to_buffer_point_yaw);
                         if (std::abs(theta_positive) < std::abs(theta_negative))
                         {
-                            drive_back = false;
+                            drive_back = true;
                             dist_buffer_point_yaw = theta_positive;
                         }
                         else
                         {
-                            drive_back = true;
+                            drive_back = false;
                             dist_buffer_point_yaw = theta_negative;
                         }
 
@@ -853,6 +897,9 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
 
                 log_converged_3cond(theta, base_link_y, distance_tmp);
 
+                const bool already_near_dock =
+                    std::abs(robot_x_charger_) <= (distance_tmp + params_ptr->deviate_second_goal_x);
+
                 if (theta < thre_angle_diff  // 角度小于阀值
                     && std::abs(base_link_y) < params_ptr->base_link_y_thr // y坐标(左右)小于阀值
                     && std::abs(robot_x_charger_) > (distance_tmp + params_ptr->deviate_second_goal_x)) // x坐标(前后) > （second_goal + 阀值）
@@ -861,6 +908,14 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
                     change_state(current_state_, NavigateStates::ANGLE_TO_GOAL, clock_->now().seconds(), params_ptr->timeout_angle_to_goal );
                     state = std::string("ANGLE_TO_X_POSITIVE_ORIENTATION => ANGLE_TO_GOAL");
                     infos = std::string("Reason: ANGLE_TO_X_POSITIVE_ORIENTATION converged ==> change state to ANGLE_TO_GOAL");
+                }
+                else if (already_near_dock)
+                {
+                    // 近桩重启: 不要再回 LOOKUP_MARKER 走 buffer, 直接 ANGLE_TO_GOAL
+                    RCLCPP_INFO(logger_, "already near dock (x=%.2f) ==> change state to ANGLE_TO_GOAL", robot_x_charger_);
+                    change_state(current_state_, NavigateStates::ANGLE_TO_GOAL, clock_->now().seconds(), params_ptr->timeout_angle_to_goal );
+                    state = std::string("ANGLE_TO_X_POSITIVE_ORIENTATION => ANGLE_TO_GOAL");
+                    infos = std::string("Reason: robot already near dock ==> skip buffer, change state to ANGLE_TO_GOAL");
                 }
                 else
                 {
@@ -983,6 +1038,19 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
 
         update_time_smart();
 
+        // 近桩重启时机器人可能已越过队列前部的中间点: 直接丢掉这些点, 不能一边弹点一边给前向速度
+        while (goal_points_.size() > 1)
+        {
+            const double goal_abs_x = std::abs(goal_points_.front().x);
+            if (std::abs(current_position.getX()) < goal_abs_x)
+            {
+                RCLCPP_DEBUG(logger_, "skip passed goal x=%.3f (robot x=%.3f)", goal_points_.front().x, current_position.getX());
+                goal_points_.pop_front();
+                continue;
+            }
+            break;
+        }
+
         GoalPoint gp = goal_points_.front();;
         if (goal_points_.size() > 1)
         {
@@ -1043,10 +1111,14 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
         }
 
         // If robot is close enough to goal, move to final stage
-        if (dist_to_goal < goal_points_.front().radius || std::abs(current_position.getX()) < std::abs(gp.x)) {
+        const bool already_past_goal = std::abs(current_position.getX()) < std::abs(gp.x);
+        if (dist_to_goal < goal_points_.front().radius || already_past_goal) {
             change_state(current_state_, NavigateStates::GOAL_ANGLE, clock_->now().seconds(), params_ptr->timeout_goal_angle );
             RCLCPP_DEBUG(logger_, " ******** change to state GOAL_ANGLE ******** ");
-            servo_vel->linear.x = gp.drive_backwards ? -translate_velocity : translate_velocity;
+            // 已越过目标点时不要再给前向速度, 否则近桩重启会一边弹点一边冲向桩
+            if (!already_past_goal) {
+                servo_vel->linear.x = gp.drive_backwards ? -translate_velocity : translate_velocity;
+            }
             RCLCPP_DEBUG(logger_, "linear_x: %.2f, angular.z: %.2f", servo_vel->linear.x, servo_vel->angular.z);
             state = std::string("GO_TO_GOAL_POSITION");
             infos = std::string("GO_TO_GOAL_POSITION converged ==> change state to GOAL_ANGLE");
