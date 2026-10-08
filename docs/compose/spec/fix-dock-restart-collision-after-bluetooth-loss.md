@@ -54,7 +54,7 @@ After `GO_TO_GOAL_POSITION` low-speed phase stops the robot due to Bluetooth los
 - Goals already behind the robot are skipped without translational velocity.
 - `initialize_goal` / `reset` both call `reset_run_state()` to clear per-run state.
 - New dock goal is rejected while another dock/undock behavior is active; cancel releases the running flag immediately; `cleanup_func` finalizes only the replaced goal handle.
-- `LOOKUP_MARKER` with `|x| < robot_rotate_radius` and no marker arms `need_get_outof_charger_range` (same escape as after `ANGLE_TO_X`); escape velocity sign follows `robot_yaw_charger_` so the robot moves away from the charger. Seeing the marker again cancels the escape.
+- `LOOKUP_MARKER` with `|x| < robot_rotate_radius` and no marker arms `need_get_outof_charger_range` (same escape as after `ANGLE_TO_X`); escape velocity sign follows `robot_yaw_charger_` so the robot moves away from the charger. Seeing the marker again cancels the escape. Escape motion runs footprint collision prediction first and stops on lethal cost.
 
 ## [S3] Out of Scope
 
