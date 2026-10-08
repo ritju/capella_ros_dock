@@ -178,6 +178,17 @@ void update_time_smart();
 
 void print_current_state_debug(const NavigateStates& state);
 
+// ---- 脱困(get_outof_charger_range) ----
+/// @brief 脱困执行与收尾(每 tick 入口处调用)
+/// @return true 表示已输出 servo_vel 或完成状态切换, 调用方应 return
+bool step_get_outof_charger_range(BehaviorsScheduler::optional_output_t & servo_vel,
+                                  std::string & state, std::string & infos);
+
+/// @brief 看不到码且离桩过近时的脱困启动: 维护等待计时, 超时后置位 need_get_outof
+/// @return true 表示已输出 servo_vel(等待中或已启动), 调用方应 return
+bool try_start_get_outof_charger_range(BehaviorsScheduler::optional_output_t & servo_vel,
+                                       std::string & state, std::string & infos);
+
 // ---- 调试输出 helper: 收敛重复的调试打印, 便于阅读与统一修改 ----
 /// @brief 碰撞预测命中致命障碍时收尾: 记录日志, 置零速度轴, 必要时清理 local costmap
 /// @param zero_rotation true 置零 angular.z, false 置零 linear.x

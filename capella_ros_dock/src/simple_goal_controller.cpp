@@ -318,72 +318,43 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
         }
     }
 
-
-    // 脱困不限制 state: 近桩重启后 INIT/LOOKUP_MARKER 也可能需要脱困
-    if (need_get_outof_charger_range && (clock_->now().seconds() - last_time_cannot_see_dock.seconds()) < (params_ptr->time_sleep + 2))
+    if (step_get_outof_charger_range(servo_vel, state, infos))
     {
-        servo_vel = geometry_msgs::msg::Twist();
-        // 远离充电桩(充电枪在 x=0, 机器人多在 -x 侧): 背向桩时 +0.15, 面向桩时 -0.15
-        servo_vel->linear.x = -0.15 * std::copysign(1.0, std::cos(robot_yaw_charger_));
-        state = std::string("get_outof_charger_range");
-        infos = std::string("Reason: get_outof_charger_range executing ......");
-        RCLCPP_INFO_THROTTLE(logger_, *clock_, 400, "get_outof_charger_range executing, linear.x: %.2f", servo_vel->linear.x);
-        return servo_vel;
-    }
-    if (((clock_->now().seconds() - last_time_cannot_see_dock.seconds()) > (params_ptr->time_sleep + 2)) && (!get_out_of_charger_range_completed))
-    {
-        need_get_outof_charger_range = false;
-        get_out_of_charger_range_completed = true;
-        change_state(current_state_, NavigateStates::ANGLE_TO_X_POSITIVE_ORIENTATION, clock_->now().seconds(), params_ptr->timeout_angle_to_x_positive_orientation);
-        servo_vel = geometry_msgs::msg::Twist();
-        RCLCPP_INFO(logger_, "get_outof_charge_range completed");
-        state = std::string(" get_outof_charge_range completed");
-        infos = std::string("Reason: get_outof_charger_range completed, go to state ANGLE_TO_X_POSITIVE_ORIENTATION");
         return servo_vel;
     }
 
     if(!sees_dock && current_state_ > NavigateStates::ANGLE_TO_X_POSITIVE_ORIENTATION && !undocking)
     {
-        if (first_cannot_see_dock)
+        if (std::abs(current_position.getX()) > params_ptr->robot_rotate_radius)
         {
-            last_time_cannot_see_dock = clock_->now();
-            first_cannot_see_dock = false;
-        }
-        now_time_cannot_see_dock = clock_->now();
-        if ((now_time_cannot_see_dock.seconds() - last_time_cannot_see_dock.seconds()) < params_ptr->time_sleep)
-        {
+            // 旋转半径外: 等待 time_sleep 后判定标靶不可见并回到 ANGLE_TO_X
+            if (first_cannot_see_dock)
+            {
+                last_time_cannot_see_dock = clock_->now();
+                first_cannot_see_dock = false;
+            }
+            now_time_cannot_see_dock = clock_->now();
+            if ((now_time_cannot_see_dock.seconds() - last_time_cannot_see_dock.seconds()) < params_ptr->time_sleep)
+            {
+                servo_vel = geometry_msgs::msg::Twist();
+                state = std::string(" > ANGLE_TO_X_POSITIVE_ORIENTATION");
+                infos = std::string("Reason: cannot see dock and navigate_state > ANGLE_TO_X_POSITIVE_ORIENTATION and stop time < time_sleep(default 5s) ==> stop");
+                return servo_vel;
+            }
+            // D1: 超过 time_sleep 仍看不到标靶且已在旋转半径外, 判定标靶不可见
+            report_charge_error(
+                capella_ros_dock_msgs::msg::ChargeErrorCode::MARKER_NOT_VISIBLE,
+                "marker not visible: cannot see marker more than time_sleep and robot.x > robot_rotate_radius, state: " +
+                std::string(magic_enum::enum_name(current_state_).data()));
+            change_state(current_state_, NavigateStates::ANGLE_TO_X_POSITIVE_ORIENTATION, clock_->now().seconds(), params_ptr->timeout_angle_to_x_positive_orientation);
             servo_vel = geometry_msgs::msg::Twist();
             state = std::string(" > ANGLE_TO_X_POSITIVE_ORIENTATION");
-            infos = std::string("Reason: cannot see dock and navigate_state > ANGLE_TO_X_POSITIVE_ORIENTATION and stop time < time_sleep(default 5s) ==> stop");
+            infos = std::string("Reason: can not see marker more than time_sleep(default 5s) and navigate_state > ANGLE_TO_X_POSITIVE_ORIENTATION and robot.x > param robot_rotate_radius  ==> stop, change state to ANGLE_TO_X_POSITIVE_ORIENTATION");
             return servo_vel;
         }
-        else
-        {
-            // RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "stop until can see dock.");
-            if (std::abs(current_position.getX()) > params_ptr->robot_rotate_radius)
-            {
-                // D1: 超过 time_sleep 仍看不到标靶且已在旋转半径外, 判定标靶不可见
-                report_charge_error(
-                    capella_ros_dock_msgs::msg::ChargeErrorCode::MARKER_NOT_VISIBLE,
-                    "marker not visible: cannot see marker more than time_sleep and robot.x > robot_rotate_radius, state: " +
-                    std::string(magic_enum::enum_name(current_state_).data()));
-                change_state(current_state_, NavigateStates::ANGLE_TO_X_POSITIVE_ORIENTATION, clock_->now().seconds(), params_ptr->timeout_angle_to_x_positive_orientation);
-                servo_vel = geometry_msgs::msg::Twist();
-                state = std::string(" > ANGLE_TO_X_POSITIVE_ORIENTATION");
-                infos = std::string("Reason: can not see marker more than time_sleep(default 5s) and navigate_state > ANGLE_TO_X_POSITIVE_ORIENTATION and robot.x > param robot_rotate_radius  ==> stop, change state to ANGLE_TO_X_POSITIVE_ORIENTATION");
-                return servo_vel;
-            }
-            else
-            {
-                need_get_outof_charger_range = true;
-                get_out_of_charger_range_completed = false;
-                RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "robot cann't see the charger,but it is too linear to the charger , try to get robot out of charger range......");
-                servo_vel = geometry_msgs::msg::Twist();
-                state = std::string(" > ANGLE_TO_X_POSITIVE_ORIENTATION");
-                infos = std::string("Reason: can not see marker more than time_sleep(default 5s) and navigate_state > ANGLE_TO_X_POSITIVE_ORIENTATION and robot.x < param robot_rotate_radius  ==> stop and try to get robot out of charger range......");
-                return servo_vel;
-            }
-        }
+        // 过近: 走脱困启动流程
+        try_start_get_outof_charger_range(servo_vel, state, infos);
+        return servo_vel;
     }
 
     // Generate velocity based on current position and next goal point looking for convergence
@@ -501,30 +472,10 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
 
             start_time_recorded = false;
 
-            // 近桩重启/过近: 原地旋转既不安全也找不到码, 走脱困逻辑(与 state > ANGLE_TO_X 丢失码共用)
+            // 近桩重启/过近: 原地旋转既不安全也找不到码, 走脱困启动流程
             if (std::abs(current_position.getX()) < params_ptr->robot_rotate_radius)
             {
-                if (first_cannot_see_dock)
-                {
-                    last_time_cannot_see_dock = clock_->now();
-                    first_cannot_see_dock = false;
-                }
-                now_time_cannot_see_dock = clock_->now();
-                if ((now_time_cannot_see_dock.seconds() - last_time_cannot_see_dock.seconds()) < params_ptr->time_sleep)
-                {
-                    servo_vel = geometry_msgs::msg::Twist();
-                    state = std::string("LOOKUP_MARKER");
-                    infos = std::string("Reason: cannot see marker and too close to charger, wait before get_outof_charger_range");
-                    return servo_vel;
-                }
-                need_get_outof_charger_range = true;
-                get_out_of_charger_range_completed = false;
-                RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000,
-                    "LOOKUP_MARKER: too close to charger (x=%.2f) and no marker, try get_outof_charger_range",
-                    current_position.getX());
-                servo_vel = geometry_msgs::msg::Twist();
-                state = std::string("LOOKUP_MARKER");
-                infos = std::string("Reason: cannot see marker and too close to charger ==> get_outof_charger_range");
+                try_start_get_outof_charger_range(servo_vel, state, infos);
                 return servo_vel;
             }
 
@@ -1751,6 +1702,61 @@ void SimpleGoalController::update_time_smart()
 void SimpleGoalController::print_current_state_debug(const NavigateStates& state)
 {
     RCLCPP_DEBUG(logger_, "--------------- %s ---------------", magic_enum::enum_name(state).data());
+}
+
+bool SimpleGoalController::step_get_outof_charger_range(
+    BehaviorsScheduler::optional_output_t & servo_vel, std::string & state, std::string & infos)
+{
+    const double now = clock_->now().seconds();
+    const double elapsed = now - last_time_cannot_see_dock.seconds();
+    if (need_get_outof_charger_range && elapsed < (params_ptr->time_sleep + 2))
+    {
+        servo_vel = geometry_msgs::msg::Twist();
+        // 远离充电桩(桩在 x=0, 机器人多在 -x 侧): 背向桩时 +0.15, 面向桩时 -0.15
+        servo_vel->linear.x = -0.15 * std::copysign(1.0, std::cos(robot_yaw_charger_));
+        state = std::string("get_outof_charger_range");
+        infos = std::string("Reason: get_outof_charger_range executing ......");
+        RCLCPP_INFO_THROTTLE(logger_, *clock_, 400, "get_outof_charger_range executing, linear.x: %.2f", servo_vel->linear.x);
+        return true;
+    }
+    if (elapsed > (params_ptr->time_sleep + 2) && !get_out_of_charger_range_completed)
+    {
+        need_get_outof_charger_range = false;
+        get_out_of_charger_range_completed = true;
+        change_state(current_state_, NavigateStates::ANGLE_TO_X_POSITIVE_ORIENTATION, clock_->now().seconds(), params_ptr->timeout_angle_to_x_positive_orientation);
+        servo_vel = geometry_msgs::msg::Twist();
+        RCLCPP_INFO(logger_, "get_outof_charge_range completed");
+        state = std::string(" get_outof_charge_range completed");
+        infos = std::string("Reason: get_outof_charger_range completed, go to state ANGLE_TO_X_POSITIVE_ORIENTATION");
+        return true;
+    }
+    return false;
+}
+
+bool SimpleGoalController::try_start_get_outof_charger_range(
+    BehaviorsScheduler::optional_output_t & servo_vel, std::string & state, std::string & infos)
+{
+    if (first_cannot_see_dock)
+    {
+        last_time_cannot_see_dock = clock_->now();
+        first_cannot_see_dock = false;
+    }
+    now_time_cannot_see_dock = clock_->now();
+    if ((now_time_cannot_see_dock.seconds() - last_time_cannot_see_dock.seconds()) < params_ptr->time_sleep)
+    {
+        servo_vel = geometry_msgs::msg::Twist();
+        state = std::string(magic_enum::enum_name(current_state_).data());
+        infos = std::string("Reason: cannot see marker and too close to charger, wait before get_outof_charger_range");
+        return true;
+    }
+    need_get_outof_charger_range = true;
+    get_out_of_charger_range_completed = false;
+    RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000,
+        "too close to charger (x=%.2f) and no marker, try get_outof_charger_range", robot_x_charger_);
+    servo_vel = geometry_msgs::msg::Twist();
+    state = std::string(magic_enum::enum_name(current_state_).data());
+    infos = std::string("Reason: cannot see marker and too close to charger ==> get_outof_charger_range");
+    return true;
 }
 
 bool SimpleGoalController::stop_for_collision(double cost_value, BehaviorsScheduler::optional_output_t & servo_vel, bool zero_rotation,
