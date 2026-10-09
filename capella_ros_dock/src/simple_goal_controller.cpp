@@ -1021,7 +1021,7 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
         while (goal_points_.size() > 1)
         {
             const double goal_abs_x = std::abs(goal_points_.front().x);
-            if (std::abs(current_position.getX()) < goal_abs_x)
+            if (std::abs(current_position.getX()) + 0.1 < goal_abs_x)
             {
                 RCLCPP_DEBUG(logger_, "skip passed goal x=%.3f (robot x=%.3f)", goal_points_.front().x, current_position.getX());
                 goal_points_.pop_front();
