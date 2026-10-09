@@ -982,6 +982,18 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
         }
 
         update_time_smart();
+        // 近桩重启时机器人可能已越过队列前部的中间点: 直接丢掉这些点, 不能一边弹点一边给前向速度
+        while (goal_points_.size() > 2)
+        {
+            const double goal_abs_x = std::abs(goal_points_.front().x);
+            if (std::abs(current_position.getX()) + 0.1 < goal_abs_x)
+            {
+                RCLCPP_DEBUG(logger_, "skip passed goal x=%.3f (robot x=%.3f)", goal_points_.front().x, current_position.getX());
+                goal_points_.pop_front();
+                continue;
+            }
+            break;
+        }
 
         GoalPoint gp = goal_points_.front();;
         if (goal_points_.size() > 1)
@@ -1075,12 +1087,14 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
                             capella_ros_dock_msgs::msg::ChargeErrorCode::BLUETOOTH_CONNECT_ERROR,
                             "bluetooth connect error: bluetooth disconnected more than " +
                             std::to_string(static_cast<int>(params_ptr->bluetooth_lost_report_delay)) + "s in low speed mode");
+                        change_state(current_state_, NavigateStates::INIT, clock_->now().seconds(), 1.0);
+                        return servo_vel;
                     }
                     RCLCPP_INFO_THROTTLE(logger_, *clock_, 2000, "bluetooth disconnected, waiting ......");
                     RCLCPP_DEBUG(logger_, "bluetooth disconnected, waiting ......");
                     state = std::string("GO_TO_GOAL_POSITION");
                     infos = std::string("Reason: bluetooth disconnected ==> stop");
-                    break;
+                    return servo_vel;
                 }
                 bluetooth_lost_since_ = -1.0;
 
