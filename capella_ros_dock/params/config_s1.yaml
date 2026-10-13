@@ -69,7 +69,8 @@ motion_control:
     dist_error_y_1: 0.05       # 判断能否切换到GO_TO_GOAL_POSITION的条件，机器人距目标点很近时，只要y坐标接近中轴线就切换状态到GO_TO_GOAL_POSITION
     base_link_y_thr: 0.08      # 判断能否切换到ANGLE_TO_GOAL状态的条件二，机器人位姿左右偏差最大值(条件一是机器人坐标x,y到目标点的最大角度)
     deviate_second_goal_x: 0.1 # 判断能否切换到ANGLE_TO_GOAL状态的条件三，机器人位姿前后距second_goal偏差最大值
-    go_to_goal_apply_rotation_angle: 0.01   # go_to_goal_position 过程中需要增加角速度调整的阀值  last_goal_angle_to_x_positive_dis: 0.05 # 机器人马上对接上时强制回正的阀值，距上次对接上时的x轴坐标的最大距离
+    go_to_goal_apply_rotation_angle: 0.01   # go_to_goal_position 过程中需要增加角速度调整的阀值  
+    last_goal_angle_to_x_positive_dis: 0.05 # 机器人马上对接上时强制回正的阀值，距上次对接上时的x轴坐标的最大距离
     last_goal_angle_to_x_positive_y: 0.01   # 机器人马上对接上时强制回正的阀值，距上次对接上时的y轴坐标的最大距离
     robot_rotate_radius: 1.25               # 机器人后退过程中看不到码时，判断机器人在原地能安全地通过旋转切换到ANGLE_TO_X_POSITIVE_ORIENTATION状态的最小半径
 

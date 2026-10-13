@@ -92,6 +92,7 @@ void SimpleGoalController::init(motion_control_params* params_ptr)
     float x2 = d1 * tan_alpha - d3;
     float beta_plus_theta = std::acos(x1 / r);
     float beta = std::acos(x2 / r);
+    //近距离下保持marker始终在视野范围内的阈值
     thre_angle_diff = beta_plus_theta - beta;
     RCLCPP_INFO(rclcpp::get_logger("simple_goal_controller"), "r: %.2f, x1: %.2f, x2: %.2f, beta_plus_theta: %.2f, beta: %.2f", r, x1, x2, beta_plus_theta, beta);
     RCLCPP_INFO(rclcpp::get_logger("simple_goal_controller"), "thre_angle_diff: %.2f", thre_angle_diff);
@@ -479,6 +480,8 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
             if (std::abs(dist_angle) > params_ptr->tolerance_angle)
             {
                 double dist_angle_copy = dist_angle;
+
+                //TODO: 距离较近时, 旋转角度是否可能不足
                 bound_rotation(dist_angle_copy, params_ptr->min_rotation, params_ptr->max_rotation);
                 servo_vel->angular.z = dist_angle_copy;
                 RCLCPP_DEBUG(logger_, "linear_x: %.2f, angular.z: %.2f", servo_vel->linear.x, servo_vel->angular.z);
@@ -642,6 +645,8 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
         RCLCPP_DEBUG(logger_, "angular.z: %.2f", odom_msg.twist.twist.angular.z);
         RCLCPP_DEBUG(logger_, "delta_angular: %.2f", odom_msg.twist.twist.angular.z * delta_time_);
         RCLCPP_DEBUG(logger_, "dist_buffer_point_yaw pre: %.2f", dist_buffer_point_yaw);
+
+        //TODO: 直接用历史数据得到的旋转角度而不加验证是否会出问题
         dist_buffer_point_yaw -= odom_msg.twist.twist.angular.z * delta_time_;
         robot_current_yaw += odom_msg.twist.twist.angular.z * delta_time_;
         RCLCPP_DEBUG(logger_, "dist_buffer_point_yaw now: %.2f", dist_buffer_point_yaw);
@@ -666,7 +671,6 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
             y = robot_pose_map.getOrigin().getY();
             theta = tf2::getYaw(robot_pose_map.getRotation());
             double cost = collision_checker.footprintCostAtPose(x, y, theta, footprint_vec);
-            // double cost = collision_checker.footprintCost(footprint_vec);
             log_footprint_points(footprint_vec, x, y, theta);
             if ((cost >= static_cast<double>(nav2_costmap_2d::LETHAL_OBSTACLE)) && params_ptr->collision_check)
             {
@@ -729,6 +733,7 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
 
         update_time_smart();
 
+        //在INIT 或 lookup_marker中设置
         dist_buffer_point -= delta_time_ * std::abs(odom_msg.twist.twist.linear.x);
         double dist_y = dist_buffer_point;
         log_move_to_buffer_progress(odom_msg.twist.twist.linear.x, dist_buffer_point, dist_y,
@@ -838,7 +843,7 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
 
         if(std::abs(dist_yaw_map) < params_ptr->tolerance_angle)
         {
-            if (marker_visible_) // marker_visible: true
+            if (marker_visible_)
             {
                 marker_unseen_since_ = -1.0;
                 float distance_tmp = params_ptr->offset_last_docked_distance
@@ -872,6 +877,7 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
             }
             else // marker_visible: false
             {
+                // 应当能看到marker却看不到, 等待marker
                 RCLCPP_INFO_THROTTLE(logger_, *clock_, 1000, "current_ state: %s, can not see the marker, just waiting ...", magic_enum::enum_name(current_state_).data());
                 if (marker_unseen_since_ < 0.0)
                 {
@@ -930,6 +936,19 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
 
         update_time_smart();
 
+        // 近桩重启时机器人可能已越过队列前部的中间点: 直接丢掉这些点, 不能一边弹点一边给前向速度
+        while (goal_points_.size() > 2)
+        {
+            const double goal_abs_x = std::abs(goal_points_.front().x);
+            if (std::abs(current_position.getX()) + 0.1 < goal_abs_x)
+            {
+                RCLCPP_DEBUG(logger_, "skip passed goal x=%.3f (robot x=%.3f)", goal_points_.front().x, current_position.getX());
+                goal_points_.pop_front();
+                continue;
+            }
+            break;
+        }
+
         const GoalPoint & gp = goal_points_.front();
 
         log_goal_and_robot(gp, current_position, current_angle);
@@ -940,6 +959,7 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
         delta_x = std::abs(gp.x - current_position.getX());
         double dist_to_goal = std::hypot(delta_x, delta_y);
         if (dist_to_goal <= gp.radius || delta_y < params_ptr->dist_error_y_1) {
+            // 即使足够接近, 也可能存在角度偏差, 不修正直接对接是否合理?
             servo_vel = geometry_msgs::msg::Twist();
             change_state(current_state_, NavigateStates::GO_TO_GOAL_POSITION, clock_->now().seconds(), params_ptr->timeout_go_to_goal_position );
             pose_x_init_recoreded_ = false;
@@ -954,8 +974,8 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
             bound_rotation(ang, 0.05, 0.10);
             RCLCPP_DEBUG(logger_, "bound angle: %.2f", ang);
             servo_vel = geometry_msgs::msg::Twist();
-            // fix bug when robot had angle to marker but y coord error or odom data error,  10 degree(0.174533)
-            if (std::abs(ang_save) < params_ptr->angle_to_goal_angle_converged || (sees_dock && std::abs(std::abs(current_angle) - M_PI) <  0.174533)) {
+            // fix bug when robot had angle to marker but y coord error or odom data error,  7 degree
+            if (std::abs(ang_save) < params_ptr->angle_to_goal_angle_converged || (sees_dock && std::abs(std::abs(current_angle) - M_PI) <  0.122173)) {
                 change_state(current_state_, NavigateStates::GO_TO_GOAL_POSITION, clock_->now().seconds(), params_ptr->timeout_go_to_goal_position );
                 pose_x_init_recoreded_ = false;
                 RCLCPP_DEBUG(logger_, " ******** change to state GO_TO_GOAL_POSITION ******** ");
@@ -982,18 +1002,6 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
         }
 
         update_time_smart();
-        // 近桩重启时机器人可能已越过队列前部的中间点: 直接丢掉这些点, 不能一边弹点一边给前向速度
-        while (goal_points_.size() > 2)
-        {
-            const double goal_abs_x = std::abs(goal_points_.front().x);
-            if (std::abs(current_position.getX()) + 0.1 < goal_abs_x)
-            {
-                RCLCPP_DEBUG(logger_, "skip passed goal x=%.3f (robot x=%.3f)", goal_points_.front().x, current_position.getX());
-                goal_points_.pop_front();
-                continue;
-            }
-            break;
-        }
 
         GoalPoint gp = goal_points_.front();;
         if (goal_points_.size() > 1)
@@ -1066,9 +1074,6 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
         }
         else
         {
-            // only use low speed for test
-            // translate_velocity = params_ptr->go_to_goal_translation_min;
-
             if (gp.drive_backwards) {
                 translate_velocity *= -1;
             }

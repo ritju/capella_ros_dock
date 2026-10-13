@@ -7,3 +7,4 @@ cyclonedds.log
 .env
 NCOLCON_IGNORE
 .qwen
+.mimocode
