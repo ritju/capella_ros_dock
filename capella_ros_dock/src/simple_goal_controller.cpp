@@ -936,19 +936,6 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
 
         update_time_smart();
 
-        // 近桩重启时机器人可能已越过队列前部的中间点: 直接丢掉这些点, 不能一边弹点一边给前向速度
-        while (goal_points_.size() > 2)
-        {
-            const double goal_abs_x = std::abs(goal_points_.front().x);
-            if (std::abs(current_position.getX()) + 0.1 < goal_abs_x)
-            {
-                RCLCPP_DEBUG(logger_, "skip passed goal x=%.3f (robot x=%.3f)", goal_points_.front().x, current_position.getX());
-                goal_points_.pop_front();
-                continue;
-            }
-            break;
-        }
-
         const GoalPoint & gp = goal_points_.front();
 
         log_goal_and_robot(gp, current_position, current_angle);
@@ -974,8 +961,8 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
             bound_rotation(ang, 0.05, 0.10);
             RCLCPP_DEBUG(logger_, "bound angle: %.2f", ang);
             servo_vel = geometry_msgs::msg::Twist();
-            // fix bug when robot had angle to marker but y coord error or odom data error,  7 degree
-            if (std::abs(ang_save) < params_ptr->angle_to_goal_angle_converged || (sees_dock && std::abs(std::abs(current_angle) - M_PI) <  0.122173)) {
+            // fix bug when robot had angle to marker but y coord error or odom data error,  10 degree
+            if (std::abs(ang_save) < params_ptr->angle_to_goal_angle_converged || (sees_dock && std::abs(std::abs(current_angle) - M_PI) <  0.174533)) {
                 change_state(current_state_, NavigateStates::GO_TO_GOAL_POSITION, clock_->now().seconds(), params_ptr->timeout_go_to_goal_position );
                 pose_x_init_recoreded_ = false;
                 RCLCPP_DEBUG(logger_, " ******** change to state GO_TO_GOAL_POSITION ******** ");
@@ -1002,6 +989,19 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
         }
 
         update_time_smart();
+        
+        // 近桩重启时机器人可能已越过队列前部的中间点: 直接丢掉这些点, 不能一边弹点一边给前向速度
+        while (goal_points_.size() > 2)
+        {
+            const double goal_abs_x = std::abs(goal_points_.front().x);
+            if (std::abs(current_position.getX()) + 0.1 < goal_abs_x)
+            {
+                RCLCPP_DEBUG(logger_, "skip passed goal x=%.3f (robot x=%.3f)", goal_points_.front().x, current_position.getX());
+                goal_points_.pop_front();
+                continue;
+            }
+            break;
+        }
 
         GoalPoint gp = goal_points_.front();;
         if (goal_points_.size() > 1)
