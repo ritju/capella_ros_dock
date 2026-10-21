@@ -241,9 +241,9 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
         const double dx = robot_via_dock.getOrigin().x() - robot_pose_map.getOrigin().x();
         const double dy = robot_via_dock.getOrigin().y() - robot_pose_map.getOrigin().y();
         const double deviation = std::hypot(dx, dy);
-        if (deviation > params_ptr->max_translation)
+        if (deviation > params_ptr->max_translation * 1.2)
         {
-            RCLCPP_DEBUG(logger_,
+            RCLCPP_WARN(logger_,
                          "current_pose unreliable: deviation %.3f > max_translation %.3f, set sees_dock false",
                          deviation, params_ptr->max_translation);
             sees_dock = false;
