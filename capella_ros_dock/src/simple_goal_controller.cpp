@@ -233,6 +233,22 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
     const nav_msgs::msg::Odometry & odom_msg, std::string & state, std::string & infos, bool& b_timeout_current_state,
     nav2_costmap_2d::FootprintCollisionChecker<nav2_costmap_2d::Costmap2D*> & collision_checker, const nav2_costmap_2d::Costmap2D & costmap, const std::vector<geometry_msgs::msg::Point> & footprint_vec, const rclcpp::Client<nav2_msgs::srv::ClearEntireCostmap>::SharedPtr & client_clear_entire_local_costmap)
 {
+    if (sees_dock)
+    {
+        // 码系位姿不可靠时不要进入后续基于码的计算：用 charger_pose_map * current_pose
+        // 反推 map 系机器人位置，与 robot_pose_map 偏差过大则丢弃 sees_dock。
+        const tf2::Transform robot_via_dock = charger_pose_map * current_pose;
+        const double dx = robot_via_dock.getOrigin().x() - robot_pose_map.getOrigin().x();
+        const double dy = robot_via_dock.getOrigin().y() - robot_pose_map.getOrigin().y();
+        const double deviation = std::hypot(dx, dy);
+        if (deviation > params_ptr->max_translation)
+        {
+            RCLCPP_DEBUG(logger_,
+                         "current_pose unreliable: deviation %.3f > max_translation %.3f, set sees_dock false",
+                         deviation, params_ptr->max_translation);
+            sees_dock = false;
+        }
+    }
     save_all_poses_infos(robot_pose_map, current_pose, charger_pose_map, sees_dock);
 
     // impl undock (go to undock state)
@@ -777,29 +793,11 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
 
             // before actually begin moving, collision_check first
             // current state: MOVE_TO_BUFFER_POINT
-            bool need_check_collision = true;
-            double x_c2r = 0.0, yaw_c2r_abs = 0.0;
-            if (params_ptr->collision_check)
-            {
-                // 如果需要碰撞检查，只有当机器人和充电桩的距离< dock_valid_obstale_x,且朝向充电桩运动时不需要检查是否碰撞
-                // 因为马上就要对接上充电桩，机器人必然要和充电桩进行接触
-                auto tf_charger_to_robot = charger_pose_map.inverse() * robot_pose_map;
-                auto translation_charger_to_robot = tf_charger_to_robot.getOrigin();
-                x_c2r = std::abs(translation_charger_to_robot.getX());
-                auto orintation_charger_to_robot = tf_charger_to_robot.getRotation();
-                yaw_c2r_abs = std::abs(tf2::getYaw(orintation_charger_to_robot));
-                log_charger_relative_for_collision(x_c2r, yaw_c2r_abs);
-                if ((yaw_c2r_abs < M_PI * 0.5) && (x_c2r < params_ptr->dock_valid_obstacle_x))
-                {
-                    need_check_collision = false;
-                }
-                RCLCPP_DEBUG(logger_, "need_check_collision: %s", need_check_collision ? "true" : "false");
-            }
-
+            // 该阶段仍在长距离移动，碰撞检查始终生效，不设靠近充电桩的忽视区域
             double remaining_time = std::abs(dist_buffer_point / servo_vel->linear.x);
             double predict_time = std::min(double(params_ptr->collision_predict_time), remaining_time);
             RCLCPP_DEBUG(logger_, "predict_time: %.2f", predict_time);
-            if (params_ptr->collision_check && need_check_collision)
+            if (params_ptr->collision_check)
             {
                 double cost_value = collision_cost(collision_checker, robot_pose_map, footprint_vec, false, servo_vel->linear.x, 0.0,
                                                    predict_time, params_ptr->cmd_vel_hz, params_ptr->odom_twist_scale);
@@ -811,8 +809,6 @@ BehaviorsScheduler::optional_output_t SimpleGoalController::get_velocity_for_pos
             else
             {
                 RCLCPP_DEBUG(logger_, "collision_check: %s", params_ptr->collision_check ? "true" : "false");
-                RCLCPP_DEBUG(logger_, "need_check_collision: %s", need_check_collision ? "true" : "false");
-                log_charger_relative_for_collision(x_c2r, yaw_c2r_abs);
             }
 
             state = std::string("MOVE_TO_BUFFER_POINT");
