@@ -1,14 +1,23 @@
 ---
 feature: dock-pose-gate-and-buffer-collision
-status: in-progress
+status: delivered
 updated: 2026-08-11
 branch: fix/dock-pose-gate-and-buffer-collision
-commits:
+commits: 66d46fc..6fcf483
 ---
 
 # Dock Pose Gate and Buffer Collision
 
 ## Report
+
+**What was built** — 在 `SimpleGoalController::get_velocity_for_position` 入口增加码系位姿一致性门控：当 `sees_dock` 为 true 时，用 `charger_pose_map * current_pose` 反推 map 系机器人位置，与 `robot_pose_map` 平面偏差超过 `params_ptr->max_translation` 则将本地 `sees_dock` 置 false，避免不可靠的码系位姿进入 `save_all_poses_infos` 及后续码系计算。同时移除 `MOVE_TO_BUFFER_POINT` 阶段靠近充电桩时跳过碰撞检查的忽视区域，该阶段在 `collision_check=true` 时始终做碰撞检查。
+
+**Verification** — `colcon build --packages-select capella_ros_dock_msgs capella_ros_dock`（隔离 build/install 于 /tmp）PASS；独立评审确认两项验收标准均满足，tf2 乘法顺序正确，`GO_TO_GOAL_POSITION` 忽视逻辑未受影响。仓库无 `SimpleGoalController` 单测。
+
+**Journey log**
+- `current_pose` 是码系（charger→base_link_dummy）位姿，`robot_pose_map` / `charger_pose_map` 是 map 系；组合 `charger_pose_map * current_pose` 与既有 `charger_pose_map.inverse() * robot_pose_map` 约定一致
+- `sees_dock` 是值参数，只改本地副本即可同时约束 `save_all_poses_infos` 与函数内后续分支，无需回写 `DockingBehavior::sees_dock_`
+- 评审提示：`max_translation` 既是线速度上限又是本次位置偏差阈值，日后若为调速下调该值，门控会变敏感
 
 ## [S1] Problem
 
@@ -52,5 +61,5 @@ commits:
 
 ## Tasks
 
-- [ ] T1: 实现位姿一致性门控 — acceptance: `get_velocity_for_position` 在 `save_all_poses_infos` 前，当 sees_dock 且平面偏差 > `params_ptr->max_translation` 时将本地 sees_dock 置 false (covers: S2.1)
-- [ ] T2: 移除 MOVE_TO_BUFFER_POINT 碰撞忽视区域 — acceptance: 该阶段不再因靠近桩而跳过碰撞检查，`need_check_collision` 在 `collision_check=true` 时恒为 true (covers: S2.2; depends: T1)
+- [x] T1: 实现位姿一致性门控 — acceptance: `get_velocity_for_position` 在 `save_all_poses_infos` 前，当 sees_dock 且平面偏差 > `params_ptr->max_translation` 时将本地 sees_dock 置 false (covers: S2.1)
+- [x] T2: 移除 MOVE_TO_BUFFER_POINT 碰撞忽视区域 — acceptance: 该阶段不再因靠近桩而跳过碰撞检查，`need_check_collision` 在 `collision_check=true` 时恒为 true (covers: S2.2; depends: T1)
